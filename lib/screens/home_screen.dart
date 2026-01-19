@@ -66,11 +66,11 @@ class HomeScreen extends StatelessWidget {
                         color: AppTheme.textSecondaryColor.withOpacity(0.8),
                         fontWeight: FontWeight.w500,
                         letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
+            ),
+          ),
               
               // 필터 영역
               FilterBar(
@@ -97,9 +97,9 @@ class HomeScreen extends StatelessWidget {
               if (meetings.isEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 80),
-                  child: Center(
-                    child: Column(
-                      children: [
+            child: Center(
+              child: Column(
+                children: [
                         Container(
                           width: 120,
                           height: 120,
@@ -126,18 +126,18 @@ class HomeScreen extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textSecondaryColor,
                           ),
-                        ),
+                  ),
                         const SizedBox(height: 8),
-                        Text(
+                  Text(
                           '필터를 조정해보세요',
-                          style: TextStyle(
+                    style: TextStyle(
                             fontSize: 14,
                             color: AppTheme.textTertiaryColor,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
+                ],
+              ),
+            ),
                 )
               else
                 Padding(
@@ -159,11 +159,11 @@ class HomeScreen extends StatelessWidget {
                       );
                     }).toList(),
                   ),
-                ),
-            ],
           ),
+        ],
+      ),
         );
-      },
+        },
     );
   }
 }

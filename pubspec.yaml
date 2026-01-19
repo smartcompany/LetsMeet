@@ -52,6 +52,10 @@ dependencies:
   
   # Date/time picker
   flutter_datetime_picker_plus: ^2.1.0
+
+  # Firebase
+  firebase_core: ^4.3.0
+  firebase_auth: ^6.1.3
   
   # Social login
   kakao_flutter_sdk_user: ^1.5.3

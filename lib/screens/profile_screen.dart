@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user.dart';
 import '../theme/app_theme.dart';
-import 'auth_screen.dart';
+import '../widgets/login_required_screen.dart';
 import 'profile_setup_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -13,87 +13,18 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
+        if (!authProvider.isInitialized && !authProvider.isInitializing) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            context.read<AuthProvider>().initialize();
+          });
+        }
+
         final user = authProvider.user;
         
         // 로그인 안 되어 있으면 로그인 안내 화면
         if (user == null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primaryColor.withOpacity(0.1),
-                        AppTheme.primaryColor.withOpacity(0.05),
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.account_circle_rounded,
-                    size: 64,
-                    color: AppTheme.primaryColor.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  '로그인이 필요합니다',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '로그인하여 프로필을 확인하세요',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textTertiaryColor,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // 로그인하기 버튼
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AuthScreen(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ).copyWith(
-                        elevation: MaterialStateProperty.all(0),
-                      ),
-                      child: const Text(
-                        '로그인하기',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
+          return const LoginRequiredScreen();
         }
 
         return SingleChildScrollView(
@@ -299,14 +230,6 @@ class ProfileScreen extends StatelessWidget {
                       
                       if (confirm == true && context.mounted) {
                         await authProvider.logout();
-                        if (context.mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => const AuthScreen(),
-                            ),
-                            (route) => false,
-                          );
-                        }
                       }
                     },
                   ),

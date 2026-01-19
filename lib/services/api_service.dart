@@ -1,11 +1,22 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  // iOS 시뮬레이터에서는 localhost 대신 127.0.0.1 사용
+  // Android 에뮬레이터에서는 10.0.2.2 사용
+  static String get baseUrl {
+    if (Platform.isIOS) {
+      return 'http://127.0.0.1:3000/api';
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:3000/api';
+    } else {
+      return 'http://localhost:3000/api';
+    }
+  }
   String? _token;
 
   void setToken(String token) {
@@ -17,57 +28,12 @@ class ApiService {
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
-  // Auth APIs
-  Future<void> sendOtp(String phoneNumber) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/send-otp'),
-        headers: _headers,
-        body: jsonEncode({'phone_number': phoneNumber}),
-      );
-      if (response.statusCode != 200) {
-        try {
-          final errorData = jsonDecode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to send OTP');
-        } catch (_) {
-          throw Exception('Failed to send OTP: ${response.statusCode}');
-        }
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('네트워크 오류가 발생했습니다. 서버가 실행 중인지 확인해주세요.');
-    }
-  }
-
-  Future<String> verifyOtp(String phoneNumber, String otp) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/verify-otp'),
-        headers: _headers,
-        body: jsonEncode({'phone_number': phoneNumber, 'otp': otp}),
-      );
-      if (response.statusCode != 200) {
-        try {
-          final errorData = jsonDecode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to verify OTP');
-        } catch (_) {
-          throw Exception('Failed to verify OTP: ${response.statusCode}');
-        }
-      }
-      final data = jsonDecode(response.body);
-      _token = data['token'];
-      return _token!;
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('네트워크 오류가 발생했습니다. 서버가 실행 중인지 확인해주세요.');
-    }
-  }
-
   // Social login APIs
-  Future<String> loginWithKakao(String accessToken) async {
+  // 카카오 로그인 후 Firebase 커스텀 토큰 받기
+  Future<String> loginWithKakaoFirebase(String accessToken) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/kakao'),
+        Uri.parse('$baseUrl/auth/kakao/firebase'),
         headers: _headers,
         body: jsonEncode({'access_token': accessToken}),
       );
@@ -80,64 +46,14 @@ class ApiService {
         }
       }
       final data = jsonDecode(response.body);
-      _token = data['token'];
-      return _token!;
+      return data['custom_token'] as String;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('카카오 로그인에 실패했습니다.');
     }
   }
 
-  Future<String> loginWithApple(String idToken, String? email) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/apple'),
-        headers: _headers,
-        body: jsonEncode({
-          'id_token': idToken,
-          if (email != null) 'email': email,
-        }),
-      );
-      if (response.statusCode != 200) {
-        try {
-          final errorData = jsonDecode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to login with Apple');
-        } catch (_) {
-          throw Exception('Failed to login with Apple: ${response.statusCode}');
-        }
-      }
-      final data = jsonDecode(response.body);
-      _token = data['token'];
-      return _token!;
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Apple 로그인에 실패했습니다.');
-    }
-  }
 
-  Future<String> loginWithGoogle(String idToken) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/google'),
-        headers: _headers,
-        body: jsonEncode({'id_token': idToken}),
-      );
-      if (response.statusCode != 200) {
-        try {
-          final errorData = jsonDecode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to login with Google');
-        } catch (_) {
-          throw Exception('Failed to login with Google: ${response.statusCode}');
-        }
-      }
-      final data = jsonDecode(response.body);
-      _token = data['token'];
-      return _token!;
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Google 로그인에 실패했습니다.');
-    }
-  }
 
   // User APIs
   Future<User> getCurrentUser() async {
@@ -146,6 +62,9 @@ class ApiService {
       headers: _headers,
     );
     if (response.statusCode != 200) {
+      if (response.statusCode == 401) {
+        throw Exception('인증이 필요합니다. 다시 로그인해주세요.');
+      }
       throw Exception('Failed to get user');
     }
     return User.fromJson(jsonDecode(response.body));

@@ -62,6 +62,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
         return AppBar(
           elevation: 0,
           backgroundColor: Colors.white,
+          centerTitle: true,
           title: const Text(
             '채팅',
             style: TextStyle(
@@ -76,6 +77,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
         return AppBar(
           elevation: 0,
           backgroundColor: Colors.white,
+          centerTitle: true,
           title: const Text(
             '마이페이지',
             style: TextStyle(
