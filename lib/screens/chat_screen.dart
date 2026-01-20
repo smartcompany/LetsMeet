@@ -1,28 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:share_lib/share_lib_auth.dart';
+import '../models/user.dart';
 import '../theme/app_theme.dart';
-import '../widgets/login_required_screen.dart';
+import '../config/auth_config.dart';
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
+    return Consumer<AuthProvider<User>>(
       builder: (context, authProvider, child) {
         if (!authProvider.isInitialized && !authProvider.isInitializing) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
-            context.read<AuthProvider>().initialize();
+            context.read<AuthProvider<User>>().initialize();
           });
         }
 
         // 로그인 안 되어 있으면 안내 메시지
         if (!authProvider.isAuthenticated) {
-          return const LoginRequiredScreen();
+          return LoginRequiredScreen(
+            config: authConfig,
+            authScreenBuilder: (context) =>
+                AuthScreen<User>(config: authConfig),
+          );
         }
-        
+
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

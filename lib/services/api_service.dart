@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
+import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 
-class ApiService {
+class ApiService implements AuthServiceInterface {
   // iOS 시뮬레이터에서는 localhost 대신 127.0.0.1 사용
   // Android 에뮬레이터에서는 10.0.2.2 사용
   static String get baseUrl {
@@ -17,6 +18,7 @@ class ApiService {
       return 'http://localhost:3000/api';
     }
   }
+
   String? _token;
 
   void setToken(String token) {
@@ -52,8 +54,6 @@ class ApiService {
       throw Exception('카카오 로그인에 실패했습니다.');
     }
   }
-
-
 
   // User APIs
   Future<User> getCurrentUser() async {

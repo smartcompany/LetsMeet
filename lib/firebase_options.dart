@@ -61,11 +61,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyBJKAYeKYnaFIeiND40NbQuneU28iUjzcQ',
+    appId: '1:225419812075:ios:b5af6c398445beca8972ae',
+    messagingSenderId: '225419812075',
+    projectId: 'letsmeet-8def5',
+    storageBucket: 'letsmeet-8def5.firebasestorage.app',
     iosBundleId: 'com.smartcompany.letsMeet',
   );
 

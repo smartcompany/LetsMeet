@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "225419812075",
+    "project_id": "letsmeet-8def5",
+    "storage_bucket": "letsmeet-8def5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:225419812075:android:d022e6b7f8a3bcdc8972ae",
+        "android_client_info": {
+          "package_name": "com.smartcompany.letsMeet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "225419812075-n7imgrhem59uo9bdtpfkr9v92jb0ro3o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSdynYvz48KoZxlZprpu3W-dtWuR8EC2o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "225419812075-n7imgrhem59uo9bdtpfkr9v92jb0ro3o.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "225419812075-mt8gsthgf4tm9eq5p8naklehi146a19n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.smartcompany.letsMeet"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

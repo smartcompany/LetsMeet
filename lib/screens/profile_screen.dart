@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../theme/app_theme.dart';
-import '../widgets/login_required_screen.dart';
+import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -11,20 +11,24 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
+    return Consumer<AuthProvider<User>>(
       builder: (context, authProvider, child) {
         if (!authProvider.isInitialized && !authProvider.isInitializing) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
-            context.read<AuthProvider>().initialize();
+            context.read<AuthProvider<User>>().initialize();
           });
         }
 
         final user = authProvider.user;
-        
+
         // 로그인 안 되어 있으면 로그인 안내 화면
         if (user == null) {
-          return const LoginRequiredScreen();
+          return LoginRequiredScreen(
+            config: authConfig,
+            authScreenBuilder: (context) =>
+                AuthScreen<User>(config: authConfig),
+          );
         }
 
         return SingleChildScrollView(
@@ -58,10 +62,7 @@ class ProfileScreen extends StatelessWidget {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF6366F1),
-                            Color(0xFF8B5CF6),
-                          ],
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
@@ -79,7 +80,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // 닉네임
                     Text(
                       user.nickname,
@@ -90,7 +91,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    
+
                     // 신뢰 점수
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -98,7 +99,9 @@ class ProfileScreen extends StatelessWidget {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: _getTrustLevelColor(user.trustLevel).withOpacity(0.1),
+                        color: _getTrustLevelColor(
+                          user.trustLevel,
+                        ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -130,7 +133,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // 관심사
                     if (user.interests.isNotEmpty)
                       Wrap(
@@ -160,9 +163,9 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 프로필 수정 버튼
               SizedBox(
                 width: double.infinity,
@@ -189,9 +192,9 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 설정 메뉴
               _MenuSection(
                 items: [
@@ -227,7 +230,7 @@ class ProfileScreen extends StatelessWidget {
                           ],
                         ),
                       );
-                      
+
                       if (confirm == true && context.mounted) {
                         await authProvider.logout();
                       }
@@ -263,9 +266,7 @@ class _MenuSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: items.map((item) => item).toList(),
-    );
+    return Column(children: items.map((item) => item).toList());
   }
 }
 
@@ -289,9 +290,7 @@ class _MenuItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.dividerColor.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppTheme.dividerColor.withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),

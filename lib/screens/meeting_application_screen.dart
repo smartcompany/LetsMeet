@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:share_lib/share_lib_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
+import '../models/user.dart';
 import '../providers/meeting_provider.dart';
-import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import 'application_status_screen.dart';
 
@@ -111,7 +112,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
 
     try {
       final meetingProvider = context.read<MeetingProvider>();
-      final authProvider = context.read<AuthProvider>();
+      final authProvider = context.read<AuthProvider<User>>();
       
       if (authProvider.user == null) {
         throw Exception('로그인이 필요합니다');

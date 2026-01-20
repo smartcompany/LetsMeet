@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:share_lib/share_lib_auth.dart';
+import '../models/user.dart';
 import '../theme/app_theme.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -33,7 +34,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().user;
+    final user = context.read<AuthProvider<User>>().user;
     if (user != null) {
       _nicknameController.text = user.nickname.isNotEmpty ? user.nickname : '';
       _selectedInterests.addAll(user.interests);
@@ -79,7 +80,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
-      final authProvider = context.read<AuthProvider>();
+      final authProvider = context.read<AuthProvider<User>>();
       await authProvider.updateProfile(
         nickname: _nicknameController.text.trim(),
         interests: _selectedInterests,
