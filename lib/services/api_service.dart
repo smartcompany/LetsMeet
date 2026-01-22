@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
@@ -7,16 +6,9 @@ import '../models/meeting.dart';
 import '../models/application.dart';
 
 class ApiService implements AuthServiceInterface {
-  // iOS 시뮬레이터에서는 localhost 대신 127.0.0.1 사용
-  // Android 에뮬레이터에서는 10.0.2.2 사용
+  // Production server URL
   static String get baseUrl {
-    if (Platform.isIOS) {
-      return 'http://127.0.0.1:3000/api';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api';
-    } else {
-      return 'http://localhost:3000/api';
-    }
+    return 'https://lets-meet-server.vercel.app/api';
   }
 
   String? _token;
@@ -31,8 +23,9 @@ class ApiService implements AuthServiceInterface {
   };
 
   // Social login APIs
-  // 카카오 로그인 후 Firebase 커스텀 토큰 받기
-  Future<String> loginWithKakaoFirebase(String accessToken) async {
+  // 카카오 로그인 후 UID와 kakao_id 받기
+  @override
+  Future<Map<String, String>> loginWithKakao(String accessToken) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/kakao/firebase'),
@@ -40,15 +33,37 @@ class ApiService implements AuthServiceInterface {
         body: jsonEncode({'access_token': accessToken}),
       );
       if (response.statusCode != 200) {
+        print('❌ [ApiService] 서버 응답 상태: ${response.statusCode}');
+        print('❌ [ApiService] 서버 응답 본문: ${response.body}');
         try {
           final errorData = jsonDecode(response.body);
-          throw Exception(errorData['error'] ?? 'Failed to login with Kakao');
-        } catch (_) {
-          throw Exception('Failed to login with Kakao: ${response.statusCode}');
+          final errorMessage =
+              errorData['error'] ?? 'Failed to login with Kakao';
+          print('❌ [ApiService] 파싱된 에러 메시지: $errorMessage');
+          throw Exception(errorMessage);
+        } catch (e) {
+          if (e is Exception &&
+              e.toString().contains('Failed to login with Kakao')) {
+            rethrow;
+          }
+          print('❌ [ApiService] JSON 파싱 실패, 원본 응답: ${response.body}');
+          throw Exception(
+            'Failed to login with Kakao: ${response.statusCode}\nResponse: ${response.body}',
+          );
         }
       }
       final data = jsonDecode(response.body);
-      return data['custom_token'] as String;
+      final result = {
+        'uid': data['uid'] as String,
+        'kakao_id': data['kakao_id'] as String,
+      };
+
+      // 프로필이 이미 있으면 custom_token도 포함
+      if (data['custom_token'] != null) {
+        result['custom_token'] = data['custom_token'] as String;
+      }
+
+      return result;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('카카오 로그인에 실패했습니다.');
@@ -65,15 +80,21 @@ class ApiService implements AuthServiceInterface {
       if (response.statusCode == 401) {
         throw Exception('인증이 필요합니다. 다시 로그인해주세요.');
       }
+      if (response.statusCode == 404) {
+        // 프로필 설정이 완료되지 않은 경우 (FaceReader 방식)
+        throw Exception('PROFILE_NOT_SETUP');
+      }
       throw Exception('Failed to get user');
     }
     return User.fromJson(jsonDecode(response.body));
   }
 
-  Future<User> updateUser({
+  @override
+  Future<dynamic> updateUser({
     String? nickname,
     String? profileImageUrl,
     List<String>? interests,
+    String? kakaoId, // 카카오 로그인인 경우
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/users/me'),
@@ -82,12 +103,21 @@ class ApiService implements AuthServiceInterface {
         if (nickname != null) 'nickname': nickname,
         if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
         if (interests != null) 'interests': interests,
+        if (kakaoId != null) 'kakao_id': kakaoId,
       }),
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to update user');
     }
-    return User.fromJson(jsonDecode(response.body));
+    final data = jsonDecode(response.body);
+
+    // 카카오 로그인이고 새 사용자인 경우 custom_token이 포함된 Map 반환
+    // 그 외의 경우 User 객체 반환
+    if (data['custom_token'] != null) {
+      return data; // Map 반환 (custom_token 포함)
+    }
+
+    return User.fromJson(data);
   }
 
   // Meeting APIs

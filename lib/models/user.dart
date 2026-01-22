@@ -1,6 +1,6 @@
 class User {
   final String id;
-  final String phoneNumber;
+  final String? phoneNumber; // nullable for social login users
   final String nickname;
   final String? profileImageUrl;
   final int trustScore;
@@ -12,7 +12,7 @@ class User {
 
   User({
     required this.id,
-    required this.phoneNumber,
+    this.phoneNumber,
     required this.nickname,
     this.profileImageUrl,
     required this.trustScore,
@@ -24,18 +24,31 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final trustScore = json['trust_score'] as int;
     return User(
-      id: json['id'],
-      phoneNumber: json['phone_number'],
-      nickname: json['nickname'],
-      profileImageUrl: json['profile_image_url'],
-      trustScore: json['trust_score'],
-      trustLevel: TrustLevel.fromString(json['trust_level']),
+      id: json['id'] as String,
+      phoneNumber: json['phone_number'] as String?,
+      nickname: json['nickname'] as String,
+      profileImageUrl: json['profile_image_url'] as String?,
+      trustScore: trustScore,
+      trustLevel: _calculateTrustLevel(trustScore),
       interests: List<String>.from(json['interests'] ?? []),
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      isActive: json['is_active'],
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      isActive: json['is_active'] as bool,
     );
+  }
+
+  static TrustLevel _calculateTrustLevel(int trustScore) {
+    if (trustScore >= 90) {
+      return TrustLevel.trust;
+    } else if (trustScore >= 70) {
+      return TrustLevel.stable;
+    } else if (trustScore >= 50) {
+      return TrustLevel.caution;
+    } else {
+      return TrustLevel.restricted;
+    }
   }
 
   Map<String, dynamic> toJson() {

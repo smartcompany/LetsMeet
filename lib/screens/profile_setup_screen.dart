@@ -5,7 +5,9 @@ import '../models/user.dart';
 import '../theme/app_theme.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final Future<void> Function()? onComplete;
+  
+  const ProfileSetupScreen({super.key, this.onComplete});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -88,8 +90,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
       if (!mounted) return;
 
-      // 이전 화면으로 돌아감 (true 반환)
-      Navigator.of(context).pop(true);
+      // 프로필 설정 완료 콜백 호출
+      if (widget.onComplete != null) {
+        await widget.onComplete!();
+      } else {
+        // 이전 화면으로 돌아감 (true 반환)
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -110,8 +117,79 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
-        title: const Text('프로필 설정'),
+        backgroundColor: Colors.white,
+        centerTitle: true,
+        automaticallyImplyLeading: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimaryColor),
+          onPressed: () {
+            // 프로필 설정이 필수인 경우 경고 표시
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: const Text(
+                  '프로필 설정',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                content: const Text(
+                  '프로필 설정을 완료해야 서비스를 이용할 수 있습니다.\n정말 나가시겠습니까?',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: AppTheme.textSecondaryColor,
+                    height: 1.5,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      '취소',
+                      style: TextStyle(
+                        color: AppTheme.textSecondaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // 다이얼로그 닫기
+                      Navigator.of(context).pop(); // 프로필 설정 화면 닫기
+                    },
+                    child: const Text(
+                      '나가기',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        title: const Text(
+          '프로필 설정',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: AppTheme.dividerColor.withOpacity(0.3),
+          ),
+        ),
       ),
       body: SafeArea(
         child: Form(

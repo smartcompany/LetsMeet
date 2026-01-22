@@ -5,14 +5,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'dart:io' show Platform;
 import 'providers/meeting_provider.dart';
 import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/api_service.dart';
 import 'models/user.dart';
-import 'config/auth_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,14 +66,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
   Widget build(BuildContext context) {
-    // 기본적으로 탭 화면을 먼저 보여줌
-    // 인증은 필요할 때 (예: 모임 만들기, 모임 신청 시) 화면 전환으로 처리
-    // 마이페이지/채팅 탭에서 필요 시 초기화
     return const MainTabScreen();
   }
 }

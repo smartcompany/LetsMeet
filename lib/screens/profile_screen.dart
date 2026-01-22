@@ -24,10 +24,120 @@ class ProfileScreen extends StatelessWidget {
 
         // 로그인 안 되어 있으면 로그인 안내 화면
         if (user == null) {
-          return LoginRequiredScreen(
-            config: authConfig,
-            authScreenBuilder: (context) =>
-                AuthScreen<User>(config: authConfig),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        authConfig.primaryColor.withOpacity(0.1),
+                        authConfig.primaryColor.withOpacity(0.05),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    size: 64,
+                    color: authConfig.primaryColor.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  authConfig.getLocalizations(context).loginRequiredTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: authConfig.textSecondaryColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    authConfig
+                        .getLocalizations(context)
+                        .loginRequiredDescription,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: authConfig.textTertiaryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        // 로그인 화면으로 이동
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                AuthScreen<User>(config: authConfig),
+                            fullscreenDialog: true,
+                          ),
+                        );
+
+                        // 로그인 성공 후 프로필이 없으면 프로필 설정 화면 표시
+                        if (result == true && context.mounted) {
+                          final currentAuthProvider = context
+                              .read<AuthProvider<User>>();
+
+                          // 사용자 정보를 가져올 때까지 대기 (최대 3초)
+                          int attempts = 0;
+                          while (currentAuthProvider.user == null &&
+                              !currentAuthProvider.isLoading &&
+                              attempts < 30 &&
+                              context.mounted) {
+                            await Future.delayed(
+                              const Duration(milliseconds: 100),
+                            );
+                            attempts++;
+                          }
+
+                          // 사용자 정보가 없으면 프로필 설정 화면 표시
+                          // (카카오 로그인 후 프로필이 아직 설정되지 않은 경우)
+                          if (context.mounted &&
+                              currentAuthProvider.user == null &&
+                              !currentAuthProvider.isLoading) {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ProfileSetupScreen(),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: authConfig.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ).copyWith(elevation: MaterialStateProperty.all(0)),
+                      child: Text(
+                        authConfig.getLocalizations(context).loginButtonText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         }
 

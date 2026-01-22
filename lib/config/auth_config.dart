@@ -13,6 +13,11 @@ final authConfig = AuthConfig(
   dividerColor: AppTheme.dividerColor,
   backgroundColor: AppTheme.backgroundColor,
 
+  // 소셜 로그인 활성화
+  enableAppleLogin: true,
+  enableGoogleLogin: true,
+  enableKakaoLogin: true,
+
   // 프로필 설정 확인 함수
   shouldShowProfileSetup: (user) {
     final myUser = user as User;

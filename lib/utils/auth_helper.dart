@@ -43,7 +43,18 @@ class AuthHelper {
     // 로그인 성공 후 개인정보 확인
     if (result == true && context.mounted) {
       final user = authProvider.user;
-      if (user != null && (user.nickname.isEmpty || user.interests.isEmpty)) {
+
+      // 카카오 로그인 후 프로필이 없으면 프로필 설정 화면 표시
+      if (user == null) {
+        final profileResult = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
+        );
+        return profileResult == true;
+      }
+
+      // 프로필이 있지만 완전하지 않으면 프로필 설정 화면 표시
+      if (user.nickname.isEmpty || user.interests.isEmpty) {
         final profileResult = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
