@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
@@ -189,18 +190,59 @@ class ApiService implements AuthServiceInterface {
   }
 
   // Application APIs
-  Future<Application> applyToMeeting(String meetingId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/meetings/$meetingId/applications'),
-      headers: _headers,
+  Future<Application> applyToMeeting(
+    String meetingId, {
+    String? answer1,
+    String? answer2,
+  }) async {
+    debugPrint('🔵 [ApiService] 신청 API 호출 시작');
+    debugPrint(
+      '🔵 [ApiService] URL: $baseUrl/meetings/$meetingId/applications',
     );
-    if (response.statusCode != 201) {
-      throw Exception('Failed to apply to meeting');
+    debugPrint(
+      '🔵 [ApiService] 답변1: ${answer1 != null ? "${answer1.substring(0, answer1.length > 50 ? 50 : answer1.length)}..." : "없음"}',
+    );
+    debugPrint('🔵 [ApiService] 답변2: ${answer2 ?? "없음"}');
+
+    final requestBody = {
+      if (answer1 != null && answer1.isNotEmpty) 'answer1': answer1,
+      if (answer2 != null && answer2.isNotEmpty) 'answer2': answer2,
+    };
+    debugPrint('🔵 [ApiService] 요청 본문: $requestBody');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/meetings/$meetingId/applications'),
+        headers: _headers,
+        body: jsonEncode(requestBody),
+      );
+
+      debugPrint('🔵 [ApiService] 응답 상태 코드: ${response.statusCode}');
+      debugPrint('🔵 [ApiService] 응답 본문: ${response.body}');
+
+      if (response.statusCode != 201) {
+        final errorBody = jsonDecode(response.body);
+        debugPrint('❌ [ApiService] 신청 실패');
+        debugPrint(
+          '❌ [ApiService] 에러: ${errorBody['error'] ?? 'Unknown error'}',
+        );
+        throw Exception(errorBody['error'] ?? 'Failed to apply to meeting');
+      }
+
+      final responseData = jsonDecode(response.body);
+      debugPrint('✅ [ApiService] 신청 성공');
+      debugPrint('✅ [ApiService] 응답 데이터: $responseData');
+      return Application.fromJson(responseData);
+    } catch (e, stackTrace) {
+      debugPrint('❌ [ApiService] 신청 API 호출 에러');
+      debugPrint('❌ [ApiService] 에러 타입: ${e.runtimeType}');
+      debugPrint('❌ [ApiService] 에러 메시지: $e');
+      debugPrint('❌ [ApiService] 스택 트레이스: $stackTrace');
+      rethrow;
     }
-    return Application.fromJson(jsonDecode(response.body));
   }
 
-  Future<List<Application>> getApplications(String meetingId) async {
+  Future<List<Map<String, dynamic>>> getApplications(String meetingId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/meetings/$meetingId/applications'),
       headers: _headers,
@@ -209,7 +251,7 @@ class ApiService implements AuthServiceInterface {
       throw Exception('Failed to get applications');
     }
     final data = jsonDecode(response.body);
-    return (data as List).map((e) => Application.fromJson(e)).toList();
+    return (data as List).cast<Map<String, dynamic>>();
   }
 
   Future<Application> approveApplication(String applicationId) async {

@@ -26,6 +26,7 @@ class Meeting {
   final MeetingStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Map<String, dynamic>? userApplication; // 현재 사용자의 신청 정보
 
   Meeting({
     required this.id,
@@ -55,6 +56,7 @@ class Meeting {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.userApplication,
   });
 
   factory Meeting.fromJson(Map<String, dynamic> json) {
@@ -96,6 +98,9 @@ class Meeting {
       status: MeetingStatus.fromString(json['status']),
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
+      userApplication: json['user_application'] != null
+          ? Map<String, dynamic>.from(json['user_application'])
+          : null,
     );
   }
 

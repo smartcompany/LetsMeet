@@ -6,8 +6,25 @@ import '../widgets/filter_bar.dart';
 import '../theme/app_theme.dart';
 import 'meeting_detail_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 화면이 처음 로드될 때 모임 목록 가져오기
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final meetingProvider = context.read<MeetingProvider>();
+      if (meetingProvider.meetings.isEmpty && !meetingProvider.isLoading) {
+        meetingProvider.loadMeetings();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

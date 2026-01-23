@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
+import '../services/api_service.dart';
 
 class MeetingProvider with ChangeNotifier {
   List<Meeting> _meetings = [];
   List<Application> _applications = [];
   bool _isLoading = false;
-  
+  final ApiService _apiService = ApiService();
+
   // 필터 상태
   String? _selectedLocation;
   String? _selectedInterest;
@@ -22,24 +25,24 @@ class MeetingProvider with ChangeNotifier {
   // 필터링된 모임 리스트
   List<Meeting> get filteredMeetings {
     var filtered = _meetings.where((m) => m.status == MeetingStatus.open);
-    
+
     if (_selectedLocation != null) {
       filtered = filtered.where((m) => m.location == _selectedLocation);
     }
-    
+
     if (_selectedInterest != null) {
       filtered = filtered.where((m) => m.interests.contains(_selectedInterest));
     }
-    
+
     if (_selectedFormat != null) {
       filtered = filtered.where((m) => m.format == _selectedFormat);
     }
-    
+
     return filtered.toList();
   }
 
   MeetingProvider() {
-    _loadDummyData();
+    loadMeetings();
   }
 
   void _loadDummyData() {
@@ -50,8 +53,10 @@ class MeetingProvider with ChangeNotifier {
         hostNickname: '민수',
         title: '디자인과 기술의 경계에서',
         shortDescription: 'UX/UI 디자이너와 개발자들이 모여 서로의 세계를 이야기합니다.',
-        hostNote: '최근 사이드 프로젝트를 하면서 디자인과 개발 사이의 소통에 대해 생각이 많아졌어요. 함께 이야기 나눌 분들을 찾고 있습니다.',
-        description: '''디자인과 개발은 서로 다른 언어를 사용하는 것처럼 보이지만, 결국 같은 목표를 향해 나아갑니다. 이 모임에서는:
+        hostNote:
+            '최근 사이드 프로젝트를 하면서 디자인과 개발 사이의 소통에 대해 생각이 많아졌어요. 함께 이야기 나눌 분들을 찾고 있습니다.',
+        description:
+            '''디자인과 개발은 서로 다른 언어를 사용하는 것처럼 보이지만, 결국 같은 목표를 향해 나아갑니다. 이 모임에서는:
 
 • 디자이너가 개발을, 개발자가 디자인을 이해하는 법
 • 협업 과정에서 겪는 어려움과 해결 방법
@@ -64,21 +69,10 @@ class MeetingProvider with ChangeNotifier {
         maxParticipants: 6,
         interests: ['디자인', '개발', '협업'],
         format: MeetingFormat.offline,
-        topicsCovered: [
-          '디자인과 개발의 협업 방식',
-          '프로젝트에서의 역할 분담',
-          '커뮤니케이션 방법론'
-        ],
-        topicsNotCovered: [
-          '구체적인 기술 스택 선택',
-          '디자인 툴 사용법',
-          '코딩 강의'
-        ],
+        topicsCovered: ['디자인과 개발의 협업 방식', '프로젝트에서의 역할 분담', '커뮤니케이션 방법론'],
+        topicsNotCovered: ['구체적인 기술 스택 선택', '디자인 툴 사용법', '코딩 강의'],
         conversationFlow: '자기소개 → 각자의 경험 공유 → Q&A → 네트워킹',
-        applicationQuestions: [
-          '이 주제에 관심을 갖게 된 이유는?',
-          '이 모임에서 기대하는 점은? (선택)'
-        ],
+        applicationQuestions: ['이 주제에 관심을 갖게 된 이유는?', '이 모임에서 기대하는 점은? (선택)'],
         status: MeetingStatus.open,
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
         updatedAt: DateTime.now().subtract(const Duration(days: 2)),
@@ -105,21 +99,10 @@ class MeetingProvider with ChangeNotifier {
         maxParticipants: 8,
         interests: ['독서', '글쓰기', '문화'],
         format: MeetingFormat.online,
-        topicsCovered: [
-          '독서 습관 만들기',
-          '독후감 작성법',
-          '다양한 장르의 책 이야기'
-        ],
-        topicsNotCovered: [
-          '특정 작가나 작품 비평',
-          '출판 관련 실무',
-          '작문 강의'
-        ],
+        topicsCovered: ['독서 습관 만들기', '독후감 작성법', '다양한 장르의 책 이야기'],
+        topicsNotCovered: ['특정 작가나 작품 비평', '출판 관련 실무', '작문 강의'],
         conversationFlow: '책 소개 → 개인별 후기 공유 → 주제별 토론 → 다음 책 선정',
-        applicationQuestions: [
-          '이 주제에 관심을 갖게 된 이유는?',
-          '이 모임에서 기대하는 점은? (선택)'
-        ],
+        applicationQuestions: ['이 주제에 관심을 갖게 된 이유는?', '이 모임에서 기대하는 점은? (선택)'],
         status: MeetingStatus.open,
         createdAt: DateTime.now().subtract(const Duration(days: 5)),
         updatedAt: DateTime.now().subtract(const Duration(days: 5)),
@@ -144,21 +127,10 @@ class MeetingProvider with ChangeNotifier {
         maxParticipants: 5,
         interests: ['요리', '음식', '문화'],
         format: MeetingFormat.offline,
-        topicsCovered: [
-          '조리 원리',
-          '재료의 특징',
-          '다양한 요리 문화'
-        ],
-        topicsNotCovered: [
-          '레시피 강의',
-          '요리 기술 연마',
-          '외식업 창업'
-        ],
+        topicsCovered: ['조리 원리', '재료의 특징', '다양한 요리 문화'],
+        topicsNotCovered: ['레시피 강의', '요리 기술 연마', '외식업 창업'],
         conversationFlow: '주제 소개 → 이론 설명 → 실습 (선택) → 경험 공유',
-        applicationQuestions: [
-          '이 주제에 관심을 갖게 된 이유는?',
-          '이 모임에서 기대하는 점은? (선택)'
-        ],
+        applicationQuestions: ['이 주제에 관심을 갖게 된 이유는?', '이 모임에서 기대하는 점은? (선택)'],
         status: MeetingStatus.open,
         createdAt: DateTime.now().subtract(const Duration(days: 1)),
         updatedAt: DateTime.now().subtract(const Duration(days: 1)),
@@ -184,21 +156,10 @@ class MeetingProvider with ChangeNotifier {
         maxParticipants: 7,
         interests: ['환경', '라이프스타일', '지속가능성'],
         format: MeetingFormat.offline,
-        topicsCovered: [
-          '개인 실천 방법',
-          '실용적인 팁',
-          '생활 속 변화'
-        ],
-        topicsNotCovered: [
-          '환경 정책',
-          '대규모 운동',
-          '정치적 논의'
-        ],
+        topicsCovered: ['개인 실천 방법', '실용적인 팁', '생활 속 변화'],
+        topicsNotCovered: ['환경 정책', '대규모 운동', '정치적 논의'],
         conversationFlow: '실천 경험 공유 → 아이디어 나누기 → 다음 모임 실험 주제 정하기',
-        applicationQuestions: [
-          '이 주제에 관심을 갖게 된 이유는?',
-          '이 모임에서 기대하는 점은? (선택)'
-        ],
+        applicationQuestions: ['이 주제에 관심을 갖게 된 이유는?', '이 모임에서 기대하는 점은? (선택)'],
         status: MeetingStatus.open,
         createdAt: DateTime.now().subtract(const Duration(hours: 12)),
         updatedAt: DateTime.now().subtract(const Duration(hours: 12)),
@@ -253,35 +214,82 @@ class MeetingProvider with ChangeNotifier {
     String answer1,
     String? answer2,
   ) async {
+    debugPrint('🔵 [MeetingProvider] 신청 시작');
+    debugPrint('🔵 [MeetingProvider] 모임 ID: $meetingId');
+    debugPrint('🔵 [MeetingProvider] 사용자 ID: $userId');
+    debugPrint(
+      '🔵 [MeetingProvider] 답변1: ${answer1.isNotEmpty ? "${answer1.substring(0, answer1.length > 50 ? 50 : answer1.length)}..." : "없음"}',
+    );
+    debugPrint('🔵 [MeetingProvider] 답변2: ${answer2 ?? "없음"}');
+
     _isLoading = true;
     notifyListeners();
 
-    // 시뮬레이션: 실제로는 API 호출
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      debugPrint('🔵 [MeetingProvider] ApiService 생성');
+      final apiService = ApiService();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        debugPrint('🔵 [MeetingProvider] Firebase 토큰 가져오기');
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          debugPrint('✅ [MeetingProvider] 토큰 설정 완료');
+          apiService.setToken(token);
+        } else {
+          debugPrint('❌ [MeetingProvider] 토큰이 null');
+        }
+      } else {
+        debugPrint('❌ [MeetingProvider] Firebase 사용자 없음');
+      }
 
-    final application = Application(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      meetingId: meetingId,
-      userId: userId,
-      answer1: answer1,
-      answer2: answer2,
-      status: ApplicationStatus.pending,
-      appliedAt: DateTime.now(),
-    );
+      debugPrint('🔵 [MeetingProvider] API 호출 시작');
+      final application = await apiService.applyToMeeting(
+        meetingId,
+        answer1: answer1.isNotEmpty ? answer1 : null,
+        answer2: answer2,
+      );
 
-    _applications.add(application);
-    _isLoading = false;
-    notifyListeners();
+      debugPrint('✅ [MeetingProvider] 신청 성공: ${application.id}');
+      _applications.add(application);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      debugPrint('❌ [MeetingProvider] 신청 에러 발생');
+      debugPrint('❌ [MeetingProvider] 에러 타입: ${e.runtimeType}');
+      debugPrint('❌ [MeetingProvider] 에러 메시지: $e');
+      debugPrint('❌ [MeetingProvider] 스택 트레이스: $stackTrace');
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> loadMeetings() async {
     _isLoading = true;
     notifyListeners();
 
-    // 시뮬레이션: 실제로는 API 호출
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Firebase 토큰 설정
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          _apiService.setToken(token);
+        }
+      }
 
-    _isLoading = false;
-    notifyListeners();
+      // API에서 모임 목록 가져오기
+      final meetings = await _apiService.getMeetings();
+
+      _meetings = meetings;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ [MeetingProvider] 모임 목록 로드 실패: $e');
+      // 에러 발생 시 더미 데이터로 폴백 (선택사항)
+      // _loadDummyData();
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

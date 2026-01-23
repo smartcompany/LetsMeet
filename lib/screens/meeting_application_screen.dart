@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:share_lib/share_lib_auth.dart';
+import 'package:share_lib/share_lib_auth.dart' as share_lib;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
-import '../models/user.dart';
+import '../models/user.dart' as app_models;
 import '../providers/meeting_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'application_status_screen.dart';
 
@@ -33,16 +35,49 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
   bool _isAnswer2Pasted = false;
   bool _isSubmitting = false;
   Meeting? _meeting;
+  bool _isLoading = true;
+  String? _errorMessage;
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    final meetingProvider = context.read<MeetingProvider>();
-    _meeting = meetingProvider.getMeetingById(widget.meetingId);
-    
     // 복사 감지를 위한 리스너
     _answer1Controller.addListener(_checkPaste);
     _answer2Controller.addListener(_checkPaste);
+    _loadMeeting();
+  }
+
+  Future<void> _loadMeeting() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          _apiService.setToken(token);
+        }
+      }
+
+      final meeting = await _apiService.getMeeting(widget.meetingId);
+
+      if (!mounted) return;
+
+      setState(() {
+        _meeting = meeting;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -88,8 +123,14 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
   }
 
   bool _isValid() {
+    final questions = _meeting?.applicationQuestions ?? [];
+    // 질문이 없으면 항상 유효 (답변 불필요)
+    if (questions.isEmpty || questions[0].isEmpty) {
+      return true;
+    }
+    // 질문이 있으면 최소 50자 이상 입력 필요
     final answer1 = _answer1Controller.text.trim();
-    return answer1.isNotEmpty && answer1.length >= 50; // 최소 50자 (권장 100자)
+    return answer1.isNotEmpty && answer1.length >= 50;
   }
 
   Future<void> _submitApplication() async {
@@ -112,19 +153,22 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
 
     try {
       final meetingProvider = context.read<MeetingProvider>();
-      final authProvider = context.read<AuthProvider<User>>();
+      final authProvider = context.read<share_lib.AuthProvider<app_models.User>>();
       
       if (authProvider.user == null) {
         throw Exception('로그인이 필요합니다');
       }
 
+      final questions = _meeting?.applicationQuestions ?? [];
+      final answer1 = questions.isNotEmpty && questions[0].isNotEmpty
+          ? _answer1Controller.text.trim()
+          : null;
+
       await meetingProvider.applyToMeeting(
         widget.meetingId,
         authProvider.user!.id,
-        _answer1Controller.text.trim(),
-        _answer2Controller.text.trim().isEmpty
-            ? null
-            : _answer2Controller.text.trim(),
+        answer1 ?? '',
+        null, // 질문 2는 제거
       );
 
       if (!mounted) return;
@@ -155,10 +199,41 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_meeting == null) {
+    if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('신청')),
-        body: const Center(child: Text('모임을 찾을 수 없습니다')),
+        appBar: AppBar(title: const Text('모임 신청')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage != null || _meeting == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('모임 신청')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                '모임을 불러올 수 없습니다',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              if (_errorMessage != null)
+                Text(
+                  _errorMessage!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _loadMeeting,
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -249,8 +324,8 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // 질문 1 (필수)
-                    if (questions.isNotEmpty) ...[
+                    // 질문이 있는 경우에만 답변 입력 필드 표시
+                    if (questions.isNotEmpty && questions[0].isNotEmpty) ...[
                       _QuestionField(
                         label: questions[0],
                         required: true,
@@ -261,24 +336,6 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                         onPasteWarningDismiss: () {
                           setState(() {
                             _isAnswer1Pasted = false;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                    
-                    // 질문 2 (선택)
-                    if (questions.length > 1) ...[
-                      _QuestionField(
-                        label: questions[1],
-                        required: false,
-                        controller: _answer2Controller,
-                        minLength: 0,
-                        recommendedLength: 100,
-                        isPasted: _isAnswer2Pasted,
-                        onPasteWarningDismiss: () {
-                          setState(() {
-                            _isAnswer2Pasted = false;
                           });
                         },
                       ),
