@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../providers/meeting_provider.dart';
+import '../services/api_service.dart';
 import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
 import 'meeting_application_screen.dart';
@@ -19,11 +21,48 @@ class MeetingDetailScreen extends StatefulWidget {
 class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isScrollAtBottom = false;
+  Meeting? _meeting;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadMeeting();
+  }
+
+  Future<void> _loadMeeting() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final apiService = ApiService();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          apiService.setToken(token);
+        }
+      }
+
+      final meeting = await apiService.getMeeting(widget.meetingId);
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _meeting = meeting;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -51,15 +90,43 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('모임 상세')),
-      body: Consumer<MeetingProvider>(
-        builder: (context, meetingProvider, child) {
-          final meeting = meetingProvider.getMeetingById(widget.meetingId);
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        '모임을 불러올 수 없습니다',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _errorMessage!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _loadMeeting,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                )
+              : _meeting == null
+                  ? const Center(child: Text('모임을 찾을 수 없습니다'))
+                  : _buildMeetingContent(_meeting!),
+    );
+  }
 
-          if (meeting == null) {
-            return const Center(child: Text('모임을 찾을 수 없습니다'));
-          }
-
-          return Stack(
+  Widget _buildMeetingContent(Meeting meeting) {
+    return Consumer<MeetingProvider>(
+      builder: (context, meetingProvider, child) {
+        return Stack(
             children: [
               // 스크롤 가능한 콘텐츠
               SingleChildScrollView(

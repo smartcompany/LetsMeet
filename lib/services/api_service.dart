@@ -155,6 +155,12 @@ class ApiService implements AuthServiceInterface {
     required int maxParticipants,
     required List<String> interests,
     String? description,
+    required String category,
+    int? participationFee,
+    String? genderRestriction,
+    int? ageRangeMin,
+    int? ageRangeMax,
+    required String approvalType,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/meetings'),
@@ -167,10 +173,17 @@ class ApiService implements AuthServiceInterface {
         'max_participants': maxParticipants,
         'interests': interests,
         if (description != null) 'description': description,
+        'category': category,
+        if (participationFee != null) 'participation_fee': participationFee,
+        if (genderRestriction != null) 'gender_restriction': genderRestriction,
+        if (ageRangeMin != null) 'age_range_min': ageRangeMin,
+        if (ageRangeMax != null) 'age_range_max': ageRangeMax,
+        'approval_type': approvalType,
       }),
     );
     if (response.statusCode != 201) {
-      throw Exception('Failed to create meeting');
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to create meeting');
     }
     return Meeting.fromJson(jsonDecode(response.body));
   }

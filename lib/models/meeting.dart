@@ -12,6 +12,12 @@ class Meeting {
   final String? meetingLink; // 온라인 모임 링크
   final int maxParticipants;
   final List<String> interests;
+  final String? category;
+  final int? participationFee;
+  final GenderRestriction? genderRestriction;
+  final int? ageRangeMin;
+  final int? ageRangeMax;
+  final ApprovalType? approvalType;
   final MeetingFormat format; // 온라인/오프라인
   final List<String>? topicsCovered; // 다루는 이야기
   final List<String>? topicsNotCovered; // 다루지 않는 이야기
@@ -35,6 +41,12 @@ class Meeting {
     this.meetingLink,
     required this.maxParticipants,
     required this.interests,
+    this.category,
+    this.participationFee,
+    this.genderRestriction,
+    this.ageRangeMin,
+    this.ageRangeMax,
+    this.approvalType,
     required this.format,
     this.topicsCovered,
     this.topicsNotCovered,
@@ -60,6 +72,16 @@ class Meeting {
       meetingLink: json['meeting_link'],
       maxParticipants: json['max_participants'],
       interests: List<String>.from(json['interests'] ?? []),
+      category: json['category'],
+      participationFee: json['participation_fee'],
+      genderRestriction: json['gender_restriction'] != null
+          ? GenderRestriction.fromString(json['gender_restriction'])
+          : null,
+      ageRangeMin: json['age_range_min'],
+      ageRangeMax: json['age_range_max'],
+      approvalType: json['approval_type'] != null
+          ? ApprovalType.fromString(json['approval_type'])
+          : null,
       format: MeetingFormat.fromString(json['format'] ?? 'offline'),
       topicsCovered: json['topics_covered'] != null
           ? List<String>.from(json['topics_covered'])
@@ -92,6 +114,12 @@ class Meeting {
       'meeting_link': meetingLink,
       'max_participants': maxParticipants,
       'interests': interests,
+      'category': category,
+      'participation_fee': participationFee,
+      'gender_restriction': genderRestriction?.toString(),
+      'age_range_min': ageRangeMin,
+      'age_range_max': ageRangeMax,
+      'approval_type': approvalType?.toString(),
       'format': format.toString(),
       'topics_covered': topicsCovered,
       'topics_not_covered': topicsNotCovered,
@@ -145,3 +173,59 @@ enum MeetingStatus {
   }
 }
 
+enum GenderRestriction {
+  all,
+  male,
+  female;
+
+  static GenderRestriction fromString(String value) {
+    switch (value) {
+      case 'all':
+        return GenderRestriction.all;
+      case 'male':
+        return GenderRestriction.male;
+      case 'female':
+        return GenderRestriction.female;
+      default:
+        return GenderRestriction.all;
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case GenderRestriction.all:
+        return 'all';
+      case GenderRestriction.male:
+        return 'male';
+      case GenderRestriction.female:
+        return 'female';
+    }
+  }
+}
+
+enum ApprovalType {
+  immediate,
+  approvalRequired;
+
+  static ApprovalType fromString(String value) {
+    switch (value) {
+      case 'immediate':
+        return ApprovalType.immediate;
+      case 'approval_required':
+        return ApprovalType.approvalRequired;
+      default:
+        return ApprovalType.immediate;
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case ApprovalType.immediate:
+        return 'immediate';
+      case ApprovalType.approvalRequired:
+        return 'approval_required';
+    }
+  }
+}
