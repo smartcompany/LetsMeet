@@ -5,6 +5,7 @@ import '../models/user.dart';
 import '../theme/app_theme.dart';
 import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
+import '../widgets/profile_photo_preview.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -163,31 +164,21 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // 프로필 아이콘
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 40,
-                        color: Colors.white,
-                      ),
+                    // 배경 + 프로필 사진 (보기 전용)
+                    ProfilePhotoPreview(
+                      backgroundImageUrl: user.backgroundImageUrl,
+                      profileImageUrl: user.profileImageUrl,
+                      isUploadingBackground: false,
+                      isUploadingProfile: false,
+                      onTapBackground: () {
+                        // 마이페이지에서는 편집은 아래 "프로필 수정" 버튼에서 수행
+                      },
+                      onTapProfile: () {
+                        // 마이페이지에서는 편집은 아래 "프로필 수정" 버튼에서 수행
+                      },
+                      editable: false,
                     ),
                     const SizedBox(height: 16),
 
@@ -200,7 +191,44 @@ class ProfileScreen extends StatelessWidget {
                         color: AppTheme.textPrimaryColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+
+                    // 이름
+                    if (user.fullName != null && user.fullName!.isNotEmpty) ...[
+                      Text(
+                        user.fullName!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+
+                    // 성별
+                    if (user.gender != null) ...[
+                      Text(
+                        user.gender == 'male' ? '남성' : '여성',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // 자기소개
+                    if (user.bio != null && user.bio!.isNotEmpty) ...[
+                      Text(
+                        user.bio!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
 
                     // 신뢰 점수
                     Container(

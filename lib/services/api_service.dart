@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib_auth.dart';
@@ -93,7 +94,11 @@ class ApiService implements AuthServiceInterface {
   @override
   Future<dynamic> updateUser({
     String? nickname,
+    String? fullName,
+    String? gender,
+    String? bio,
     String? profileImageUrl,
+    String? backgroundImageUrl,
     List<String>? interests,
     String? kakaoId, // 카카오 로그인인 경우
   }) async {
@@ -102,7 +107,12 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
       body: jsonEncode({
         if (nickname != null) 'nickname': nickname,
+        if (fullName != null) 'full_name': fullName,
+        if (gender != null) 'gender': gender,
+        if (bio != null) 'bio': bio,
         if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
+        if (backgroundImageUrl != null)
+          'background_image_url': backgroundImageUrl,
         if (interests != null) 'interests': interests,
         if (kakaoId != null) 'kakao_id': kakaoId,
       }),
@@ -119,6 +129,51 @@ class ApiService implements AuthServiceInterface {
     }
 
     return User.fromJson(data);
+  }
+
+  /// 프로필 이미지 업로드 (Supabase Storage 경유)
+  Future<String> uploadProfileImage(File file) async {
+    final uri = Uri.parse('$baseUrl/users/me/profile-image');
+    final request = http.MultipartRequest('POST', uri);
+
+    // JSON Content-Type은 MultipartRequest가 알아서 설정하므로 추가하지 않음
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      throw Exception('Failed to upload profile image');
+    }
+
+    final data = jsonDecode(responseBody);
+    return data['url'] as String;
+  }
+
+  /// 배경 이미지 업로드 (Supabase Storage 경유)
+  Future<String> uploadBackgroundImage(File file) async {
+    final uri = Uri.parse('$baseUrl/users/me/background-image');
+    final request = http.MultipartRequest('POST', uri);
+
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      throw Exception('Failed to upload background image');
+    }
+
+    final data = jsonDecode(responseBody);
+    return data['url'] as String;
   }
 
   // Meeting APIs

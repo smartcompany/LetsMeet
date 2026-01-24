@@ -3,6 +3,10 @@ class User {
   final String? phoneNumber; // nullable for social login users
   final String nickname;
   final String? profileImageUrl;
+  final String? fullName;
+  final String? gender; // 'male' or 'female'
+  final String? bio;
+  final String? backgroundImageUrl;
   final int trustScore;
   final TrustLevel trustLevel;
   final List<String> interests;
@@ -15,6 +19,10 @@ class User {
     this.phoneNumber,
     required this.nickname,
     this.profileImageUrl,
+    this.fullName,
+    this.gender,
+    this.bio,
+    this.backgroundImageUrl,
     required this.trustScore,
     required this.trustLevel,
     required this.interests,
@@ -30,6 +38,10 @@ class User {
       phoneNumber: json['phone_number'] as String?,
       nickname: json['nickname'] as String,
       profileImageUrl: json['profile_image_url'] as String?,
+      fullName: json['full_name'] as String?,
+      gender: json['gender'] as String?,
+      bio: json['bio'] as String?,
+      backgroundImageUrl: json['background_image_url'] as String?,
       trustScore: trustScore,
       trustLevel: _calculateTrustLevel(trustScore),
       interests: List<String>.from(json['interests'] ?? []),
@@ -57,6 +69,10 @@ class User {
       'phone_number': phoneNumber,
       'nickname': nickname,
       'profile_image_url': profileImageUrl,
+      'full_name': fullName,
+      'gender': gender,
+      'bio': bio,
+      'background_image_url': backgroundImageUrl,
       'trust_score': trustScore,
       'trust_level': trustLevel.toString(),
       'interests': interests,
@@ -101,4 +117,3 @@ enum TrustLevel {
     }
   }
 }
-

@@ -491,28 +491,30 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () async {
-                                // 인증이 필요한지 확인
-                                final isAuthenticated =
-                                    await AuthHelper.requireAuth(context);
-                                if (!isAuthenticated || !mounted) return;
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () async {
+                                      // 인증이 필요한지 확인
+                                      final isAuthenticated =
+                                          await AuthHelper.requireAuth(context);
+                                      if (!isAuthenticated || !mounted) return;
 
-                                final questions =
-                                    meeting.applicationQuestions ?? [];
-                                final hasQuestion =
-                                    questions.isNotEmpty &&
-                                    questions[0].isNotEmpty;
+                                      final questions =
+                                          meeting.applicationQuestions ?? [];
+                                      final hasQuestion =
+                                          questions.isNotEmpty &&
+                                          questions[0].isNotEmpty;
 
-                                if (hasQuestion) {
-                                  // 질문이 있으면 폼 표시
-                                  setState(() {
-                                    _showApplicationForm = true;
-                                  });
-                                } else {
-                                  // 질문이 없으면 바로 신청
-                                  _submitApplication();
-                                }
-                              },
+                                      if (hasQuestion) {
+                                        // 질문이 있으면 폼 표시
+                                        setState(() {
+                                          _showApplicationForm = true;
+                                        });
+                                      } else {
+                                        // 질문이 없으면 바로 신청
+                                        _submitApplication();
+                                      }
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
@@ -520,7 +522,19 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                   vertical: 16,
                                 ),
                               ),
-                              child: const Text('신청하기'),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : const Text('신청하기'),
                             ),
                           ),
                         // 신청 폼 표시

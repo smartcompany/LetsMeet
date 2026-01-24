@@ -1,12 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/profile_photo_preview.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final Future<void> Function()? onComplete;
-  
+
   const ProfileSetupScreen({super.key, this.onComplete});
 
   @override
@@ -16,8 +21,16 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nicknameController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _bioController = TextEditingController();
   final List<String> _selectedInterests = [];
   bool _isSubmitting = false;
+  String? _selectedGender; // 'male' or 'female'
+  String? _profileImageUrl;
+  String? _backgroundImageUrl;
+  bool _isUploadingProfileImage = false;
+  bool _isUploadingBackgroundImage = false;
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> _availableInterests = [
     '디자인',
@@ -40,13 +53,86 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     if (user != null) {
       _nicknameController.text = user.nickname.isNotEmpty ? user.nickname : '';
       _selectedInterests.addAll(user.interests);
+      _fullNameController.text = user.fullName ?? '';
+      _bioController.text = user.bio ?? '';
+      _selectedGender = user.gender;
+      _profileImageUrl = user.profileImageUrl;
+      _backgroundImageUrl = user.backgroundImageUrl;
     }
   }
 
   @override
   void dispose() {
     _nicknameController.dispose();
+    _fullNameController.dispose();
+    _bioController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickProfileImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _isUploadingProfileImage = true;
+    });
+
+    try {
+      final api = ApiService();
+      final url = await api.uploadProfileImage(File(picked.path));
+      if (!mounted) return;
+      setState(() {
+        _profileImageUrl = url;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('프로필 사진 업로드 실패: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingProfileImage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickBackgroundImage() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _isUploadingBackgroundImage = true;
+    });
+
+    try {
+      final api = ApiService();
+      final url = await api.uploadBackgroundImage(File(picked.path));
+      if (!mounted) return;
+      setState(() {
+        _backgroundImageUrl = url;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('배경 사진 업로드 실패: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingBackgroundImage = false;
+        });
+      }
+    }
   }
 
   void _toggleInterest(String interest) {
@@ -85,6 +171,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final authProvider = context.read<AuthProvider<User>>();
       await authProvider.updateProfile(
         nickname: _nicknameController.text.trim(),
+        fullName: _fullNameController.text.trim().isNotEmpty
+            ? _fullNameController.text.trim()
+            : null,
+        gender: _selectedGender,
+        bio: _bioController.text.trim().isNotEmpty
+            ? _bioController.text.trim()
+            : null,
+        profileImageUrl: _profileImageUrl,
+        backgroundImageUrl: _backgroundImageUrl,
         interests: _selectedInterests,
       );
 
@@ -121,7 +216,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         centerTitle: true,
         automaticallyImplyLeading: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimaryColor),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppTheme.textPrimaryColor,
+          ),
           onPressed: () {
             // 프로필 설정이 필수인 경우 경고 표시
             showDialog(
@@ -221,6 +319,159 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
 
                 const SizedBox(height: 40),
+
+                // 프로필 사진 미리보기 (배경 + 아바타)
+                Text(
+                  '프로필 사진',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ProfilePhotoPreview(
+                  backgroundImageUrl: _backgroundImageUrl,
+                  profileImageUrl: _profileImageUrl,
+                  isUploadingBackground: _isUploadingBackgroundImage,
+                  isUploadingProfile: _isUploadingProfileImage,
+                  onTapBackground: _pickBackgroundImage,
+                  onTapProfile: _pickProfileImage,
+                ),
+
+                // 이하 섹션(이름, 성별, 닉네임)들과 동일한 체감 간격을 위해 24로 조정
+                const SizedBox(height: 24),
+
+                // 이름 입력
+                Text(
+                  '이름',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _fullNameController,
+                  decoration: InputDecoration(
+                    hintText: '이름을 입력해주세요 (선택)',
+                    prefixIcon: Icon(
+                      Icons.badge_outlined,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: AppTheme.dividerColor.withOpacity(0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: AppTheme.dividerColor.withOpacity(0.5),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 성별 선택
+                Text(
+                  '성별',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('남성'),
+                      selected: _selectedGender == 'male',
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedGender = selected ? 'male' : null;
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    ChoiceChip(
+                      label: const Text('여성'),
+                      selected: _selectedGender == 'female',
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedGender = selected ? 'female' : null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+
+                // 자기소개
+                Text(
+                  '자기소개',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _bioController,
+                  maxLines: 4,
+                  minLines: 3,
+                  decoration: InputDecoration(
+                    hintText: '간단한 자기소개를 입력해주세요 (선택)',
+                    alignLabelWithHint: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: AppTheme.dividerColor.withOpacity(0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: AppTheme.dividerColor.withOpacity(0.5),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
 
                 // 닉네임 입력
                 Text(
