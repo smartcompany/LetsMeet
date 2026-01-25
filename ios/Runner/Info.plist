@@ -47,11 +47,19 @@
 	<false/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDarkContent</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>위치 선택을 위해 현재 위치 정보가 필요합니다</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>위치 선택을 위해 현재 위치 정보가 필요합니다</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>kakaokompassauth</string>
 		<string>kakaolink</string>
 		<string>kakaotalk</string>
+		<string>kakaomap</string>
+		<string>nmap</string>
+		<string>comgooglemaps</string>
+		<string>maps</string>
 	</array>
 	<key>KAKAO_APP_KEY</key>
 	<string>e3221d057fe64e623f672e3e2b8b12a5</string>

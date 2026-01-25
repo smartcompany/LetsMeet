@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/map_app_selector.dart';
+import '../widgets/kakao_map_location_picker.dart';
 import 'meeting_detail_screen.dart';
 
 class CreateMeetingScreen extends StatefulWidget {
@@ -136,6 +138,30 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       return '참가 비용은 0원 이상이어야 합니다';
     }
     return null;
+  }
+
+  Future<void> _showMapAppSelector() async {
+    final query = _locationController.text.trim();
+    await MapAppSelector.showMapAppSelector(context, query: query);
+  }
+
+  /// 카카오맵으로 위치 선택
+  Future<void> _showKakaoMapLocationPicker() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => KakaoMapLocationPicker(
+          initialQuery: _locationController.text.trim(),
+          onLocationSelected: (address, latitude, longitude) {
+            setState(() {
+              _locationController.text = address;
+              _locationError = null;
+              _hasUnsavedChanges = true;
+            });
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _selectDate() async {
@@ -532,23 +558,64 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               // Location
               _buildSectionTitle('장소 *'),
               const SizedBox(height: 8),
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  hintText: '예: 합정역 근처 카페, 강남 연습실',
-                  border: const OutlineInputBorder(),
-                  errorText: _locationError,
-                  errorStyle: const TextStyle(color: Colors.red),
-                ),
-                validator: _validateLocation,
-                textInputAction: TextInputAction.next,
-                onChanged: (_) {
-                  if (_locationError != null) {
-                    setState(() {
-                      _locationError = null;
-                    });
-                  }
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _locationController,
+                      decoration: InputDecoration(
+                        hintText: '예: 합정역 근처 카페, 강남 연습실',
+                        border: const OutlineInputBorder(),
+                        errorText: _locationError,
+                        errorStyle: const TextStyle(color: Colors.red),
+                      ),
+                      validator: _validateLocation,
+                      textInputAction: TextInputAction.next,
+                      onChanged: (_) {
+                        if (_locationError != null) {
+                          setState(() {
+                            _locationError = null;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.map_outlined),
+                    color: AppTheme.primaryColor,
+                    tooltip: '위치 선택',
+                    onSelected: (value) {
+                      if (value == 'kakao_map') {
+                        _showKakaoMapLocationPicker();
+                      } else if (value == 'external_apps') {
+                        _showMapAppSelector();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'kakao_map',
+                        child: Row(
+                          children: [
+                            Icon(Icons.map, size: 20),
+                            SizedBox(width: 8),
+                            Text('카카오맵에서 선택'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'external_apps',
+                        child: Row(
+                          children: [
+                            Icon(Icons.open_in_new, size: 20),
+                            SizedBox(width: 8),
+                            Text('지도 앱으로 검색'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
+import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/meeting_provider.dart';
@@ -31,6 +32,14 @@ void main() async {
     nativeAppKey: "e3221d057fe64e623f672e3e2b8b12a5",
     javaScriptAppKey: "d7c582cd72cf487332fe74fd6cf3b5bc",
   );
+
+  // 카카오맵 SDK 초기화 (카카오 로그인과 동일한 네이티브 앱 키 사용)
+  try {
+    await KakaoMapSdk.instance.initialize('e3221d057fe64e623f672e3e2b8b12a5');
+    debugPrint('✅ 카카오맵 SDK 초기화 완료');
+  } catch (e) {
+    debugPrint('⚠️ 카카오맵 SDK 초기화 오류: $e');
+  }
 
   // 한국어 로케일 데이터 초기화
   await initializeDateFormatting('ko_KR', null);

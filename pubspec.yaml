@@ -52,6 +52,15 @@ dependencies:
   
   # Date/time picker
   flutter_datetime_picker_plus: ^2.1.0
+  
+  # URL launcher for opening external apps
+  url_launcher: ^6.3.1
+
+  # Location services
+  geolocator: ^13.0.1
+
+  # Kakao Map SDK
+  kakao_map_sdk: ^1.0.0
 
   # Firebase
   firebase_core: ^4.3.0
