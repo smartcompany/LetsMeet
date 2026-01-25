@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/meeting.dart';
 import '../theme/app_theme.dart';
 
@@ -7,6 +8,30 @@ class MeetingCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const MeetingCard({super.key, required this.meeting, required this.onTap});
+
+  String _formatMeetingDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final meetingDay = DateTime(date.year, date.month, date.day);
+    final difference = meetingDay.difference(today).inDays;
+
+    if (difference == 0) {
+      return '오늘';
+    } else if (difference == 1) {
+      return '내일';
+    } else if (difference == -1) {
+      return '어제';
+    } else if (difference > 0 && difference <= 7) {
+      final weekday = DateFormat('E', 'ko_KR').format(date);
+      return '$weekday요일';
+    } else {
+      return DateFormat('M월 d일', 'ko_KR').format(date);
+    }
+  }
+
+  String _formatMeetingTime(DateTime date) {
+    return DateFormat('a h:mm', 'ko_KR').format(date);
+  }
 
   Color _getInterestColor() {
     final interestColors = {
@@ -202,6 +227,23 @@ class MeetingCard extends StatelessWidget {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
+                    if (meeting.category != null &&
+                        meeting.category!.isNotEmpty)
+                      _MetaChip(
+                        icon: Icons.category_rounded,
+                        text: meeting.category!,
+                        color: interestColor,
+                      ),
+                    _MetaChip(
+                      icon: Icons.calendar_today_rounded,
+                      text: _formatMeetingDate(meeting.meetingDate),
+                      color: interestColor,
+                    ),
+                    _MetaChip(
+                      icon: Icons.access_time_rounded,
+                      text: _formatMeetingTime(meeting.meetingDate),
+                      color: interestColor,
+                    ),
                     _MetaChip(
                       icon: Icons.people_rounded,
                       text: '${meeting.maxParticipants}명',

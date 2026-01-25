@@ -17,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면이 처음 로드될 때 모임 목록 가져오기
+    // 인증 없이도 모임 목록 로드 가능
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final meetingProvider = context.read<MeetingProvider>();
       if (meetingProvider.meetings.isEmpty && !meetingProvider.isLoading) {
@@ -30,6 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Consumer<MeetingProvider>(
       builder: (context, meetingProvider, child) {
+        // 로딩 중이면 로딩 표시
+        if (meetingProvider.isLoading && meetingProvider.meetings.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
         final meetings = meetingProvider.filteredMeetings;
         
         final locations = meetingProvider.meetings

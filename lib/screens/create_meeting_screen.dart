@@ -20,18 +20,20 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _participationFeeController = TextEditingController(text: '0');
-  
+
   String? _selectedCategory;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  int _minParticipants = 2;
   int _maxParticipants = 6;
   int? _ageRangeMin;
   int? _ageRangeMax;
-  String? _genderRestriction;
+  bool _enableGenderRatio = false;
+  double _genderRatio = 0.5; // 0.0 = 여성만, 1.0 = 남성만, 0.5 = 5:5
   String? _approvalType;
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
-  
+
   // 에러 상태 추적
   String? _titleError;
   String? _categoryError;
@@ -41,16 +43,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _locationError;
   String? _approvalTypeError;
 
-  final List<String> _categories = [
-    '운동',
-    '취미',
-    '자기계발',
-    '여행',
-    '투자',
-    '기타',
-  ];
+  final List<String> _categories = ['운동', '취미', '자기계발', '여행', '투자', '기타'];
 
-  final List<String> _genderOptions = ['전체', '남성', '여성'];
   final List<String> _approvalOptions = ['즉시 참여', '승인 필요 (호스트 승인)'];
 
   @override
@@ -81,7 +75,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
   Future<bool> _onWillPop() async {
     if (!_hasUnsavedChanges) return true;
-    
+
     final shouldPop = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,10 +93,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         ],
       ),
     );
-    
+
     return shouldPop ?? false;
   }
-
 
   String? _validateTitle(String? value) {
     if (value == null || value.trim().isEmpty) {
@@ -177,66 +170,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     }
   }
 
-  Future<void> _selectAgeRange() async {
-    final minController = TextEditingController(text: _ageRangeMin?.toString() ?? '');
-    final maxController = TextEditingController(text: _ageRangeMax?.toString() ?? '');
-
-    final result = await showDialog<Map<String, int?>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('연령 제한'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: minController,
-              decoration: const InputDecoration(
-                labelText: '최소 연령',
-                hintText: '제한 없음',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: maxController,
-              decoration: const InputDecoration(
-                labelText: '최대 연령',
-                hintText: '제한 없음',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, {'min': null, 'max': null}),
-            child: const Text('제한 없음'),
-          ),
-          TextButton(
-            onPressed: () {
-              final min = minController.text.isEmpty
-                  ? null
-                  : int.tryParse(minController.text);
-              final max = maxController.text.isEmpty
-                  ? null
-                  : int.tryParse(maxController.text);
-              Navigator.pop(context, {'min': min, 'max': max});
-            },
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null) {
-      setState(() {
-        _ageRangeMin = result['min'];
-        _ageRangeMax = result['max'];
-        _hasUnsavedChanges = true;
-      });
-    }
-  }
-
   void _validateAndSetErrors() {
     setState(() {
       // 모든 에러 초기화
@@ -247,19 +180,19 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _timeError = null;
       _locationError = null;
       _approvalTypeError = null;
-      
+
       // 제목 검증
       if (_titleController.text.trim().isEmpty) {
         _titleError = '모임 제목을 입력해주세요';
       } else if (_titleController.text.length > 40) {
         _titleError = '제목은 40자 이하여야 합니다';
       }
-      
+
       // 카테고리 검증
       if (_selectedCategory == null || _selectedCategory!.isEmpty) {
         _categoryError = '카테고리를 선택해주세요';
       }
-      
+
       // 설명 검증
       if (_descriptionController.text.trim().isEmpty) {
         _descriptionError = '모임 소개를 입력해주세요';
@@ -268,24 +201,26 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       } else if (_descriptionController.text.length > 500) {
         _descriptionError = '모임 소개는 최대 500자까지 입력 가능합니다';
       }
-      
+
       // 날짜 검증
       if (_selectedDate == null) {
         _dateError = '모임 날짜를 선택해주세요';
-      } else if (_selectedDate!.isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      } else if (_selectedDate!.isBefore(
+        DateTime.now().subtract(const Duration(days: 1)),
+      )) {
         _dateError = '과거 날짜는 선택할 수 없습니다';
       }
-      
+
       // 시간 검증
       if (_selectedTime == null) {
         _timeError = '모임 시간을 선택해주세요';
       }
-      
+
       // 장소 검증
       if (_locationController.text.trim().isEmpty) {
         _locationError = '장소를 입력해주세요';
       }
-      
+
       // 승인 방식 검증
       if (_approvalType == null || _approvalType!.isEmpty) {
         _approvalTypeError = '참가 승인 방식을 선택해주세요';
@@ -305,7 +240,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
   Future<void> _submitForm() async {
     _validateAndSetErrors();
-    
+
     if (_hasErrors()) {
       // 에러가 있는 필드로 스크롤
       Scrollable.ensureVisible(
@@ -333,24 +268,24 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       // Parse participation fee
       final fee = int.tryParse(_participationFeeController.text) ?? 0;
 
-      // Map gender restriction
+      // Map gender restriction from ratio
       String? genderRestriction;
-      if (_genderRestriction != null && _genderRestriction!.isNotEmpty) {
-        switch (_genderRestriction) {
-          case '전체':
-            genderRestriction = 'all';
-            break;
-          case '남성':
-            genderRestriction = 'male';
-            break;
-          case '여성':
-            genderRestriction = 'female';
-            break;
+      if (_enableGenderRatio) {
+        if (_genderRatio == 0.0) {
+          genderRestriction = 'female'; // 여성만
+        } else if (_genderRatio == 1.0) {
+          genderRestriction = 'male'; // 남성만
+        } else {
+          genderRestriction = 'all'; // 성비 무관 (5:5 포함)
         }
+      } else {
+        genderRestriction = 'all'; // 체크 안하면 제한 없음
       }
 
       // Map approval type
-      final approvalType = _approvalType == '즉시 참여' ? 'immediate' : 'approval_required';
+      final approvalType = _approvalType == '즉시 참여'
+          ? 'immediate'
+          : 'approval_required';
 
       final apiService = ApiService();
       final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -366,6 +301,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         meetingDate: meetingDateTime,
         location: _locationController.text.trim(),
         maxParticipants: _maxParticipants,
+        minParticipants: _minParticipants,
         interests: [], // TODO: Get from user interests or allow selection
         description: _descriptionController.text.trim(),
         category: _selectedCategory!,
@@ -377,7 +313,10 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       );
 
       // Refresh meetings list
-      final meetingProvider = Provider.of<MeetingProvider>(context, listen: false);
+      final meetingProvider = Provider.of<MeetingProvider>(
+        context,
+        listen: false,
+      );
       await meetingProvider.loadMeetings();
 
       if (!mounted) return;
@@ -415,7 +354,10 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           elevation: 0,
           backgroundColor: Colors.white,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimaryColor),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppTheme.textPrimaryColor,
+            ),
             onPressed: () async {
               if (await _onWillPop()) {
                 Navigator.of(context).pop();
@@ -542,14 +484,18 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                           hintText: '날짜 선택',
                           border: OutlineInputBorder(
                             borderSide: BorderSide(
-                              color: _dateError != null ? Colors.red : Colors.grey,
+                              color: _dateError != null
+                                  ? Colors.red
+                                  : Colors.grey,
                             ),
                           ),
                           suffixIcon: const Icon(Icons.calendar_today),
                         ),
                         child: Text(
                           _selectedDate != null
-                              ? DateFormat('yyyy년 MM월 dd일').format(_selectedDate!)
+                              ? DateFormat(
+                                  'yyyy년 MM월 dd일',
+                                ).format(_selectedDate!)
                               : '날짜 선택',
                         ),
                       ),
@@ -564,7 +510,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                           hintText: '시간 선택',
                           border: OutlineInputBorder(
                             borderSide: BorderSide(
-                              color: _timeError != null ? Colors.red : Colors.grey,
+                              color: _timeError != null
+                                  ? Colors.red
+                                  : Colors.grey,
                             ),
                           ),
                           suffixIcon: const Icon(Icons.access_time),
@@ -604,39 +552,73 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Max Participants
-              _buildSectionTitle('최대 인원 *'),
+              // Min and Max Participants
+              _buildSectionTitle('인원 설정 *'),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: _maxParticipants.toDouble(),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '인원 범위',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimaryColor,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$_minParticipants명 ~ $_maxParticipants명',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    RangeSlider(
+                      values: RangeValues(
+                        _minParticipants.toDouble(),
+                        _maxParticipants.toDouble(),
+                      ),
                       min: 2,
                       max: 20,
                       divisions: 18,
-                      label: '$_maxParticipants명',
-                      onChanged: (value) {
+                      labels: RangeLabels(
+                        '$_minParticipants명',
+                        '$_maxParticipants명',
+                      ),
+                      onChanged: (values) {
                         setState(() {
-                          _maxParticipants = value.toInt();
+                          _minParticipants = values.start.toInt();
+                          _maxParticipants = values.end.toInt();
                           _hasUnsavedChanges = true;
                         });
                       },
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      '$_maxParticipants명',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -656,50 +638,129 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Gender Restriction
-              _buildSectionTitle('성별 제한 (선택)'),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _genderRestriction,
-                decoration: const InputDecoration(
-                  hintText: '제한 없음',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('제한 없음')),
-                  ..._genderOptions.map((option) {
-                    return DropdownMenuItem(
-                      value: option,
-                      child: Text(option),
-                    );
-                  }),
+              // Gender Ratio
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '성비 설정',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  Checkbox(
+                    value: _enableGenderRatio,
+                    onChanged: (value) {
+                      setState(() {
+                        _enableGenderRatio = value ?? false;
+                        _hasUnsavedChanges = true;
+                      });
+                    },
+                  ),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _genderRestriction = value;
-                    _hasUnsavedChanges = true;
-                  });
-                },
               ),
+              if (_enableGenderRatio) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.woman,
+                                color: Colors.pink,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${((1 - _genderRatio) * 100).round()}%',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            _getGenderRatioText(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                '${(_genderRatio * 100).round()}%',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.man,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          thumbColor: AppTheme.primaryColor,
+                          overlayColor: AppTheme.primaryColor.withOpacity(0.1),
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8,
+                          ),
+                        ),
+                        child: Slider(
+                          value: _genderRatio,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 20,
+                          onChanged: (value) {
+                            setState(() {
+                              _genderRatio = value;
+                              _hasUnsavedChanges = true;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // Age Range
               _buildSectionTitle('연령 제한 (선택)'),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: _selectAgeRange,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    hintText: '제한 없음',
-                    border: OutlineInputBorder(),
-                    suffixIcon: Icon(Icons.arrow_forward_ios, size: 16),
-                  ),
-                  child: Text(
-                    _ageRangeMin != null || _ageRangeMax != null
-                        ? '${_ageRangeMin ?? "제한 없음"}세 ~ ${_ageRangeMax ?? "제한 없음"}세'
-                        : '제한 없음',
-                  ),
-                ),
+              _AgeRangeSelector(
+                minAge: _ageRangeMin,
+                maxAge: _ageRangeMax,
+                onChanged: (min, max) {
+                  setState(() {
+                    _ageRangeMin = min;
+                    _ageRangeMax = max;
+                    _hasUnsavedChanges = true;
+                  });
+                },
               ),
               const SizedBox(height: 24),
 
@@ -741,7 +802,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -762,6 +825,20 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     );
   }
 
+  String _getGenderRatioText() {
+    if (_genderRatio == 0.0) {
+      return '여성만';
+    } else if (_genderRatio == 1.0) {
+      return '남성만';
+    } else if (_genderRatio == 0.5) {
+      return '5:5';
+    } else if (_genderRatio < 0.5) {
+      return '여성 우대';
+    } else {
+      return '남성 우대';
+    }
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -769,6 +846,175 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppTheme.textPrimaryColor,
+      ),
+    );
+  }
+}
+
+class _AgeRangeSelector extends StatefulWidget {
+  final int? minAge;
+  final int? maxAge;
+  final Function(int?, int?) onChanged;
+
+  const _AgeRangeSelector({
+    required this.minAge,
+    required this.maxAge,
+    required this.onChanged,
+  });
+
+  @override
+  State<_AgeRangeSelector> createState() => _AgeRangeSelectorState();
+}
+
+class _AgeRangeSelectorState extends State<_AgeRangeSelector> {
+  static const List<int> _ageOptions = [20, 25, 30, 35, 40, 45, 50];
+  late double _minValue;
+  late double _maxValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _minValue = widget.minAge != null
+        ? _ageOptions
+              .indexOf(widget.minAge!)
+              .toDouble()
+              .clamp(0, _ageOptions.length - 1)
+        : 0.0;
+    _maxValue = widget.maxAge != null
+        ? _ageOptions
+              .indexOf(widget.maxAge!)
+              .toDouble()
+              .clamp(0, _ageOptions.length - 1)
+        : (_ageOptions.length - 1).toDouble();
+  }
+
+  @override
+  void didUpdateWidget(_AgeRangeSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.minAge != oldWidget.minAge ||
+        widget.maxAge != oldWidget.maxAge) {
+      _minValue = widget.minAge != null
+          ? _ageOptions
+                .indexOf(widget.minAge!)
+                .toDouble()
+                .clamp(0, _ageOptions.length - 1)
+          : 0.0;
+      _maxValue = widget.maxAge != null
+          ? _ageOptions
+                .indexOf(widget.maxAge!)
+                .toDouble()
+                .clamp(0, _ageOptions.length - 1)
+          : (_ageOptions.length - 1).toDouble();
+    }
+  }
+
+  String _getAgeLabel(int index) {
+    if (index == _ageOptions.length - 1) {
+      return '50+';
+    }
+    return '${_ageOptions[index]}';
+  }
+
+  String _getRangeText() {
+    if (_minValue == 0 && _maxValue == _ageOptions.length - 1) {
+      return '누구나';
+    }
+    final minAge = _ageOptions[_minValue.toInt()];
+    final maxAge = _ageOptions[_maxValue.toInt()];
+    if (maxAge == 50) {
+      return '$minAge세 ~ 50+세';
+    }
+    return '$minAge세 ~ $maxAge세';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Range display at top right
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '연령 범위',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimaryColor,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _getRangeText(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Age labels
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_ageOptions.length, (index) {
+              return SizedBox(
+                width: 40,
+                child: Text(
+                  _getAgeLabel(index),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color:
+                        index >= _minValue.toInt() && index <= _maxValue.toInt()
+                        ? AppTheme.primaryColor
+                        : AppTheme.textSecondaryColor,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          // Range slider
+          RangeSlider(
+            values: RangeValues(_minValue, _maxValue),
+            min: 0,
+            max: (_ageOptions.length - 1).toDouble(),
+            divisions: _ageOptions.length - 1,
+            labels: RangeLabels(
+              _getAgeLabel(_minValue.toInt()),
+              _getAgeLabel(_maxValue.toInt()),
+            ),
+            onChanged: (values) {
+              setState(() {
+                _minValue = values.start;
+                _maxValue = values.end;
+              });
+              final minAge = _ageOptions[_minValue.toInt()];
+              final maxAge = _ageOptions[_maxValue.toInt()];
+              widget.onChanged(minAge, maxAge == 50 ? null : maxAge);
+            },
+          ),
+        ],
       ),
     );
   }
