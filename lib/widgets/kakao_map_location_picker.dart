@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
@@ -33,8 +34,7 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
 
   // 카카오맵 REST API 키 (카카오 개발자 콘솔에서 발급)
   // TODO: 환경 변수나 설정 파일로 이동 권장
-  static const String _kakaoRestApiKey =
-      'd7c582cd72cf487332fe74fd6cf3b5bc'; // JavaScript App Key 사용
+  static const String _kakaoRestApiKey = '54f361f6100300e5449e632fe4f7894e';
 
   @override
   void initState() {
@@ -78,6 +78,11 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
         headers: {'Authorization': 'KakaoAK $_kakaoRestApiKey'},
       );
 
+      debugPrint(
+        '🔵 [KakaoMapLocationPicker] 주소 변환 응답 상태: ${response.statusCode}',
+      );
+      debugPrint('🔵 [KakaoMapLocationPicker] 주소 변환 응답 본문: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['documents'] != null && data['documents'].isNotEmpty) {
@@ -85,35 +90,53 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
           final roadAddress = address['road_address'];
           final regionAddress = address['address'];
 
-          final addressName = roadAddress != null
-              ? roadAddress['address_name'] ?? ''
-              : regionAddress != null
-              ? regionAddress['address_name'] ?? ''
-              : '${position.latitude}, ${position.longitude}';
+          // 도로명 주소 우선, 없으면 지번 주소 사용
+          String? addressName;
+          if (roadAddress != null && roadAddress['address_name'] != null) {
+            addressName = roadAddress['address_name'] as String;
+          } else if (regionAddress != null &&
+              regionAddress['address_name'] != null) {
+            addressName = regionAddress['address_name'] as String;
+          }
 
           if (mounted) {
             setState(() {
-              _selectedAddress = addressName;
+              _selectedAddress = addressName ?? '주소를 찾을 수 없습니다';
             });
           }
         } else {
+          debugPrint('⚠️ [KakaoMapLocationPicker] 주소 변환 결과가 비어있음');
           if (mounted) {
             setState(() {
-              _selectedAddress = '${position.latitude}, ${position.longitude}';
+              _selectedAddress = '주소를 찾을 수 없습니다';
             });
           }
         }
       } else {
+        debugPrint(
+          '❌ [KakaoMapLocationPicker] 주소 변환 실패: ${response.statusCode}',
+        );
+        debugPrint('❌ [KakaoMapLocationPicker] 응답 본문: ${response.body}');
+
+        // 에러 응답 파싱 시도
+        try {
+          final errorData = json.decode(response.body);
+          final errorMessage = errorData['message'] ?? '주소 변환 실패';
+          debugPrint('❌ [KakaoMapLocationPicker] 에러 메시지: $errorMessage');
+        } catch (_) {}
+
         if (mounted) {
           setState(() {
-            _selectedAddress = '${position.latitude}, ${position.longitude}';
+            _selectedAddress = '주소를 가져올 수 없습니다';
           });
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ [KakaoMapLocationPicker] 주소 변환 예외 발생: $e');
+      debugPrint('❌ [KakaoMapLocationPicker] 스택 트레이스: $stackTrace');
       if (mounted) {
         setState(() {
-          _selectedAddress = '${position.latitude}, ${position.longitude}';
+          _selectedAddress = '주소를 가져오는 중 오류가 발생했습니다';
         });
       }
     }
@@ -133,10 +156,18 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
         'https://dapi.kakao.com/v2/local/search/keyword.json?query=${Uri.encodeComponent(query)}&size=1',
       );
 
+      debugPrint('🔵 [KakaoMapLocationPicker] 검색 URL: $url');
+      debugPrint('🔵 [KakaoMapLocationPicker] 검색어: $query');
+
       final response = await http.get(
         url,
         headers: {'Authorization': 'KakaoAK $_kakaoRestApiKey'},
       );
+
+      debugPrint(
+        '🔵 [KakaoMapLocationPicker] 검색 응답 상태: ${response.statusCode}',
+      );
+      debugPrint('🔵 [KakaoMapLocationPicker] 검색 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -145,7 +176,19 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
           final lat = double.parse(place['y']);
           final lng = double.parse(place['x']);
           final position = LatLng(lat, lng);
+
+          // 장소명과 주소 정보 조합
           final placeName = place['place_name'] ?? query;
+          final roadAddress = place['road_address_name'] ?? '';
+          final addressName = place['address_name'] ?? '';
+
+          // 주소 정보가 있으면 장소명과 함께 표시, 없으면 장소명만
+          String displayAddress = placeName;
+          if (roadAddress.isNotEmpty) {
+            displayAddress = '$placeName ($roadAddress)';
+          } else if (addressName.isNotEmpty) {
+            displayAddress = '$placeName ($addressName)';
+          }
 
           if (_mapController != null) {
             _mapController!.moveCamera(
@@ -155,10 +198,11 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
             // 선택된 위치 업데이트
             setState(() {
               _selectedLocation = position;
-              _selectedAddress = placeName;
+              _selectedAddress = displayAddress;
             });
           }
         } else {
+          debugPrint('⚠️ [KakaoMapLocationPicker] 검색 결과가 없음');
           if (mounted) {
             ScaffoldMessenger.of(
               context,
@@ -166,13 +210,25 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
           }
         }
       } else {
+        debugPrint('❌ [KakaoMapLocationPicker] 검색 실패: ${response.statusCode}');
+        debugPrint('❌ [KakaoMapLocationPicker] 응답 본문: ${response.body}');
+
+        // 에러 응답 파싱 시도
+        String errorMessage = '검색 중 오류가 발생했습니다';
+        try {
+          final errorData = json.decode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (_) {}
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('검색 중 오류가 발생했습니다: ${response.statusCode}')),
+            SnackBar(content: Text('$errorMessage (${response.statusCode})')),
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ [KakaoMapLocationPicker] 검색 예외 발생: $e');
+      debugPrint('❌ [KakaoMapLocationPicker] 스택 트레이스: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -290,8 +346,15 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
         title: const Text('위치 선택'),
         actions: [
           TextButton(
-            onPressed: _confirmSelection,
-            child: const Text('완료', style: TextStyle(color: Colors.white)),
+            onPressed: _selectedAddress != null ? _confirmSelection : null,
+            child: Text(
+              '완료',
+              style: TextStyle(
+                color: _selectedAddress != null
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.5),
+              ),
+            ),
           ),
         ],
       ),
@@ -342,6 +405,20 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _confirmSelection,
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('선택'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -380,23 +457,63 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
               ],
             ),
           ),
-          // 안내 메시지
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey.shade100,
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '지도를 탭하여 위치를 선택하세요',
-                    style: TextStyle(fontSize: 12),
+          // 하단 선택 버튼
+          if (_selectedAddress != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _confirmSelection,
+                    icon: const Icon(Icons.check_circle, size: 24),
+                    label: const Text(
+                      '이 위치 선택',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
-              ],
+              ),
+            )
+          else
+            // 안내 메시지
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.grey.shade100,
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '지도를 탭하여 위치를 선택하세요',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

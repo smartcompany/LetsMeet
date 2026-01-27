@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/map_app_selector.dart';
 import '../widgets/kakao_map_location_picker.dart';
 import 'meeting_detail_screen.dart';
 
@@ -18,10 +17,19 @@ class CreateMeetingScreen extends StatefulWidget {
 
 class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _participationFeeController = TextEditingController(text: '0');
+
+  // 오류 발생 시 스크롤을 위한 섹션 키들
+  final _titleSectionKey = GlobalKey();
+  final _categorySectionKey = GlobalKey();
+  final _descriptionSectionKey = GlobalKey();
+  final _dateTimeSectionKey = GlobalKey();
+  final _locationSectionKey = GlobalKey();
+  final _approvalSectionKey = GlobalKey();
 
   String? _selectedCategory;
   DateTime? _selectedDate;
@@ -68,6 +76,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
@@ -138,11 +147,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       return '참가 비용은 0원 이상이어야 합니다';
     }
     return null;
-  }
-
-  Future<void> _showMapAppSelector() async {
-    final query = _locationController.text.trim();
-    await MapAppSelector.showMapAppSelector(context, query: query);
   }
 
   /// 카카오맵으로 위치 선택
@@ -264,16 +268,41 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         _approvalTypeError != null;
   }
 
+  /// 첫 번째 에러가 있는 섹션의 키 반환 (위에서부터 순서대로)
+  GlobalKey? _getFirstErrorSectionKey() {
+    if (_titleError != null) return _titleSectionKey;
+    if (_categoryError != null) return _categorySectionKey;
+    if (_descriptionError != null) return _descriptionSectionKey;
+    if (_dateError != null || _timeError != null) return _dateTimeSectionKey;
+    if (_locationError != null) return _locationSectionKey;
+    if (_approvalTypeError != null) return _approvalSectionKey;
+    return null;
+  }
+
   Future<void> _submitForm() async {
     _validateAndSetErrors();
 
+    // 에러가 있는지 확인하기 위해 잠시 대기 (setState 반영 보장)
+    await Future.delayed(Duration.zero);
+
     if (_hasErrors()) {
-      // 에러가 있는 필드로 스크롤
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      // 에러가 있는 첫 번째 섹션으로 스크롤
+      final targetKey = _getFirstErrorSectionKey();
+
+      if (targetKey != null) {
+        // 렌더링 완료 후 확실하게 스크롤하기 위해 프레임 콜백 사용
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final context = targetKey.currentContext;
+          if (context != null) {
+            Scrollable.ensureVisible(
+              context,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+              alignment: 0.1,
+            );
+          }
+        });
+      }
       return;
     }
 
@@ -401,334 +430,233 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         ),
         body: Form(
           key: _formKey,
-          child: ListView(
+          child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            children: [
-              // Title
-              _buildSectionTitle('모임 제목 *'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: '모임 제목을 입력하세요 (최대 40자)',
-                  border: const OutlineInputBorder(),
-                  errorText: _titleError,
-                  errorStyle: const TextStyle(color: Colors.red),
-                ),
-                maxLength: 40,
-                validator: _validateTitle,
-                textInputAction: TextInputAction.next,
-                onChanged: (_) {
-                  if (_titleError != null) {
-                    setState(() {
-                      _titleError = null;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Category
-              _buildSectionTitle('모임 카테고리 *'),
-              if (_categoryError != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _categoryError!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
-              ],
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: InputDecoration(
-                  hintText: '카테고리를 선택하세요',
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: _categoryError != null ? Colors.red : Colors.grey,
-                    ),
-                  ),
-                ),
-                items: _categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategory = value;
-                    _categoryError = null;
-                    _hasUnsavedChanges = true;
-                  });
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Description
-              _buildSectionTitle('모임 소개 *'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  hintText: '모임 분위기, 대상, 기대 효과를 설명해주세요 (20-500자)',
-                  border: const OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                  errorText: _descriptionError,
-                  errorStyle: const TextStyle(color: Colors.red),
-                ),
-                maxLines: 5,
-                maxLength: 500,
-                validator: _validateDescription,
-                textInputAction: TextInputAction.newline,
-                onChanged: (_) {
-                  if (_descriptionError != null) {
-                    setState(() {
-                      _descriptionError = null;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Date and Time
-              _buildSectionTitle('모임 날짜 *'),
-              if (_dateError != null || _timeError != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _dateError ?? _timeError ?? '',
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: _selectDate,
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          hintText: '날짜 선택',
-                          border: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: _dateError != null
-                                  ? Colors.red
-                                  : Colors.grey,
-                            ),
-                          ),
-                          suffixIcon: const Icon(Icons.calendar_today),
-                        ),
-                        child: Text(
-                          _selectedDate != null
-                              ? DateFormat(
-                                  'yyyy년 MM월 dd일',
-                                ).format(_selectedDate!)
-                              : '날짜 선택',
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: _selectTime,
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          hintText: '시간 선택',
-                          border: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: _timeError != null
-                                  ? Colors.red
-                                  : Colors.grey,
-                            ),
-                          ),
-                          suffixIcon: const Icon(Icons.access_time),
-                        ),
-                        child: Text(
-                          _selectedTime != null
-                              ? _selectedTime!.format(context)
-                              : '시간 선택',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Location
-              _buildSectionTitle('장소 *'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _locationController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Column(
+                  key: _titleSectionKey,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('모임 제목 *'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _titleController,
                       decoration: InputDecoration(
-                        hintText: '예: 합정역 근처 카페, 강남 연습실',
+                        hintText: '모임 제목을 입력하세요 (최대 40자)',
                         border: const OutlineInputBorder(),
-                        errorText: _locationError,
+                        errorText: _titleError,
                         errorStyle: const TextStyle(color: Colors.red),
                       ),
-                      validator: _validateLocation,
+                      maxLength: 40,
+                      validator: _validateTitle,
                       textInputAction: TextInputAction.next,
                       onChanged: (_) {
-                        if (_locationError != null) {
+                        if (_titleError != null) {
                           setState(() {
-                            _locationError = null;
+                            _titleError = null;
                           });
                         }
                       },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.map_outlined),
-                    color: AppTheme.primaryColor,
-                    tooltip: '위치 선택',
-                    onSelected: (value) {
-                      if (value == 'kakao_map') {
-                        _showKakaoMapLocationPicker();
-                      } else if (value == 'external_apps') {
-                        _showMapAppSelector();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'kakao_map',
-                        child: Row(
-                          children: [
-                            Icon(Icons.map, size: 20),
-                            SizedBox(width: 8),
-                            Text('카카오맵에서 선택'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'external_apps',
-                        child: Row(
-                          children: [
-                            Icon(Icons.open_in_new, size: 20),
-                            SizedBox(width: 8),
-                            Text('지도 앱으로 검색'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Min and Max Participants
-              _buildSectionTitle('인원 설정 *'),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
+                  ],
                 ),
-                child: Column(
+                const SizedBox(height: 24),
+
+                // Category
+                Column(
+                  key: _categorySectionKey,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          '인원 범위',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimaryColor,
+                    _buildSectionTitle('모임 카테고리 *'),
+                    if (_categoryError != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _categoryError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        hintText: '카테고리를 선택하세요',
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: _categoryError != null
+                                ? Colors.red
+                                : Colors.grey,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$_minParticipants명 ~ $_maxParticipants명',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    RangeSlider(
-                      values: RangeValues(
-                        _minParticipants.toDouble(),
-                        _maxParticipants.toDouble(),
                       ),
-                      min: 2,
-                      max: 20,
-                      divisions: 18,
-                      labels: RangeLabels(
-                        '$_minParticipants명',
-                        '$_maxParticipants명',
-                      ),
-                      onChanged: (values) {
+                      items: _categories.map((category) {
+                        return DropdownMenuItem(
+                          value: category,
+                          child: Text(category),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
                         setState(() {
-                          _minParticipants = values.start.toInt();
-                          _maxParticipants = values.end.toInt();
+                          _selectedCategory = value;
+                          _categoryError = null;
                           _hasUnsavedChanges = true;
                         });
                       },
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Participation Fee
-              _buildSectionTitle('참가 비용 (선택)'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _participationFeeController,
-                decoration: const InputDecoration(
-                  hintText: '0',
-                  border: OutlineInputBorder(),
-                  suffixText: '원',
-                ),
-                keyboardType: TextInputType.number,
-                validator: _validateParticipationFee,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 24),
-
-              // Gender Ratio
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '성비 설정',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimaryColor,
+                // Description
+                Column(
+                  key: _descriptionSectionKey,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('모임 소개 *'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        hintText: '모임 분위기, 대상, 기대 효과를 설명해주세요 (20-500자)',
+                        border: const OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                        errorText: _descriptionError,
+                        errorStyle: const TextStyle(color: Colors.red),
+                      ),
+                      maxLines: 5,
+                      maxLength: 500,
+                      validator: _validateDescription,
+                      textInputAction: TextInputAction.newline,
+                      onChanged: (_) {
+                        if (_descriptionError != null) {
+                          setState(() {
+                            _descriptionError = null;
+                          });
+                        }
+                      },
                     ),
-                  ),
-                  Checkbox(
-                    value: _enableGenderRatio,
-                    onChanged: (value) {
-                      setState(() {
-                        _enableGenderRatio = value ?? false;
-                        _hasUnsavedChanges = true;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              if (_enableGenderRatio) ...[
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Date and Time
+                Column(
+                  key: _dateTimeSectionKey,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('모임 날짜 *'),
+                    if (_dateError != null || _timeError != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _dateError ?? _timeError ?? '',
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: _selectDate,
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                hintText: '날짜 선택',
+                                border: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: _dateError != null
+                                        ? Colors.red
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                suffixIcon: const Icon(Icons.calendar_today),
+                              ),
+                              child: Text(
+                                _selectedDate != null
+                                    ? DateFormat(
+                                        'yyyy년 MM월 dd일',
+                                      ).format(_selectedDate!)
+                                    : '날짜 선택',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: InkWell(
+                            onTap: _selectTime,
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                hintText: '시간 선택',
+                                border: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: _timeError != null
+                                        ? Colors.red
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                suffixIcon: const Icon(Icons.access_time),
+                              ),
+                              child: Text(
+                                _selectedTime != null
+                                    ? _selectedTime!.format(context)
+                                    : '시간 선택',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Location
+                Column(
+                  key: _locationSectionKey,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('장소 *'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _locationController,
+                            decoration: InputDecoration(
+                              hintText: '예: 합정역 근처 카페, 강남 연습실',
+                              border: const OutlineInputBorder(),
+                              errorText: _locationError,
+                              errorStyle: const TextStyle(color: Colors.red),
+                            ),
+                            validator: _validateLocation,
+                            textInputAction: TextInputAction.next,
+                            onChanged: (_) {
+                              if (_locationError != null) {
+                                setState(() {
+                                  _locationError = null;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.map_outlined),
+                          color: AppTheme.primaryColor,
+                          tooltip: '지도에서 위치 선택',
+                          onPressed: _showKakaoMapLocationPicker,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Min and Max Participants
+                _buildSectionTitle('인원 설정 *'),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -738,154 +666,279 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.woman,
-                                color: Colors.pink,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${((1 - _genderRatio) * 100).round()}%',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            _getGenderRatioText(),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                          const Text(
+                            '인원 범위',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimaryColor,
                             ),
                           ),
-                          Row(
-                            children: [
-                              Text(
-                                '${(_genderRatio * 100).round()}%',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$_minParticipants명 ~ $_maxParticipants명',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.man,
-                                color: Colors.blue,
-                                size: 20,
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          thumbColor: AppTheme.primaryColor,
-                          overlayColor: AppTheme.primaryColor.withOpacity(0.1),
-                          trackHeight: 4,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 8,
-                          ),
+                      const SizedBox(height: 16),
+                      RangeSlider(
+                        values: RangeValues(
+                          _minParticipants.toDouble(),
+                          _maxParticipants.toDouble(),
                         ),
-                        child: Slider(
-                          value: _genderRatio,
-                          min: 0.0,
-                          max: 1.0,
-                          divisions: 20,
-                          onChanged: (value) {
-                            setState(() {
-                              _genderRatio = value;
-                              _hasUnsavedChanges = true;
-                            });
-                          },
+                        min: 2,
+                        max: 20,
+                        divisions: 18,
+                        labels: RangeLabels(
+                          '$_minParticipants명',
+                          '$_maxParticipants명',
                         ),
+                        onChanged: (values) {
+                          setState(() {
+                            _minParticipants = values.start.toInt();
+                            _maxParticipants = values.end.toInt();
+                            _hasUnsavedChanges = true;
+                          });
+                        },
                       ),
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Age Range
-              _buildSectionTitle('연령 제한 (선택)'),
-              const SizedBox(height: 8),
-              _AgeRangeSelector(
-                minAge: _ageRangeMin,
-                maxAge: _ageRangeMax,
-                onChanged: (min, max) {
-                  setState(() {
-                    _ageRangeMin = min;
-                    _ageRangeMax = max;
-                    _hasUnsavedChanges = true;
-                  });
-                },
-              ),
-              const SizedBox(height: 24),
+                // Participation Fee
+                _buildSectionTitle('참가 비용 (선택)'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _participationFeeController,
+                  decoration: const InputDecoration(
+                    hintText: '0',
+                    border: OutlineInputBorder(),
+                    suffixText: '원',
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: _validateParticipationFee,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 24),
 
-              // Approval Type
-              _buildSectionTitle('참가 승인 방식 *'),
-              const SizedBox(height: 8),
-              ..._approvalOptions.map((option) {
-                return RadioListTile<String>(
-                  title: Text(option),
-                  value: option,
-                  groupValue: _approvalType,
-                  onChanged: (value) {
+                // Gender Ratio
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '성비 설정',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    Checkbox(
+                      value: _enableGenderRatio,
+                      onChanged: (value) {
+                        setState(() {
+                          _enableGenderRatio = value ?? false;
+                          _hasUnsavedChanges = true;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (_enableGenderRatio) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.woman,
+                                  color: Colors.pink,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${((1 - _genderRatio) * 100).round()}%',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              _getGenderRatioText(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  '${(_genderRatio * 100).round()}%',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.man,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            thumbColor: AppTheme.primaryColor,
+                            overlayColor: AppTheme.primaryColor.withOpacity(
+                              0.1,
+                            ),
+                            trackHeight: 4,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 8,
+                            ),
+                          ),
+                          child: Slider(
+                            value: _genderRatio,
+                            min: 0.0,
+                            max: 1.0,
+                            divisions: 20,
+                            onChanged: (value) {
+                              setState(() {
+                                _genderRatio = value;
+                                _hasUnsavedChanges = true;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // Age Range
+                _buildSectionTitle('연령 제한 (선택)'),
+                const SizedBox(height: 8),
+                _AgeRangeSelector(
+                  minAge: _ageRangeMin,
+                  maxAge: _ageRangeMax,
+                  onChanged: (min, max) {
                     setState(() {
-                      _approvalType = value;
+                      _ageRangeMin = min;
+                      _ageRangeMax = max;
                       _hasUnsavedChanges = true;
                     });
                   },
-                  contentPadding: EdgeInsets.zero,
-                );
-              }),
-              const SizedBox(height: 32),
+                ),
+                const SizedBox(height: 24),
 
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    disabledBackgroundColor: Colors.grey[300],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                // Approval Type
+                Column(
+                  key: _approvalSectionKey,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('참가 승인 방식 *'),
+                    if (_approvalTypeError != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _approvalTypeError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    ..._approvalOptions.map((option) {
+                      return RadioListTile<String>(
+                        title: Text(option),
+                        value: option,
+                        groupValue: _approvalType,
+                        onChanged: (value) {
+                          setState(() {
+                            _approvalType = value;
+                            _approvalTypeError = null;
+                            _hasUnsavedChanges = true;
+                          });
+                        },
+                        contentPadding: EdgeInsets.zero,
+                      );
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      disabledBackgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Text(
+                            '모임 만들기',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
-                        )
-                      : const Text(
-                          '모임 만들기',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
