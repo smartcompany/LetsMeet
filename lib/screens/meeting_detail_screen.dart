@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_auth.dart' as share_lib;
+import 'package:share_lib/share_lib.dart' hide AuthHelper;
 import '../models/meeting.dart';
 import '../models/user.dart' as app_models;
 import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
 import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
+import 'create_meeting_screen.dart';
 import 'meeting_applications_screen.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
@@ -23,12 +25,14 @@ class MeetingDetailScreen extends StatefulWidget {
 class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _answerController = TextEditingController();
+  final PageController _imagePageController = PageController();
   Meeting? _meeting;
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isApplied = false;
   bool _showApplicationForm = false;
   String? _errorMessage;
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -73,10 +77,98 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
+  Future<void> _editMeeting() async {
+    if (_meeting == null) return;
+
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateMeetingScreen(meeting: _meeting),
+      ),
+    );
+
+    if (updated == true && mounted) {
+      _loadMeeting();
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('모임 삭제'),
+        content: const Text('정말로 이 모임을 삭제하시겠습니까?\n삭제된 모임은 복구할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      _deleteMeeting();
+    }
+  }
+
+  Future<void> _deleteMeeting() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final apiService = ApiService();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          apiService.setToken(token);
+        }
+      }
+
+      await apiService.deleteMeeting(widget.meetingId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('모임이 삭제되었습니다.')));
+      Navigator.pop(context, true); // 삭제 성공 후 이전 화면으로 돌아감
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')));
+    }
+  }
+
+  Future<void> _showMapAppPicker(Meeting meeting) async {
+    final locationName = meeting.format == MeetingFormat.online
+        ? (meeting.meetingLink ?? '온라인')
+        : (meeting.locationDetail ?? meeting.location);
+
+    await MapService.showMapAppPicker(
+      context: context,
+      locationName: locationName,
+      // TODO: 모임에 좌표 정보가 있다면 추가
+      // latitude: meeting.latitude,
+      // longitude: meeting.longitude,
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
     _answerController.dispose();
+    _imagePageController.dispose();
     super.dispose();
   }
 
@@ -214,10 +306,181 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 0. 모임 사진
+                  if (meeting.imageUrls != null &&
+                      meeting.imageUrls!.isNotEmpty) ...[
+                    SizedBox(
+                      height: 250,
+                      child: Stack(
+                        children: [
+                          PageView.builder(
+                            controller: _imagePageController,
+                            itemCount: meeting.imageUrls!.length,
+                            onPageChanged: (index) {
+                              setState(() {
+                                _currentImageIndex = index;
+                              });
+                            },
+                            itemBuilder: (context, index) {
+                              return Image.network(
+                                meeting.imageUrls![index],
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[200],
+                                    child: const Center(
+                                      child: Icon(Icons.broken_image, size: 48),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          // 이전 버튼
+                          if (_currentImageIndex > 0)
+                            Positioned(
+                              left: 8,
+                              top: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    _imagePageController.previousPage(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.chevron_left,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // 다음 버튼
+                          if (_currentImageIndex <
+                              meeting.imageUrls!.length - 1)
+                            Positioned(
+                              right: 8,
+                              top: 0,
+                              bottom: 0,
+                              child: Center(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    _imagePageController.nextPage(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // 페이지 인디케이터
+                          if (meeting.imageUrls!.length > 1)
+                            Positioned(
+                              bottom: 8,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  meeting.imageUrls!.length,
+                                  (index) => Container(
+                                    width: 6,
+                                    height: 6,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _currentImageIndex == index
+                                          ? Colors.white
+                                          : Colors.white.withOpacity(0.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   // 1. 모임 주제
-                  Text(
-                    meeting.title,
-                    style: Theme.of(context).textTheme.displayLarge,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          meeting.title,
+                          style: Theme.of(context).textTheme.displayLarge,
+                        ),
+                      ),
+                      if (isHost)
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _editMeeting();
+                            } else if (value == 'delete') {
+                              _confirmDelete();
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('수정하기'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.delete,
+                                    size: 20,
+                                    color: Colors.red,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '삭제하기',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
@@ -225,6 +488,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   if (meeting.hostNote != null) ...[
                     _Section(
                       title: '호스트 한 마디',
+                      isHost: isHost,
+                      onEdit: () => _editMeeting(),
                       child: Text(
                         meeting.hostNote!,
                         style: Theme.of(context).textTheme.bodyLarge,
@@ -250,6 +515,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       meeting.topicsCovered!.isNotEmpty) ...[
                     _Section(
                       title: '다루는 이야기',
+                      isHost: isHost,
+                      onEdit: () => _editMeeting(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: meeting.topicsCovered!
@@ -288,6 +555,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       meeting.topicsNotCovered!.isNotEmpty) ...[
                     _Section(
                       title: '다루지 않는 이야기',
+                      isHost: isHost,
+                      onEdit: () => _editMeeting(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: meeting.topicsNotCovered!
@@ -347,11 +616,25 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           ).format(meeting.meetingDate),
                         ),
                         const SizedBox(height: 8),
-                        _InfoRow(
-                          label: '장소',
-                          value: meeting.format == MeetingFormat.online
-                              ? (meeting.meetingLink ?? '온라인')
-                              : (meeting.locationDetail ?? meeting.location),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _InfoRow(
+                                label: '장소',
+                                value: meeting.format == MeetingFormat.online
+                                    ? (meeting.meetingLink ?? '온라인')
+                                    : (meeting.locationDetail ??
+                                          meeting.location),
+                              ),
+                            ),
+                            if (meeting.format != MeetingFormat.online)
+                              IconButton(
+                                icon: const Icon(Icons.map),
+                                onPressed: () => _showMapAppPicker(meeting),
+                                tooltip: '지도 앱에서 위치 보기',
+                              ),
+                          ],
                         ),
                         if (meeting.format == MeetingFormat.online &&
                             meeting.meetingLink != null) ...[
@@ -371,6 +654,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   if (meeting.conversationFlow != null) ...[
                     _Section(
                       title: '대화 흐름 요약',
+                      isHost: isHost,
+                      onEdit: () => _editMeeting(),
                       child: Text(
                         meeting.conversationFlow!,
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -384,6 +669,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       meeting.applicationQuestions!.isNotEmpty) ...[
                     _Section(
                       title: '참여 전 질문',
+                      isHost: isHost,
+                      onEdit: () => _editMeeting(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: meeting.applicationQuestions!
@@ -722,15 +1009,35 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 class _Section extends StatelessWidget {
   final String title;
   final Widget child;
+  final bool isHost;
+  final VoidCallback? onEdit;
 
-  const _Section({required this.title, required this.child});
+  const _Section({
+    required this.title,
+    required this.child,
+    this.isHost = false,
+    this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            if (isHost && onEdit != null)
+              IconButton(
+                icon: const Icon(Icons.edit, size: 18),
+                onPressed: onEdit,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                color: AppTheme.textSecondaryColor,
+              ),
+          ],
+        ),
         const SizedBox(height: 12),
         child,
       ],

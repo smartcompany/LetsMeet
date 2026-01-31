@@ -115,32 +115,64 @@ class MeetingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 아이콘과 배지
+                // 썸네일/아이콘과 배지
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            interestColor,
-                            interestColor.withOpacity(0.7),
+                    // 썸네일 이미지 또는 아이콘
+                    if (meeting.imageUrls != null &&
+                        meeting.imageUrls!.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          meeting.imageUrls!.first,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    interestColor,
+                                    interestColor.withOpacity(0.7),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(interestIcon, color: Colors.white, size: 28),
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              interestColor,
+                              interestColor.withOpacity(0.7),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: interestColor.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: interestColor.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        child: Icon(interestIcon, color: Colors.white, size: 28),
                       ),
-                      child: Icon(interestIcon, color: Colors.white, size: 28),
-                    ),
                     const Spacer(),
                     // 온라인/오프라인 배지
                     Container(
@@ -222,44 +254,126 @@ class MeetingCard extends StatelessWidget {
                   ),
                 const SizedBox(height: 20),
 
-                // 메타 정보
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                // 카테고리/취미
+                if (meeting.category != null && meeting.category!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _MetaChip(
+                      icon: Icons.category_rounded,
+                      text: meeting.category!,
+                      color: interestColor,
+                    ),
+                  ),
+
+                // 날짜와 시간 (하나의 행으로)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatMeetingDate(meeting.meetingDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatMeetingTime(meeting.meetingDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textPrimaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 인원과 장소 (구분된 행)
+                Row(
                   children: [
-                    if (meeting.category != null &&
-                        meeting.category!.isNotEmpty)
-                      _MetaChip(
-                        icon: Icons.category_rounded,
-                        text: meeting.category!,
-                        color: interestColor,
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.people_rounded,
+                              size: 16,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${meeting.maxParticipants}명',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    _MetaChip(
-                      icon: Icons.calendar_today_rounded,
-                      text: _formatMeetingDate(meeting.meetingDate),
-                      color: interestColor,
                     ),
-                    _MetaChip(
-                      icon: Icons.access_time_rounded,
-                      text: _formatMeetingTime(meeting.meetingDate),
-                      color: interestColor,
-                    ),
-                    _MetaChip(
-                      icon: Icons.people_rounded,
-                      text: '${meeting.maxParticipants}명',
-                      color: interestColor,
-                    ),
-                    _MetaChip(
-                      icon: Icons.location_on_rounded,
-                      text: meeting.location,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                    if (meeting.interests.isNotEmpty)
-                      _MetaChip(
-                        icon: Icons.label_rounded,
-                        text: meeting.interests.first,
-                        color: interestColor,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_rounded,
+                              size: 16,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                meeting.location,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),

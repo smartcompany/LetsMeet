@@ -5,6 +5,8 @@ import '../models/user.dart';
 import '../theme/app_theme.dart';
 import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
+import 'my_meetings_screen.dart';
+import 'my_feeds_screen.dart';
 import '../widgets/profile_photo_preview.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -336,6 +338,30 @@ class ProfileScreen extends StatelessWidget {
               // 설정 메뉴
               _MenuSection(
                 items: [
+                  _MenuItem(
+                    icon: Icons.feed_rounded,
+                    title: '내 피드 보기',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MyFeedsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.event_note_rounded,
+                    title: '내가 만든 모임',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MyMeetingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _MenuItem(
                     icon: Icons.settings_rounded,
                     title: '설정',

@@ -10,6 +10,7 @@ class Meeting {
   final String location;
   final String? locationDetail;
   final String? meetingLink; // 온라인 모임 링크
+  final List<String>? imageUrls; // 모임 사진 URL 목록
   final int maxParticipants;
   final List<String> interests;
   final String? category;
@@ -40,6 +41,7 @@ class Meeting {
     required this.location,
     this.locationDetail,
     this.meetingLink,
+    this.imageUrls,
     required this.maxParticipants,
     required this.interests,
     this.category,
@@ -72,6 +74,9 @@ class Meeting {
       location: json['location'],
       locationDetail: json['location_detail'],
       meetingLink: json['meeting_link'],
+      imageUrls: json['image_urls'] != null
+          ? List<String>.from(json['image_urls'])
+          : null,
       maxParticipants: json['max_participants'],
       interests: List<String>.from(json['interests'] ?? []),
       category: json['category'],
@@ -117,6 +122,7 @@ class Meeting {
       'location': location,
       'location_detail': locationDetail,
       'meeting_link': meetingLink,
+      'image_urls': imageUrls,
       'max_participants': maxParticipants,
       'interests': interests,
       'category': category,

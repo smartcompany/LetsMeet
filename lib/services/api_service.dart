@@ -6,6 +6,8 @@ import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
+import '../models/feed.dart';
+import '../models/feed_comment.dart';
 
 class ApiService implements AuthServiceInterface {
   // Production server URL
@@ -203,6 +205,28 @@ class ApiService implements AuthServiceInterface {
     return Meeting.fromJson(jsonDecode(response.body));
   }
 
+  Future<String> uploadMeetingImage(File file) async {
+    final uri = Uri.parse('$baseUrl/meetings/upload');
+    final request = http.MultipartRequest('POST', uri);
+
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+
+    if (streamedResponse.statusCode != 200) {
+      final errorBody = jsonDecode(responseBody);
+      throw Exception(errorBody['error'] ?? 'Failed to upload meeting image');
+    }
+
+    final data = jsonDecode(responseBody);
+    return data['url'] as String;
+  }
+
   Future<Meeting> createMeeting({
     required String title,
     required DateTime meetingDate,
@@ -218,6 +242,7 @@ class ApiService implements AuthServiceInterface {
     int? ageRangeMin,
     int? ageRangeMax,
     required String approvalType,
+    List<String>? imageUrls,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/meetings'),
@@ -237,11 +262,69 @@ class ApiService implements AuthServiceInterface {
         if (ageRangeMin != null) 'age_range_min': ageRangeMin,
         if (ageRangeMax != null) 'age_range_max': ageRangeMax,
         'approval_type': approvalType,
+        if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
       }),
     );
     if (response.statusCode != 201) {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['error'] ?? 'Failed to create meeting');
+    }
+    return Meeting.fromJson(jsonDecode(response.body));
+  }
+
+  Future<void> deleteMeeting(String id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/meetings/$id'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to delete meeting');
+    }
+  }
+
+  Future<Meeting> updateMeeting(
+    String id, {
+    String? title,
+    DateTime? meetingDate,
+    String? location,
+    String? locationDetail,
+    int? maxParticipants,
+    int? minParticipants,
+    List<String>? interests,
+    String? description,
+    String? category,
+    int? participationFee,
+    String? genderRestriction,
+    int? ageRangeMin,
+    int? ageRangeMax,
+    String? approvalType,
+    List<String>? imageUrls,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/meetings/$id'),
+      headers: _headers,
+      body: jsonEncode({
+        if (title != null) 'title': title,
+        if (meetingDate != null) 'meeting_date': meetingDate.toIso8601String(),
+        if (location != null) 'location': location,
+        if (locationDetail != null) 'location_detail': locationDetail,
+        if (maxParticipants != null) 'max_participants': maxParticipants,
+        if (minParticipants != null) 'min_participants': minParticipants,
+        if (interests != null) 'interests': interests,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        if (participationFee != null) 'participation_fee': participationFee,
+        if (genderRestriction != null) 'gender_restriction': genderRestriction,
+        if (ageRangeMin != null) 'age_range_min': ageRangeMin,
+        if (ageRangeMax != null) 'age_range_max': ageRangeMax,
+        if (approvalType != null) 'approval_type': approvalType,
+        if (imageUrls != null) 'image_urls': imageUrls,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to update meeting');
     }
     return Meeting.fromJson(jsonDecode(response.body));
   }
@@ -331,5 +414,139 @@ class ApiService implements AuthServiceInterface {
       throw Exception('Failed to reject application');
     }
     return Application.fromJson(jsonDecode(response.body));
+  }
+
+  // Feed APIs
+  Future<List<Feed>> getFeeds() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/feeds'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get feeds');
+    }
+    final data = jsonDecode(response.body);
+    return (data as List).map((e) => Feed.fromJson(e)).toList();
+  }
+
+  Future<List<Feed>> getMyFeeds() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/feeds/me'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get my feeds');
+    }
+    final data = jsonDecode(response.body);
+    return (data as List).map((e) => Feed.fromJson(e)).toList();
+  }
+
+  Future<Feed> createFeed({
+    required String content,
+    List<String>? imageUrls,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/feeds'),
+      headers: _headers,
+      body: jsonEncode({
+        'content': content,
+        if (imageUrls != null) 'image_urls': imageUrls,
+      }),
+    );
+    if (response.statusCode != 201) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to create feed');
+    }
+    return Feed.fromJson(jsonDecode(response.body));
+  }
+
+  Future<Feed> updateFeed(
+    String id, {
+    required String content,
+    List<String>? imageUrls,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/feeds/$id'),
+      headers: _headers,
+      body: jsonEncode({
+        'content': content,
+        if (imageUrls != null) 'image_urls': imageUrls,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to update feed');
+    }
+    return Feed.fromJson(jsonDecode(response.body));
+  }
+
+  Future<void> deleteFeed(String id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/feeds/$id'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to delete feed');
+    }
+  }
+
+  Future<void> toggleFeedLike(String feedId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/feeds/$feedId/like'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to toggle like');
+    }
+  }
+
+  Future<List<FeedComment>> getFeedComments(String feedId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/feeds/$feedId/comments'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get comments');
+    }
+    final data = jsonDecode(response.body);
+    return (data as List).map((e) => FeedComment.fromJson(e)).toList();
+  }
+
+  Future<FeedComment> createFeedComment(String feedId, String content) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/feeds/$feedId/comments'),
+      headers: _headers,
+      body: jsonEncode({'content': content}),
+    );
+    if (response.statusCode != 201) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to create comment');
+    }
+    return FeedComment.fromJson(jsonDecode(response.body));
+  }
+
+  Future<String> uploadFeedImage(File file) async {
+    final uri = Uri.parse('$baseUrl/feeds/upload');
+    final request = http.MultipartRequest('POST', uri);
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    final streamedResponse = await request.send();
+    final responseBody = await streamedResponse.stream.bytesToString();
+    if (streamedResponse.statusCode != 200) {
+      try {
+        final errorData = jsonDecode(responseBody);
+        throw Exception(errorData['error'] ?? 'Failed to upload feed image');
+      } catch (e) {
+        throw Exception(
+          'Failed to upload feed image: ${streamedResponse.statusCode}',
+        );
+      }
+    }
+    final data = jsonDecode(responseBody);
+    return data['url'] as String;
   }
 }

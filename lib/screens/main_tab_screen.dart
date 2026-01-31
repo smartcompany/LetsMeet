@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../utils/auth_helper.dart';
 import 'home_screen.dart';
+import 'feed_screen.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'create_meeting_screen.dart';
@@ -15,6 +17,24 @@ class MainTabScreen extends StatefulWidget {
 }
 
 class _MainTabScreenState extends State<MainTabScreen> {
+  // 탭 영역 패딩 및 간격 상수
+  static const double _tabBarHorizontalPadding = 8.0;
+  static const double _tabBarVerticalPadding = 8.0;
+  static const double _tabSpacing = 0.0; // 탭 간 간격 (0이면 spaceEvenly로 자동 간격)
+
+  // 피드 화면 새로고침을 위한 GlobalKey
+  final GlobalKey<FeedScreenState> _feedScreenKey =
+      GlobalKey<FeedScreenState>();
+
+  // 탭 아이템 크기 상수
+  static const double _tabItemHorizontalPadding = 12.0;
+  static const double _tabItemVerticalPadding = 4.0;
+  static const double _tabIconSize = 23.0;
+  static const double _tabIconContainerPadding = 6.0;
+  static const double _tabIconContainerRadius = 12.0;
+  static const double _tabLabelFontSize = 13.0;
+  static const double _tabIconLabelSpacing = 3.0;
+
   int _currentIndex = 0;
 
   PreferredSizeWidget _buildAppBar() {
@@ -58,6 +78,21 @@ class _MainTabScreenState extends State<MainTabScreen> {
           ),
         );
       case 1:
+        // 피드 탭 AppBar
+        return AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          centerTitle: true,
+          title: const Text(
+            '피드',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+        );
+      case 2:
         // 채팅 탭 AppBar
         return AppBar(
           elevation: 0,
@@ -72,7 +107,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
             ),
           ),
         );
-      case 2:
+      case 3:
         // 마이페이지 탭 AppBar
         return AppBar(
           elevation: 0,
@@ -112,7 +147,12 @@ class _MainTabScreenState extends State<MainTabScreen> {
         body: SafeArea(
           child: IndexedStack(
             index: _currentIndex,
-            children: const [HomeScreen(), ChatScreen(), ProfileScreen()],
+            children: [
+              const HomeScreen(),
+              FeedScreen(key: _feedScreenKey),
+              const ChatScreen(),
+              const ProfileScreen(),
+            ],
           ),
         ),
         bottomNavigationBar: Container(
@@ -136,38 +176,42 @@ class _MainTabScreenState extends State<MainTabScreen> {
                   bottom: false,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
+                      horizontal: _tabBarHorizontalPadding,
+                      vertical: _tabBarVerticalPadding,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // 모임 탭
                         _TabItem(
                           icon: Icons.group_rounded,
                           label: '모임',
                           isSelected: _currentIndex == 0,
                           onTap: () => setState(() => _currentIndex = 0),
                         ),
-
-                        // 채팅 탭
+                        _TabItem(
+                          icon: Icons.dynamic_feed_rounded,
+                          label: '피드',
+                          isSelected: _currentIndex == 1,
+                          onTap: () {
+                            setState(() => _currentIndex = 1);
+                            // 피드 탭으로 이동할 때 새로고침
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _feedScreenKey.currentState?.refresh();
+                            });
+                          },
+                        ),
                         _TabItem(
                           icon: Icons.forum_rounded,
                           label: '채팅',
-                          isSelected: _currentIndex == 1,
-                          onTap: () => setState(() => _currentIndex = 1),
+                          isSelected: _currentIndex == 2,
+                          onTap: () => setState(() => _currentIndex = 2),
                           badge: 6, // 임시 뱃지
                         ),
-
-                        // 중앙 플러스 버튼
-                        const SizedBox(width: 40),
-
-                        // 마이페이지 탭
                         _TabItem(
                           icon: Icons.account_circle_rounded,
                           label: '마이페이지',
-                          isSelected: _currentIndex == 2,
-                          onTap: () => setState(() => _currentIndex = 2),
+                          isSelected: _currentIndex == 3,
+                          onTap: () => setState(() => _currentIndex = 3),
                         ),
                       ],
                     ),
@@ -182,45 +226,57 @@ class _MainTabScreenState extends State<MainTabScreen> {
         ),
         floatingActionButton: Container(
           margin: const EdgeInsets.only(bottom: 30),
-          child: FloatingActionButton(
-            onPressed: () async {
-              // 인증이 필요한지 확인
-              final isAuthenticated = await AuthHelper.requireAuth(context);
-              if (!isAuthenticated || !mounted) return;
-
-              // 인증 완료 후 모임 만들기 화면으로 이동
-              if (!mounted) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CreateMeetingScreen(),
-                ),
-              );
-            },
-            backgroundColor: AppTheme.primaryColor,
-            elevation: 0,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1.5,
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 32,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      // 인증이 필요한지 확인
+                      final isAuthenticated = await AuthHelper.requireAuth(
+                        context,
+                      );
+                      if (!isAuthenticated || !mounted) return;
+
+                      // 인증 완료 후 모임 만들기 화면으로 이동
+                      if (!mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateMeetingScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Center(
+                      child: Icon(
+                        Icons.add_rounded,
+                        color: AppTheme.primaryColor,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -251,7 +307,10 @@ class _TabItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: _MainTabScreenState._tabItemHorizontalPadding,
+          vertical: _MainTabScreenState._tabItemVerticalPadding,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -260,16 +319,20 @@ class _TabItem extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: EdgeInsets.all(
+                    _MainTabScreenState._tabIconContainerPadding,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppTheme.primaryColor.withOpacity(0.1)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      _MainTabScreenState._tabIconContainerRadius,
+                    ),
                   ),
                   child: Icon(
                     icon,
-                    size: 22,
+                    size: _MainTabScreenState._tabIconSize,
                     color: isSelected
                         ? AppTheme.primaryColor
                         : AppTheme.textTertiaryColor,
@@ -302,11 +365,11 @@ class _TabItem extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 3),
+            SizedBox(height: _MainTabScreenState._tabIconLabelSpacing),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: _MainTabScreenState._tabLabelFontSize,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? AppTheme.primaryColor

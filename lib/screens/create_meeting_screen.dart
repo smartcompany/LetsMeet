@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kakao_map_location_picker.dart';
+import '../models/meeting.dart';
 import 'meeting_detail_screen.dart';
 
 class CreateMeetingScreen extends StatefulWidget {
-  const CreateMeetingScreen({super.key});
+  final Meeting? meeting;
+  const CreateMeetingScreen({super.key, this.meeting});
 
   @override
   State<CreateMeetingScreen> createState() => _CreateMeetingScreenState();
@@ -43,6 +47,47 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _approvalType;
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
+  final List<File> _selectedImages = [];
+  final List<String> _existingImageUrls = []; // 수정 모드에서 기존 이미지 URL
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_onFieldChanged);
+    _descriptionController.addListener(_onFieldChanged);
+    _locationController.addListener(_onFieldChanged);
+    _participationFeeController.addListener(_onFieldChanged);
+
+    if (widget.meeting != null) {
+      _titleController.text = widget.meeting!.title;
+      _descriptionController.text = widget.meeting!.description ?? '';
+      _locationController.text = widget.meeting!.location;
+      _participationFeeController.text =
+          widget.meeting!.participationFee?.toString() ?? '0';
+      _selectedCategory = widget.meeting!.category;
+      _selectedDate = widget.meeting!.meetingDate;
+      _selectedTime = TimeOfDay.fromDateTime(widget.meeting!.meetingDate);
+      // _minParticipants 필드가 Meeting 모델에 없는 경우 기본값 사용
+      _maxParticipants = widget.meeting!.maxParticipants;
+      _ageRangeMin = widget.meeting!.ageRangeMin;
+      _ageRangeMax = widget.meeting!.ageRangeMax;
+
+      if (widget.meeting!.imageUrls != null) {
+        _existingImageUrls.addAll(widget.meeting!.imageUrls!);
+      }
+
+      if (widget.meeting!.approvalType != null) {
+        _approvalType = widget.meeting!.approvalType == ApprovalType.immediate
+            ? '즉시 참여'
+            : '승인 필요 (호스트 승인)';
+      }
+
+      if (widget.meeting!.genderRestriction != null &&
+          widget.meeting!.genderRestriction != GenderRestriction.all) {
+        _enableGenderRatio = true;
+      }
+    }
+  }
 
   // 에러 상태 추적
   String? _titleError;
@@ -56,15 +101,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   final List<String> _categories = ['운동', '취미', '자기계발', '여행', '투자', '기타'];
 
   final List<String> _approvalOptions = ['즉시 참여', '승인 필요 (호스트 승인)'];
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController.addListener(_onFieldChanged);
-    _descriptionController.addListener(_onFieldChanged);
-    _locationController.addListener(_onFieldChanged);
-    _participationFeeController.addListener(_onFieldChanged);
-  }
 
   void _onFieldChanged() {
     if (!_hasUnsavedChanges) {
@@ -351,42 +387,92 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         }
       }
 
-      final meeting = await apiService.createMeeting(
-        title: _titleController.text.trim(),
-        meetingDate: meetingDateTime,
-        location: _locationController.text.trim(),
-        maxParticipants: _maxParticipants,
-        minParticipants: _minParticipants,
-        interests: [], // TODO: Get from user interests or allow selection
-        description: _descriptionController.text.trim(),
-        category: _selectedCategory!,
-        participationFee: fee > 0 ? fee : null,
-        genderRestriction: genderRestriction,
-        ageRangeMin: _ageRangeMin,
-        ageRangeMax: _ageRangeMax,
-        approvalType: approvalType,
-      );
+      // 이미지 업로드
+      List<String> imageUrls = List.from(_existingImageUrls);
+      for (final imageFile in _selectedImages) {
+        try {
+          final imageUrl = await apiService.uploadMeetingImage(imageFile);
+          imageUrls.add(imageUrl);
+        } catch (e) {
+          debugPrint('이미지 업로드 실패: $e');
+        }
+      }
 
-      // Refresh meetings list
-      final meetingProvider = Provider.of<MeetingProvider>(
-        context,
-        listen: false,
-      );
-      await meetingProvider.loadMeetings();
+      if (widget.meeting != null) {
+        await apiService.updateMeeting(
+          widget.meeting!.id,
+          title: _titleController.text.trim(),
+          meetingDate: meetingDateTime,
+          location: _locationController.text.trim(),
+          maxParticipants: _maxParticipants,
+          minParticipants: _minParticipants,
+          interests: [_selectedCategory!],
+          description: _descriptionController.text.trim(),
+          category: _selectedCategory!,
+          participationFee: fee > 0 ? fee : null,
+          genderRestriction: genderRestriction,
+          ageRangeMin: _ageRangeMin,
+          ageRangeMax: _ageRangeMax,
+          approvalType: approvalType,
+          imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+        );
+      } else {
+        final meeting = await apiService.createMeeting(
+          title: _titleController.text.trim(),
+          meetingDate: meetingDateTime,
+          location: _locationController.text.trim(),
+          maxParticipants: _maxParticipants,
+          minParticipants: _minParticipants,
+          interests: [
+            _selectedCategory!,
+          ], // TODO: Get from user interests or allow selection
+          description: _descriptionController.text.trim(),
+          category: _selectedCategory!,
+          participationFee: fee > 0 ? fee : null,
+          genderRestriction: genderRestriction,
+          ageRangeMin: _ageRangeMin,
+          ageRangeMax: _ageRangeMax,
+          approvalType: approvalType,
+          imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+        );
+
+        // Refresh meetings list
+        final meetingProvider = Provider.of<MeetingProvider>(
+          context,
+          listen: false,
+        );
+        await meetingProvider.loadMeetings();
+
+        if (!mounted) return;
+
+        // Navigate to meeting detail
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => MeetingDetailScreen(meetingId: meeting.id),
+          ),
+        );
+        return;
+      }
 
       if (!mounted) return;
 
-      // Navigate to meeting detail
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => MeetingDetailScreen(meetingId: meeting.id),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('모임이 수정되었습니다.'),
+          backgroundColor: Colors.green,
         ),
       );
+
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('모임 생성에 실패했습니다: ${e.toString()}'),
+          content: Text(
+            widget.meeting != null
+                ? '모임 수정에 실패했습니다: ${e.toString()}'
+                : '모임 생성에 실패했습니다: ${e.toString()}',
+          ),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -419,9 +505,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               }
             },
           ),
-          title: const Text(
-            '모임 만들기',
-            style: TextStyle(
+          title: Text(
+            widget.meeting != null ? '모임 수정' : '모임 만들기',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimaryColor,
@@ -506,6 +592,17 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         });
                       },
                     ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Images
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('모임 사진 (최대 10개)'),
+                    const SizedBox(height: 8),
+                    _buildImagePicker(),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -926,9 +1023,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                               ),
                             ),
                           )
-                        : const Text(
-                            '모임 만들기',
-                            style: TextStyle(
+                        : Text(
+                            widget.meeting != null ? '모임 수정 완료' : '모임 만들기',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -967,6 +1064,155 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         fontWeight: FontWeight.w600,
         color: AppTheme.textPrimaryColor,
       ),
+    );
+  }
+
+  Future<void> _pickImages() async {
+    if (_selectedImages.length + _existingImageUrls.length >= 10) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('최대 10개까지 선택할 수 있습니다.')));
+      return;
+    }
+
+    final ImagePicker picker = ImagePicker();
+    final List<XFile> images = await picker.pickMultiImage();
+
+    if (images.isNotEmpty) {
+      final remainingSlots =
+          10 - (_selectedImages.length + _existingImageUrls.length);
+      final imagesToAdd = images.take(remainingSlots).toList();
+
+      setState(() {
+        _selectedImages.addAll(imagesToAdd.map((xFile) => File(xFile.path)));
+        _hasUnsavedChanges = true;
+      });
+
+      if (images.length > remainingSlots) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${remainingSlots}개만 추가되었습니다. (최대 10개)')),
+        );
+      }
+    }
+  }
+
+  Widget _buildImagePicker() {
+    final totalImages = _selectedImages.length + _existingImageUrls.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              if (totalImages < 10)
+                GestureDetector(
+                  onTap: _pickImages,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: const Icon(Icons.add_a_photo, color: Colors.grey),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              // 기존 이미지 표시
+              ..._existingImageUrls.asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          entry.value,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: GestureDetector(
+                          onTap: () => setState(
+                            () => _existingImageUrls.removeAt(entry.key),
+                          ),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              // 새로 선택한 이미지 표시
+              ..._selectedImages.asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          entry.value,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: GestureDetector(
+                          onTap: () => setState(
+                            () => _selectedImages.removeAt(entry.key),
+                          ),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        if (totalImages > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '$totalImages / 10',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
