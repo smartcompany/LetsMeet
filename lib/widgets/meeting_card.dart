@@ -144,7 +144,11 @@ class MeetingCard extends StatelessWidget {
                                 ),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Icon(interestIcon, color: Colors.white, size: 28),
+                              child: Icon(
+                                interestIcon,
+                                color: Colors.white,
+                                size: 28,
+                              ),
                             );
                           },
                         ),
@@ -171,10 +175,25 @@ class MeetingCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Icon(interestIcon, color: Colors.white, size: 28),
+                        child: Icon(
+                          interestIcon,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                     const Spacer(),
-                    // 온라인/오프라인 배지
+                    // 취미 카테고리 (오프라인 배지 왼쪽에 바로 붙이기)
+                    if (meeting.category != null &&
+                        meeting.category!.isNotEmpty)
+                      _MetaChip(
+                        icon: Icons.category_rounded,
+                        text: meeting.category!,
+                        color: interestColor,
+                      ),
+                    if (meeting.category != null &&
+                        meeting.category!.isNotEmpty)
+                      const SizedBox(width: 8),
+                    // 온라인/오프라인 배지 (오른쪽 끝에 유지)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -222,7 +241,7 @@ class MeetingCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
                 // 주제
                 Text(
@@ -237,10 +256,10 @@ class MeetingCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // 한 줄 설명
-                if (meeting.shortDescription != null)
+                if (meeting.shortDescription != null) ...[
                   Text(
                     meeting.shortDescription!,
                     style: TextStyle(
@@ -252,22 +271,15 @@ class MeetingCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                const SizedBox(height: 20),
-
-                // 카테고리/취미
-                if (meeting.category != null && meeting.category!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _MetaChip(
-                      icon: Icons.category_rounded,
-                      text: meeting.category!,
-                      color: interestColor,
-                    ),
-                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // 날짜와 시간 (하나의 행으로)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
@@ -313,7 +325,10 @@ class MeetingCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(12),
@@ -345,7 +360,10 @@ class MeetingCard extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(12),
@@ -375,61 +393,6 @@ class MeetingCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 20),
-
-                // 호스트 정보
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              interestColor.withOpacity(0.3),
-                              interestColor.withOpacity(0.5),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.person_rounded,
-                          size: 20,
-                          color: interestColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '호스트',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.textTertiaryColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            meeting.hostNickname,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textPrimaryColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),

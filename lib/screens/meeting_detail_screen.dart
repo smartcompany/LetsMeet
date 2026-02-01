@@ -92,6 +92,74 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
+  Future<void> _confirmComplete() async {
+    if (_meeting == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('모임 종료'),
+        content: const Text('이 모임을 종료 처리하시겠습니까?\n종료된 모임은 더 이상 신청을 받을 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text('종료'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      final apiService = ApiService();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          apiService.setToken(token);
+        }
+      }
+
+      await apiService.completeMeeting(widget.meetingId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('모임이 종료되었습니다'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // 모임 정보 다시 로드
+      _loadMeeting();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('모임 종료 중 오류가 발생했습니다: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -256,7 +324,95 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('모임 상세')),
+      appBar: AppBar(
+        title: const Text('모임 상세'),
+        actions: [
+          if (_meeting != null)
+            Builder(
+              builder: (context) {
+                final currentUser = FirebaseAuth.instance.currentUser;
+                final isHost =
+                    currentUser != null && currentUser.uid == _meeting!.hostId;
+                if (!isHost) return const SizedBox.shrink();
+
+                return PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editMeeting();
+                    } else if (value == 'delete') {
+                      _confirmDelete();
+                    } else if (value == 'complete') {
+                      _confirmComplete();
+                    }
+                  },
+                  itemBuilder: (context) {
+                    final isCompletedOrCancelled =
+                        _meeting!.status == MeetingStatus.completed ||
+                        _meeting!.status == MeetingStatus.cancelled;
+
+                    if (isCompletedOrCancelled) {
+                      // 완료/취소된 모임은 삭제만 표시
+                      return [
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('삭제하기', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ];
+                    } else {
+                      // 진행 중인 모임은 수정/삭제/종료 표시
+                      return [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('수정하기'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('삭제하기', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'complete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                size: 20,
+                                color: Colors.green,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                '모임 종료',
+                                style: TextStyle(color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ];
+                    }
+                  },
+                );
+              },
+            ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -440,48 +596,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           style: Theme.of(context).textTheme.displayLarge,
                         ),
                       ),
-                      if (isHost)
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert),
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _editMeeting();
-                            } else if (value == 'delete') {
-                              _confirmDelete();
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 20),
-                                  SizedBox(width: 8),
-                                  Text('수정하기'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete,
-                                    size: 20,
-                                    color: Colors.red,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    '삭제하기',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  // 모임 상태 표시
+                  _buildStatusBadge(meeting.status),
                   const SizedBox(height: 24),
 
                   // 2. 호스트 한 마디
@@ -1002,6 +1122,64 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildStatusBadge(MeetingStatus status) {
+    Color backgroundColor;
+    Color textColor;
+    String statusText;
+    IconData icon;
+
+    switch (status) {
+      case MeetingStatus.open:
+        backgroundColor = Colors.green.withOpacity(0.1);
+        textColor = Colors.green;
+        statusText = '모집 중';
+        icon = Icons.event_available;
+        break;
+      case MeetingStatus.closed:
+        backgroundColor = Colors.orange.withOpacity(0.1);
+        textColor = Colors.orange;
+        statusText = '모집 마감';
+        icon = Icons.event_busy;
+        break;
+      case MeetingStatus.completed:
+        backgroundColor = Colors.blue.withOpacity(0.1);
+        textColor = Colors.blue;
+        statusText = '모임 완료';
+        icon = Icons.check_circle;
+        break;
+      case MeetingStatus.cancelled:
+        backgroundColor = Colors.red.withOpacity(0.1);
+        textColor = Colors.red;
+        statusText = '모임 취소';
+        icon = Icons.cancel;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: textColor.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: textColor),
+          const SizedBox(width: 6),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

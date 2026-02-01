@@ -179,12 +179,27 @@ class ApiService implements AuthServiceInterface {
   }
 
   // Meeting APIs
-  Future<List<Meeting>> getMeetings({List<String>? interests}) async {
-    final queryParams = interests != null && interests.isNotEmpty
-        ? '?interests=${interests.join(',')}'
+  Future<List<Meeting>> getMeetings({
+    List<String>? interests,
+    String? hostId,
+    bool includeCompleted = false,
+  }) async {
+    final queryParams = <String>[];
+    if (interests != null && interests.isNotEmpty) {
+      queryParams.add('interests=${interests.join(',')}');
+    }
+    if (hostId != null) {
+      queryParams.add('host_id=$hostId');
+    }
+    if (includeCompleted) {
+      queryParams.add('include_completed=true');
+    }
+
+    final queryString = queryParams.isNotEmpty
+        ? '?${queryParams.join('&')}'
         : '';
     final response = await http.get(
-      Uri.parse('$baseUrl/meetings$queryParams'),
+      Uri.parse('$baseUrl/meetings$queryString'),
       headers: _headers,
     );
     if (response.statusCode != 200) {
@@ -325,6 +340,19 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['error'] ?? 'Failed to update meeting');
+    }
+    return Meeting.fromJson(jsonDecode(response.body));
+  }
+
+  /// 모임 종료 처리
+  Future<Meeting> completeMeeting(String id) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/meetings/$id/complete'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to complete meeting');
     }
     return Meeting.fromJson(jsonDecode(response.body));
   }

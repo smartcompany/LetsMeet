@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
-import '../providers/meeting_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/meeting_card.dart';
 import 'meeting_detail_screen.dart';
@@ -17,6 +16,7 @@ class MyMeetingsScreen extends StatefulWidget {
 class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
   bool _isLoading = true;
   List<Meeting> _myMeetings = [];
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -32,21 +32,33 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
     });
 
     try {
-      final meetingProvider = context.read<MeetingProvider>();
       final currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
-        // 모든 모임을 불러온 후 내가 호스트인 것만 필터링
-        // (추후 API에서 내가 만든 모임만 가져오는 기능이 추가되면 최적화 가능)
-        await meetingProvider.loadMeetings();
-        final allMeetings = meetingProvider.meetings;
+        // 인증 토큰 설정
+        final token = await currentUser.getIdToken();
+        if (token != null) {
+          _apiService.setToken(token);
+        }
 
-        setState(() {
-          _myMeetings = allMeetings
-              .where((m) => m.hostId == currentUser.uid)
-              .toList();
-          _isLoading = false;
-        });
+        // 내가 호스트인 모든 모임 조회 (완료된 모임 포함)
+        final myMeetings = await _apiService.getMeetings(
+          hostId: currentUser.uid,
+          includeCompleted: true,
+        );
+
+        if (mounted) {
+          setState(() {
+            _myMeetings = myMeetings;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -60,8 +72,31 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
     }
   }
 
+  List<Meeting> _getActiveMeetings() {
+    return _myMeetings
+        .where(
+          (meeting) =>
+              meeting.status == MeetingStatus.open ||
+              meeting.status == MeetingStatus.closed,
+        )
+        .toList();
+  }
+
+  List<Meeting> _getCompletedMeetings() {
+    return _myMeetings
+        .where(
+          (meeting) =>
+              meeting.status == MeetingStatus.completed ||
+              meeting.status == MeetingStatus.cancelled,
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final activeMeetings = _getActiveMeetings();
+    final completedMeetings = _getCompletedMeetings();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('내가 만든 모임'),
@@ -94,30 +129,79 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
             )
           : RefreshIndicator(
               onRefresh: _loadMyMeetings,
-              child: ListView.builder(
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: _myMeetings.length,
-                itemBuilder: (context, index) {
-                  final meeting = _myMeetings[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: MeetingCard(
-                      meeting: meeting,
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                MeetingDetailScreen(meetingId: meeting.id),
-                          ),
-                        );
-                        if (result == true) {
-                          _loadMyMeetings();
-                        }
-                      },
+                children: [
+                  // 진행 중인 모임
+                  if (activeMeetings.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        '진행중',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
                     ),
-                  );
-                },
+                    ...activeMeetings.map(
+                      (meeting) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: MeetingCard(
+                          meeting: meeting,
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    MeetingDetailScreen(meetingId: meeting.id),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadMyMeetings();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  // 완료된 모임
+                  if (completedMeetings.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12, top: 8),
+                      child: Text(
+                        '완료',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                    ),
+                    ...completedMeetings.map(
+                      (meeting) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: MeetingCard(
+                          meeting: meeting,
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    MeetingDetailScreen(meetingId: meeting.id),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadMyMeetings();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
     );
