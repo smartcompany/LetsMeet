@@ -308,9 +308,9 @@ class ChatService {
       memberIds.remove(currentUser.uid);
       memberNames.remove(currentUser.uid);
 
-      // 시스템 메시지 추가: "xxx님이 나갔습니다"
+      // 시스템 메시지 추가: "xxx님이 나갔습니다" (보안 규칙 통과 위해 userId는 본인 UID)
       await roomRef.collection('messages').add({
-        'userId': '',
+        'userId': currentUser.uid,
         'userName': leaverName,
         'message': '$leaverName님이 나갔습니다.',
         'type': 'system',
