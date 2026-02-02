@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 
@@ -22,14 +23,15 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _userNickname;
+  ChatRoom? _room;
 
   @override
   void initState() {
     super.initState();
-    _loadUserNickname();
+    _loadRoom();
   }
 
-  Future<void> _loadUserNickname() async {
+  Future<void> _loadRoom() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
@@ -37,11 +39,12 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       final room = await _chatService.getChatRoom(widget.roomId);
       if (room != null && mounted) {
         setState(() {
+          _room = room;
           _userNickname = room.memberNicknames[currentUser.uid] ?? '알 수 없음';
         });
       }
     } catch (e) {
-      print('사용자 닉네임 로드 오류: $e');
+      print('채팅방 정보 로드 오류: $e');
     }
   }
 
@@ -55,7 +58,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
     if (_userNickname == null) {
-      await _loadUserNickname();
+      await _loadRoom();
     }
 
     try {
@@ -65,8 +68,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
         userNickname: _userNickname ?? '알 수 없음',
       );
       _messageController.clear();
-      
-      // 스크롤을 맨 아래로
+
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -76,23 +78,122 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('메시지 전송 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('메시지 전송 실패: $e')));
       }
     }
   }
 
+  void _showChatSettingsPanel() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ChatSettingsPanel(
+        room:
+            _room ??
+            ChatRoom(
+              id: widget.roomId,
+              meetingId: '',
+              meetingTitle: widget.meetingTitle,
+              memberIds: [],
+              memberNicknames: {},
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+        onLeave: () async {
+          Navigator.pop(context);
+          await _handleLeave();
+        },
+        onShare: () async {
+          Navigator.pop(context);
+          await _handleShare();
+        },
+        onRefresh: _loadRoom,
+      ),
+    );
+  }
+
+  Future<void> _handleLeave() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('채팅방 나가기'),
+        content: const Text('정말 이 채팅방을 나가시겠습니까?\n나가면 채팅 기록을 다시 볼 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('나가기'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _chatService.leaveChatRoom(roomId: widget.roomId);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('채팅방을 나갔습니다')));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('나가기 실패: $e')));
+      }
+    }
+  }
+
+  Future<void> _handleShare() async {
+    try {
+      final room = _room ?? await _chatService.getChatRoom(widget.roomId);
+      if (room == null || room.meetingId.isEmpty) return;
+
+      final meetingUrl = _getMeetingShareUrl(room.meetingId);
+      final text =
+          'Let\'s Meet에서 "${room.meetingTitle}" 모임을 초대합니다!\n$meetingUrl';
+      await Share.share(text, subject: '${room.meetingTitle} 모임 공유');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('공유 실패: $e')));
+      }
+    }
+  }
+
+  String _getMeetingShareUrl(String meetingId) {
+    const base = 'https://lets-meet-server.vercel.app';
+    return '$base/meeting/$meetingId';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final participantCount = _room?.participantCount ?? 0;
+    final titleText = participantCount > 0
+        ? '${widget.meetingTitle} ($participantCount명)'
+        : widget.meetingTitle;
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.meetingTitle,
+              titleText,
               style: const TextStyle(fontSize: 16),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const Text(
               '채팅방',
@@ -100,10 +201,15 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: _showChatSettingsPanel,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // 메시지 목록
           Expanded(
             child: StreamBuilder<List<ChatMessage>>(
               stream: _chatService.getMessagesStream(widget.roomId),
@@ -113,9 +219,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text('오류: ${snapshot.error}'),
-                  );
+                  return Center(child: Text('오류: ${snapshot.error}'));
                 }
 
                 final messages = snapshot.data ?? [];
@@ -133,9 +237,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                         const SizedBox(height: 16),
                         Text(
                           '아직 메시지가 없습니다',
-                          style: TextStyle(
-                            color: AppTheme.textSecondaryColor,
-                          ),
+                          style: TextStyle(color: AppTheme.textSecondaryColor),
                         ),
                       ],
                     ),
@@ -162,7 +264,8 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                           if (!isMyMessage) ...[
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                              backgroundColor: AppTheme.primaryColor
+                                  .withOpacity(0.1),
                               child: Text(
                                 message.userNickname.isNotEmpty
                                     ? message.userNickname[0]
@@ -220,7 +323,8 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                             const SizedBox(width: 8),
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                              backgroundColor: AppTheme.primaryColor
+                                  .withOpacity(0.1),
                               child: Text(
                                 _userNickname?.isNotEmpty == true
                                     ? _userNickname![0]
@@ -241,7 +345,6 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
               },
             ),
           ),
-          // 메시지 입력 영역
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -292,4 +395,177 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       ),
     );
   }
+}
+
+class _ChatSettingsPanel extends StatelessWidget {
+  final ChatRoom room;
+  final VoidCallback onLeave;
+  final VoidCallback onShare;
+  final VoidCallback? onRefresh;
+
+  const _ChatSettingsPanel({
+    required this.room,
+    required this.onLeave,
+    required this.onShare,
+    this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final participants = room.memberIds.map((id) {
+      final nickname = room.memberNicknames[id] ?? '알 수 없음';
+      final profileUrl = room.memberProfileUrls?[id];
+      return _ParticipantInfo(
+        userId: id,
+        nickname: nickname,
+        profileImageUrl: profileUrl,
+        isCurrentUser: id == currentUser?.uid,
+      );
+    }).toList();
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              '채팅 설정',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // 참가자 표시
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '참가자',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: participants.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final p = participants[index];
+                return Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                      backgroundImage:
+                          p.profileImageUrl != null &&
+                              p.profileImageUrl!.isNotEmpty
+                          ? NetworkImage(p.profileImageUrl!)
+                          : null,
+                      child:
+                          p.profileImageUrl == null ||
+                              p.profileImageUrl!.isEmpty
+                          ? Text(
+                              p.nickname.isNotEmpty ? p.nickname[0] : '?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${p.nickname}${p.isCurrentUser ? ' (나)' : ''}',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onShare,
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('모임 공유'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: const BorderSide(color: AppTheme.primaryColor),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onLeave,
+                      icon: const Icon(Icons.exit_to_app),
+                      label: const Text('나가기'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParticipantInfo {
+  final String userId;
+  final String nickname;
+  final String? profileImageUrl;
+  final bool isCurrentUser;
+
+  _ParticipantInfo({
+    required this.userId,
+    required this.nickname,
+    this.profileImageUrl,
+    required this.isCurrentUser,
+  });
 }

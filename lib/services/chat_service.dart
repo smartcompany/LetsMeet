@@ -42,8 +42,10 @@ class ChatRoom {
   final String id;
   final String meetingId;
   final String meetingTitle;
+  final String? meetingImageUrl;
   final List<String> memberIds;
   final Map<String, String> memberNicknames;
+  final Map<String, String>? memberProfileUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -51,11 +53,15 @@ class ChatRoom {
     required this.id,
     required this.meetingId,
     required this.meetingTitle,
+    this.meetingImageUrl,
     required this.memberIds,
     required this.memberNicknames,
+    this.memberProfileUrls,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  int get participantCount => memberIds.length;
 
   factory ChatRoom.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -63,8 +69,12 @@ class ChatRoom {
       id: doc.id,
       meetingId: data['meetingId'] ?? '',
       meetingTitle: data['meetingTitle'] ?? '',
+      meetingImageUrl: data['meetingImageUrl'] as String?,
       memberIds: List<String>.from(data['memberIds'] ?? []),
       memberNicknames: Map<String, String>.from(data['memberNicknames'] ?? {}),
+      memberProfileUrls: data['memberProfileUrls'] != null
+          ? Map<String, String>.from(data['memberProfileUrls'])
+          : null,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -74,8 +84,10 @@ class ChatRoom {
     return {
       'meetingId': meetingId,
       'meetingTitle': meetingTitle,
+      if (meetingImageUrl != null) 'meetingImageUrl': meetingImageUrl!,
       'memberIds': memberIds,
       'memberNicknames': memberNicknames,
+      if (memberProfileUrls != null) 'memberProfileUrls': memberProfileUrls!,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -166,8 +178,10 @@ class ChatService {
   Future<String> createChatRoom({
     required String meetingId,
     required String meetingTitle,
+    String? meetingImageUrl,
     required List<String> memberIds,
     required Map<String, String> memberNicknames,
+    Map<String, String>? memberProfileUrls,
   }) async {
     try {
       print('🔵 [ChatService] createChatRoom 시작');
@@ -194,8 +208,10 @@ class ChatService {
         id: '', // Firestore가 자동 생성
         meetingId: meetingId,
         meetingTitle: meetingTitle,
+        meetingImageUrl: meetingImageUrl,
         memberIds: memberIds,
         memberNicknames: memberNicknames,
+        memberProfileUrls: memberProfileUrls,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -250,6 +266,46 @@ class ChatService {
     } catch (e, stackTrace) {
       print('❌ [ChatService] 채팅방 생성 오류: $e');
       print('❌ [ChatService] 스택 트레이스: $stackTrace');
+      rethrow;
+    }
+  }
+
+  /// 채팅방 나가기
+  Future<void> leaveChatRoom({required String roomId}) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인이 필요합니다');
+      }
+
+      final firestore = _firestore;
+      final roomRef = firestore.collection('chatRooms').doc(roomId);
+      final roomDoc = await roomRef.get();
+
+      if (!roomDoc.exists) {
+        throw Exception('채팅방을 찾을 수 없습니다');
+      }
+
+      final data = roomDoc.data() as Map<String, dynamic>?;
+      final memberIds = List<String>.from(data?['memberIds'] ?? []);
+      final memberNicknames = Map<String, String>.from(
+        data?['memberNicknames'] ?? {},
+      );
+
+      if (!memberIds.contains(currentUser.uid)) {
+        throw Exception('이미 나간 채팅방입니다');
+      }
+
+      memberIds.remove(currentUser.uid);
+      memberNicknames.remove(currentUser.uid);
+
+      await roomRef.update({
+        'memberIds': memberIds,
+        'memberNicknames': memberNicknames,
+        'updatedAt': Timestamp.now(),
+      });
+    } catch (e) {
+      print('채팅방 나가기 오류: $e');
       rethrow;
     }
   }

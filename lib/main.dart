@@ -12,6 +12,7 @@ import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/api_service.dart';
 import 'models/user.dart';
+import 'utils/deep_link_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,8 @@ void main() async {
   runApp(const MyApp());
 }
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -59,6 +62,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MeetingProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'LetsMeet',
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
@@ -83,6 +87,14 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHandler.init(navigatorKey);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return const MainTabScreen();

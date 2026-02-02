@@ -296,10 +296,15 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
             final userInfo = app['letsmeet_users'] as Map<String, dynamic>?;
             final userId = app['user_id'] as String;
             final nickname = userInfo?['nickname'] ?? '알 수 없음';
+            final profileImageUrl = userInfo?['profile_image_url'] as String?;
             print(
               '🔵 [MeetingApplicationsScreen] 승인된 사용자: userId=$userId, nickname=$nickname',
             );
-            return {'userId': userId, 'nickname': nickname};
+            return {
+              'userId': userId,
+              'nickname': nickname,
+              'profileImageUrl': profileImageUrl,
+            };
           })
           .toList();
 
@@ -340,11 +345,31 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       );
 
       // 채팅방 생성
+      final meetingImageUrl =
+          (_meeting!.imageUrls != null && _meeting!.imageUrls!.isNotEmpty)
+          ? _meeting!.imageUrls!.first
+          : null;
+
+      final memberProfileUrls = <String, String>{};
+      if (currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
+        memberProfileUrls[currentUser.uid] = currentUser.photoURL!;
+      }
+      for (final user in approvedUsers) {
+        final profileUrl = user['profileImageUrl'] as String?;
+        if (profileUrl != null && profileUrl.isNotEmpty) {
+          memberProfileUrls[user['userId'] as String] = profileUrl;
+        }
+      }
+
       final roomId = await _chatService.createChatRoom(
         meetingId: widget.meetingId,
         meetingTitle: _meeting!.title,
+        meetingImageUrl: meetingImageUrl,
         memberIds: memberIds,
         memberNicknames: memberNicknames,
+        memberProfileUrls: memberProfileUrls.isNotEmpty
+            ? memberProfileUrls
+            : null,
       );
 
       print('✅ [MeetingApplicationsScreen] 채팅방 생성 완료 - Room ID: $roomId');

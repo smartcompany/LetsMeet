@@ -93,6 +93,16 @@
 				<string>kakaoe3221d057fe64e623f672e3e2b8b12a5</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>LetsMeet</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>letsmeet</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

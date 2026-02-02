@@ -47,3 +47,8 @@ app.*.map.json
 # Firebase configuration files with secrets
 /lib/firebase_options.dart
 /android/app/google-services.json
+
+# Android signing
+/android/key.properties
+/android/*.jks
+/android/*.keystore

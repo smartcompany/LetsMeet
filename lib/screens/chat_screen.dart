@@ -41,18 +41,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser == null) {
-          return const Center(
-            child: Text('로그인이 필요합니다'),
-          );
+          return const Center(child: Text('로그인이 필요합니다'));
         }
 
         return StreamBuilder<List<ChatRoom>>(
           stream: _chatService.getUserChatRoomsStream(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
@@ -173,10 +169,7 @@ class _ChatRoomCard extends StatelessWidget {
   final ChatRoom room;
   final VoidCallback onTap;
 
-  const _ChatRoomCard({
-    required this.room,
-    required this.onTap,
-  });
+  const _ChatRoomCard({required this.room, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -195,26 +188,20 @@ class _ChatRoomCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // 채팅방 아이콘
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.primaryColor,
-                      AppTheme.primaryColor.withOpacity(0.7),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
+              // 모임 대표 아이콘 (썸네일 또는 기본 아이콘)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child:
+                    room.meetingImageUrl != null &&
+                        room.meetingImageUrl!.isNotEmpty
+                    ? Image.network(
+                        room.meetingImageUrl!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildDefaultChatIcon(),
+                      )
+                    : _buildDefaultChatIcon(),
               ),
               const SizedBox(width: 16),
               // 채팅방 정보
@@ -234,9 +221,7 @@ class _ChatRoomCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      otherMembers.isEmpty
-                          ? '나'
-                          : otherMembers.join(', '),
+                      otherMembers.isEmpty ? '나' : otherMembers.join(', '),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.textSecondaryColor,
@@ -269,6 +254,29 @@ class _ChatRoomCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultChatIcon() {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor,
+            AppTheme.primaryColor.withOpacity(0.7),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.chat_bubble_outline,
+        color: Colors.white,
+        size: 28,
       ),
     );
   }
