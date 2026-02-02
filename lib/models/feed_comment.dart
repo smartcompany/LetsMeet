@@ -2,7 +2,7 @@ class FeedComment {
   final String id;
   final String feedId;
   final String userId;
-  final String userNickname;
+  final String userName;
   final String? userProfileImage;
   final String content;
   final DateTime createdAt;
@@ -12,7 +12,7 @@ class FeedComment {
     required this.id,
     required this.feedId,
     required this.userId,
-    required this.userNickname,
+    required this.userName,
     this.userProfileImage,
     required this.content,
     required this.createdAt,
@@ -24,7 +24,7 @@ class FeedComment {
       id: json['id'],
       feedId: json['feed_id'],
       userId: json['user_id'],
-      userNickname: json['user_nickname'] ?? '알 수 없음',
+      userName: json['user_name'] ?? '알 수 없음',
       userProfileImage: json['user_profile_image'],
       content: json['content'],
       createdAt: DateTime.parse(json['created_at']),

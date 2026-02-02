@@ -1,7 +1,7 @@
 class Meeting {
   final String id;
   final String hostId;
-  final String hostNickname;
+  final String hostName;
   final String title;
   final String? description;
   final String? shortDescription; // 한 줄 설명
@@ -32,7 +32,7 @@ class Meeting {
   Meeting({
     required this.id,
     required this.hostId,
-    required this.hostNickname,
+    required this.hostName,
     required this.title,
     this.description,
     this.shortDescription,
@@ -65,7 +65,7 @@ class Meeting {
     return Meeting(
       id: json['id'],
       hostId: json['host_id'],
-      hostNickname: json['host_nickname'] ?? '',
+      hostName: json['host_name'] ?? '',
       title: json['title'],
       description: json['description'],
       shortDescription: json['short_description'],
@@ -113,7 +113,7 @@ class Meeting {
     return {
       'id': id,
       'host_id': hostId,
-      'host_nickname': hostNickname,
+      'host_name': hostName,
       'title': title,
       'description': description,
       'short_description': shortDescription,

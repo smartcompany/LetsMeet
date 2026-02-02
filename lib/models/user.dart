@@ -1,9 +1,8 @@
 class User {
   final String id;
   final String? phoneNumber; // nullable for social login users
-  final String nickname;
+  final String fullName;
   final String? profileImageUrl;
-  final String? fullName;
   final String? gender; // 'male' or 'female'
   final String? bio;
   final String? backgroundImageUrl;
@@ -17,9 +16,8 @@ class User {
   User({
     required this.id,
     this.phoneNumber,
-    required this.nickname,
+    required this.fullName,
     this.profileImageUrl,
-    this.fullName,
     this.gender,
     this.bio,
     this.backgroundImageUrl,
@@ -36,9 +34,8 @@ class User {
     return User(
       id: json['id'] as String,
       phoneNumber: json['phone_number'] as String?,
-      nickname: json['nickname'] as String,
+      fullName: (json['full_name'] as String?) ?? '',
       profileImageUrl: json['profile_image_url'] as String?,
-      fullName: json['full_name'] as String?,
       gender: json['gender'] as String?,
       bio: json['bio'] as String?,
       backgroundImageUrl: json['background_image_url'] as String?,
@@ -67,9 +64,8 @@ class User {
     return {
       'id': id,
       'phone_number': phoneNumber,
-      'nickname': nickname,
-      'profile_image_url': profileImageUrl,
       'full_name': fullName,
+      'profile_image_url': profileImageUrl,
       'gender': gender,
       'bio': bio,
       'background_image_url': backgroundImageUrl,

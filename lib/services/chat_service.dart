@@ -5,35 +5,41 @@ import 'package:firebase_core/firebase_core.dart';
 class ChatMessage {
   final String id;
   final String userId;
-  final String userNickname;
+  final String userName;
   final String message;
   final DateTime createdAt;
+  final String type; // 'user' | 'system'
 
   ChatMessage({
     required this.id,
     required this.userId,
-    required this.userNickname,
+    required this.userName,
     required this.message,
     required this.createdAt,
+    this.type = 'user',
   });
+
+  bool get isSystem => type == 'system';
 
   factory ChatMessage.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return ChatMessage(
       id: doc.id,
       userId: data['userId'] ?? '',
-      userNickname: data['userNickname'] ?? '알 수 없음',
+      userName: (data['userName'] ?? data['userNickname']) ?? '알 수 없음',
       message: data['message'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      type: data['type'] ?? 'user',
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
-      'userNickname': userNickname,
+      'userName': userName,
       'message': message,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (type != 'user') 'type': type,
     };
   }
 }
@@ -44,7 +50,7 @@ class ChatRoom {
   final String meetingTitle;
   final String? meetingImageUrl;
   final List<String> memberIds;
-  final Map<String, String> memberNicknames;
+  final Map<String, String> memberNames;
   final Map<String, String>? memberProfileUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -55,7 +61,7 @@ class ChatRoom {
     required this.meetingTitle,
     this.meetingImageUrl,
     required this.memberIds,
-    required this.memberNicknames,
+    required this.memberNames,
     this.memberProfileUrls,
     required this.createdAt,
     required this.updatedAt,
@@ -71,7 +77,9 @@ class ChatRoom {
       meetingTitle: data['meetingTitle'] ?? '',
       meetingImageUrl: data['meetingImageUrl'] as String?,
       memberIds: List<String>.from(data['memberIds'] ?? []),
-      memberNicknames: Map<String, String>.from(data['memberNicknames'] ?? {}),
+      memberNames: Map<String, String>.from(
+        data['memberNames'] ?? data['memberNicknames'] ?? {},
+      ),
       memberProfileUrls: data['memberProfileUrls'] != null
           ? Map<String, String>.from(data['memberProfileUrls'])
           : null,
@@ -86,7 +94,7 @@ class ChatRoom {
       'meetingTitle': meetingTitle,
       if (meetingImageUrl != null) 'meetingImageUrl': meetingImageUrl!,
       'memberIds': memberIds,
-      'memberNicknames': memberNicknames,
+      'memberNames': memberNames,
       if (memberProfileUrls != null) 'memberProfileUrls': memberProfileUrls!,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -180,7 +188,7 @@ class ChatService {
     required String meetingTitle,
     String? meetingImageUrl,
     required List<String> memberIds,
-    required Map<String, String> memberNicknames,
+    required Map<String, String> memberNames,
     Map<String, String>? memberProfileUrls,
   }) async {
     try {
@@ -210,7 +218,7 @@ class ChatService {
         meetingTitle: meetingTitle,
         meetingImageUrl: meetingImageUrl,
         memberIds: memberIds,
-        memberNicknames: memberNicknames,
+        memberNames: memberNames,
         memberProfileUrls: memberProfileUrls,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -222,7 +230,7 @@ class ChatService {
       print('  - meetingId: ${roomData['meetingId']}');
       print('  - meetingTitle: ${roomData['meetingTitle']}');
       print('  - memberIds: ${roomData['memberIds']}');
-      print('  - memberNicknames: ${roomData['memberNicknames']}');
+      print('  - memberNames: ${roomData['memberNames']}');
       print('  - createdAt: ${roomData['createdAt']}');
       print('  - updatedAt: ${roomData['updatedAt']}');
 
@@ -288,20 +296,30 @@ class ChatService {
 
       final data = roomDoc.data() as Map<String, dynamic>?;
       final memberIds = List<String>.from(data?['memberIds'] ?? []);
-      final memberNicknames = Map<String, String>.from(
-        data?['memberNicknames'] ?? {},
+      final memberNames = Map<String, String>.from(
+        data?['memberNames'] ?? data?['memberNicknames'] ?? {},
       );
 
       if (!memberIds.contains(currentUser.uid)) {
         throw Exception('이미 나간 채팅방입니다');
       }
 
+      final leaverName = memberNames[currentUser.uid] ?? '알 수 없음';
       memberIds.remove(currentUser.uid);
-      memberNicknames.remove(currentUser.uid);
+      memberNames.remove(currentUser.uid);
+
+      // 시스템 메시지 추가: "xxx님이 나갔습니다"
+      await roomRef.collection('messages').add({
+        'userId': '',
+        'userName': leaverName,
+        'message': '$leaverName님이 나갔습니다.',
+        'type': 'system',
+        'createdAt': Timestamp.now(),
+      });
 
       await roomRef.update({
         'memberIds': memberIds,
-        'memberNicknames': memberNicknames,
+        'memberNames': memberNames,
         'updatedAt': Timestamp.now(),
       });
     } catch (e) {
@@ -314,7 +332,7 @@ class ChatService {
   Future<void> addMemberToChatRoom({
     required String roomId,
     required String userId,
-    required String userNickname,
+    required String userName,
   }) async {
     try {
       final firestore = _firestore;
@@ -325,7 +343,7 @@ class ChatService {
 
       await roomRef.update({
         'memberIds': FieldValue.arrayUnion([userId]),
-        'memberNicknames.$userId': userNickname,
+        'memberNames.$userId': userName,
         'updatedAt': Timestamp.now(),
       });
     } catch (e) {
@@ -338,7 +356,7 @@ class ChatService {
   Future<void> sendMessage({
     required String roomId,
     required String message,
-    required String userNickname,
+    required String userName,
   }) async {
     try {
       final currentUser = _auth.currentUser;
@@ -356,7 +374,7 @@ class ChatService {
           .collection('messages')
           .add({
             'userId': currentUser.uid,
-            'userNickname': userNickname,
+            'userName': userName,
             'message': message,
             'createdAt': Timestamp.now(),
           });

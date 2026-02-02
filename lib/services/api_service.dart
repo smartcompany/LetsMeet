@@ -95,7 +95,6 @@ class ApiService implements AuthServiceInterface {
 
   @override
   Future<dynamic> updateUser({
-    String? nickname,
     String? fullName,
     String? gender,
     String? bio,
@@ -108,7 +107,6 @@ class ApiService implements AuthServiceInterface {
       Uri.parse('$baseUrl/users/me'),
       headers: _headers,
       body: jsonEncode({
-        if (nickname != null) 'nickname': nickname,
         if (fullName != null) 'full_name': fullName,
         if (gender != null) 'gender': gender,
         if (bio != null) 'bio': bio,
@@ -131,6 +129,18 @@ class ApiService implements AuthServiceInterface {
     }
 
     return User.fromJson(data);
+  }
+
+  /// 다른 사용자 공개 프로필 조회 (채팅 등에서 사용)
+  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get user profile');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   /// 프로필 이미지 업로드 (Supabase Storage 경유)

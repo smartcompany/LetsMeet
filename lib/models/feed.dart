@@ -1,7 +1,7 @@
 class Feed {
   final String id;
   final String authorId;
-  final String authorNickname;
+  final String authorName;
   final String? authorProfileImage;
   final String content;
   final List<String> imageUrls;
@@ -14,7 +14,7 @@ class Feed {
   Feed({
     required this.id,
     required this.authorId,
-    required this.authorNickname,
+    required this.authorName,
     this.authorProfileImage,
     required this.content,
     required this.imageUrls,
@@ -29,7 +29,7 @@ class Feed {
     return Feed(
       id: json['id'],
       authorId: json['author_id'],
-      authorNickname: json['author_nickname'] ?? '알 수 없음',
+      authorName: json['author_name'] ?? '알 수 없음',
       authorProfileImage: json['author_profile_image'],
       content: json['content'],
       imageUrls: List<String>.from(json['image_urls'] ?? []),

@@ -192,7 +192,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                       Row(
                                         children: [
                                           Text(
-                                            comment.userNickname,
+                                            comment.userName,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,

@@ -176,7 +176,7 @@ class _ChatRoomCard extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
     final otherMembers = room.memberIds
         .where((id) => id != currentUser?.uid)
-        .map((id) => room.memberNicknames[id] ?? '알 수 없음')
+        .map((id) => room.memberNames[id] ?? '알 수 없음')
         .toList();
 
     return Card(

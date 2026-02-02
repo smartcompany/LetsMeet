@@ -501,7 +501,7 @@ class _FeedCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        feed.authorNickname,
+                        feed.authorName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(

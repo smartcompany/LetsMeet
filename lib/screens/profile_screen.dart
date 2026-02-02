@@ -186,7 +186,7 @@ class ProfileScreen extends StatelessWidget {
 
                     // 닉네임
                     Text(
-                      user.nickname,
+                      user.fullName,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
+import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 
@@ -20,10 +21,13 @@ class MeetingChatScreen extends StatefulWidget {
 
 class _MeetingChatScreenState extends State<MeetingChatScreen> {
   final ChatService _chatService = ChatService();
+  final ApiService _apiService = ApiService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  String? _userNickname;
+  String? _userName;
+  String? _userProfileUrl;
   ChatRoom? _room;
+  Map<String, String> _memberProfileUrls = {};
 
   @override
   void initState() {
@@ -36,11 +40,31 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     if (currentUser == null) return;
 
     try {
+      final token = await currentUser.getIdToken();
+      if (token != null) _apiService.setToken(token);
+
       final room = await _chatService.getChatRoom(widget.roomId);
-      if (room != null && mounted) {
+      if (room == null || !mounted) return;
+
+      // 항상 API에서 최신 프로필 조회 (Firestore 캐시는 프로필 변경 반영 안 됨)
+      final memberProfileUrls = <String, String>{};
+      for (final memberId in room.memberIds) {
+        try {
+          final profile = await _apiService.getUserProfile(memberId);
+          final url = profile['profile_image_url'] as String?;
+          if (url != null && url.isNotEmpty) {
+            memberProfileUrls[memberId] = url;
+          }
+        } catch (_) {}
+      }
+      final myProfileUrl = memberProfileUrls[currentUser.uid];
+
+      if (mounted) {
         setState(() {
           _room = room;
-          _userNickname = room.memberNicknames[currentUser.uid] ?? '알 수 없음';
+          _memberProfileUrls = memberProfileUrls;
+          _userName = room.memberNames[currentUser.uid] ?? '알 수 없음';
+          _userProfileUrl = myProfileUrl;
         });
       }
     } catch (e) {
@@ -57,7 +81,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
-    if (_userNickname == null) {
+    if (_userName == null) {
       await _loadRoom();
     }
 
@@ -65,7 +89,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       await _chatService.sendMessage(
         roomId: widget.roomId,
         message: _messageController.text.trim(),
-        userNickname: _userNickname ?? '알 수 없음',
+        userName: _userName ?? '알 수 없음',
       );
       _messageController.clear();
 
@@ -98,10 +122,11 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
               meetingId: '',
               meetingTitle: widget.meetingTitle,
               memberIds: [],
-              memberNicknames: {},
+              memberNames: {},
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
             ),
+        memberProfileUrls: _memberProfileUrls,
         onLeave: () async {
           Navigator.pop(context);
           await _handleLeave();
@@ -177,6 +202,26 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     return '$base/meeting/$meetingId';
   }
 
+  Widget _buildAvatar({required String? profileUrl, required String name}) {
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+      backgroundImage: profileUrl != null && profileUrl.isNotEmpty
+          ? NetworkImage(profileUrl)
+          : null,
+      child: profileUrl == null || profileUrl.isEmpty
+          ? Text(
+              name.isNotEmpty ? name[0] : '?',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final participantCount = _room?.participantCount ?? 0;
@@ -250,8 +295,33 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
+
+                    if (message.isSystem) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Center(
+                          child: Text(
+                            message.message,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
                     final currentUser = FirebaseAuth.instance.currentUser;
                     final isMyMessage = currentUser?.uid == message.userId;
+
+                    final otherProfileUrl = _memberProfileUrls[message.userId];
+                    final myProfileUrl = isMyMessage ? _userProfileUrl : null;
+                    final displayName = isMyMessage
+                        ? (_userName ?? '알 수 없음')
+                        : message.userName;
+                    final displayProfileUrl = isMyMessage
+                        ? myProfileUrl
+                        : otherProfileUrl;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -262,20 +332,9 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           if (!isMyMessage) ...[
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: AppTheme.primaryColor
-                                  .withOpacity(0.1),
-                              child: Text(
-                                message.userNickname.isNotEmpty
-                                    ? message.userNickname[0]
-                                    : '?',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            _buildAvatar(
+                              profileUrl: displayProfileUrl,
+                              name: displayName,
                             ),
                             const SizedBox(width: 8),
                           ],
@@ -292,20 +351,21 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: isMyMessage
+                                    ? CrossAxisAlignment.end
+                                    : CrossAxisAlignment.start,
                                 children: [
-                                  if (!isMyMessage)
-                                    Text(
-                                      message.userNickname,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isMyMessage
-                                            ? Colors.white
-                                            : AppTheme.textPrimaryColor,
-                                      ),
+                                  Text(
+                                    displayName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isMyMessage
+                                          ? Colors.white
+                                          : AppTheme.textPrimaryColor,
                                     ),
-                                  if (!isMyMessage) const SizedBox(height: 4),
+                                  ),
+                                  const SizedBox(height: 4),
                                   Text(
                                     message.message,
                                     style: TextStyle(
@@ -321,20 +381,9 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                           ),
                           if (isMyMessage) ...[
                             const SizedBox(width: 8),
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: AppTheme.primaryColor
-                                  .withOpacity(0.1),
-                              child: Text(
-                                _userNickname?.isNotEmpty == true
-                                    ? _userNickname![0]
-                                    : '?',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            _buildAvatar(
+                              profileUrl: displayProfileUrl,
+                              name: displayName,
                             ),
                           ],
                         ],
@@ -399,12 +448,14 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
 
 class _ChatSettingsPanel extends StatelessWidget {
   final ChatRoom room;
+  final Map<String, String> memberProfileUrls;
   final VoidCallback onLeave;
   final VoidCallback onShare;
   final VoidCallback? onRefresh;
 
   const _ChatSettingsPanel({
     required this.room,
+    required this.memberProfileUrls,
     required this.onLeave,
     required this.onShare,
     this.onRefresh,
@@ -414,11 +465,11 @@ class _ChatSettingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final participants = room.memberIds.map((id) {
-      final nickname = room.memberNicknames[id] ?? '알 수 없음';
-      final profileUrl = room.memberProfileUrls?[id];
+      final name = room.memberNames[id] ?? '알 수 없음';
+      final profileUrl = memberProfileUrls[id];
       return _ParticipantInfo(
         userId: id,
-        nickname: nickname,
+        name: name,
         profileImageUrl: profileUrl,
         isCurrentUser: id == currentUser?.uid,
       );
@@ -491,7 +542,7 @@ class _ChatSettingsPanel extends StatelessWidget {
                           p.profileImageUrl == null ||
                               p.profileImageUrl!.isEmpty
                           ? Text(
-                              p.nickname.isNotEmpty ? p.nickname[0] : '?',
+                              p.name.isNotEmpty ? p.name[0] : '?',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: AppTheme.primaryColor,
@@ -503,7 +554,7 @@ class _ChatSettingsPanel extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '${p.nickname}${p.isCurrentUser ? ' (나)' : ''}',
+                        '${p.name}${p.isCurrentUser ? ' (나)' : ''}',
                         style: Theme.of(context).textTheme.bodyLarge,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -558,13 +609,13 @@ class _ChatSettingsPanel extends StatelessWidget {
 
 class _ParticipantInfo {
   final String userId;
-  final String nickname;
+  final String name;
   final String? profileImageUrl;
   final bool isCurrentUser;
 
   _ParticipantInfo({
     required this.userId,
-    required this.nickname,
+    required this.name,
     this.profileImageUrl,
     required this.isCurrentUser,
   });

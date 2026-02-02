@@ -20,8 +20,7 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nicknameController = TextEditingController();
-  final _fullNameController = TextEditingController();
+  final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final List<String> _selectedInterests = [];
   bool _isSubmitting = false;
@@ -51,9 +50,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.initState();
     final user = context.read<AuthProvider<User>>().user;
     if (user != null) {
-      _nicknameController.text = user.nickname.isNotEmpty ? user.nickname : '';
+      _nameController.text = user.fullName.isNotEmpty ? user.fullName : '';
       _selectedInterests.addAll(user.interests);
-      _fullNameController.text = user.fullName ?? '';
       _bioController.text = user.bio ?? '';
       _selectedGender = user.gender;
       _profileImageUrl = user.profileImageUrl;
@@ -63,8 +61,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   void dispose() {
-    _nicknameController.dispose();
-    _fullNameController.dispose();
+    _nameController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -170,10 +167,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       final authProvider = context.read<AuthProvider<User>>();
       await authProvider.updateProfile(
-        nickname: _nicknameController.text.trim(),
-        fullName: _fullNameController.text.trim().isNotEmpty
-            ? _fullNameController.text.trim()
-            : null,
+        fullName: _nameController.text.trim(),
         gender: _selectedGender,
         bio: _bioController.text.trim().isNotEmpty
             ? _bioController.text.trim()
@@ -339,55 +333,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   onTapProfile: _pickProfileImage,
                 ),
 
-                // 이하 섹션(이름, 성별, 닉네임)들과 동일한 체감 간격을 위해 24로 조정
-                const SizedBox(height: 24),
-
-                // 이름 입력
-                Text(
-                  '이름',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimaryColor,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _fullNameController,
-                  decoration: InputDecoration(
-                    hintText: '이름을 입력해주세요 (선택)',
-                    prefixIcon: Icon(
-                      Icons.badge_outlined,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: AppTheme.dividerColor.withOpacity(0.5),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: AppTheme.dividerColor.withOpacity(0.5),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryColor,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 20,
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 24),
 
                 // 성별 선택
@@ -473,9 +418,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                 const SizedBox(height: 32),
 
-                // 닉네임 입력
+                // 이름 입력
                 Text(
-                  '닉네임',
+                  '이름',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -484,9 +429,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _nicknameController,
+                  controller: _nameController,
                   decoration: InputDecoration(
-                    hintText: '닉네임을 입력해주세요',
+                    hintText: '이름을 입력해주세요',
                     prefixIcon: Icon(
                       Icons.person_outline,
                       color: AppTheme.textSecondaryColor,

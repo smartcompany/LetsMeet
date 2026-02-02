@@ -21,7 +21,7 @@ final authConfig = AuthConfig(
   // 프로필 설정 확인 함수
   shouldShowProfileSetup: (user) {
     final myUser = user as User;
-    return myUser.nickname.isEmpty || myUser.interests.isEmpty;
+    return myUser.fullName.isEmpty || myUser.interests.isEmpty;
   },
 
   // 프로필 설정 화면 빌더

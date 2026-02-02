@@ -42,7 +42,7 @@ class FeedScreenState extends State<FeedScreen> {
         _feeds[index] = Feed(
           id: feed.id,
           authorId: feed.authorId,
-          authorNickname: feed.authorNickname,
+          authorName: feed.authorName,
           authorProfileImage: feed.authorProfileImage,
           content: feed.content,
           imageUrls: feed.imageUrls,
@@ -212,7 +212,7 @@ class _FeedCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        feed.authorNickname,
+                        feed.authorName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(

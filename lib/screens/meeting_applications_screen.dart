@@ -295,14 +295,14 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           .map((app) {
             final userInfo = app['letsmeet_users'] as Map<String, dynamic>?;
             final userId = app['user_id'] as String;
-            final nickname = userInfo?['nickname'] ?? '알 수 없음';
+            final name = userInfo?['full_name'] ?? '알 수 없음';
             final profileImageUrl = userInfo?['profile_image_url'] as String?;
             print(
-              '🔵 [MeetingApplicationsScreen] 승인된 사용자: userId=$userId, nickname=$nickname',
+              '🔵 [MeetingApplicationsScreen] 승인된 사용자: userId=$userId, name=$name',
             );
             return {
               'userId': userId,
-              'nickname': nickname,
+              'name': name,
               'profileImageUrl': profileImageUrl,
             };
           })
@@ -331,15 +331,13 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         currentUser.uid,
         ...approvedUsers.map((u) => u['userId'] as String),
       ];
-      final memberNicknames = <String, String>{
-        currentUser.uid: _meeting!.hostNickname,
-      };
+      final memberNames = <String, String>{currentUser.uid: _meeting!.hostName};
       for (final user in approvedUsers) {
-        memberNicknames[user['userId'] as String] = user['nickname'] as String;
+        memberNames[user['userId'] as String] = user['name'] as String;
       }
 
       print('🔵 [MeetingApplicationsScreen] 최종 멤버 ID 목록: $memberIds');
-      print('🔵 [MeetingApplicationsScreen] 최종 멤버 닉네임: $memberNicknames');
+      print('🔵 [MeetingApplicationsScreen] 최종 멤버 이름: $memberNames');
       print(
         '🔵 [MeetingApplicationsScreen] 채팅방 생성 시작 - 멤버 수: ${memberIds.length}',
       );
@@ -350,9 +348,16 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           ? _meeting!.imageUrls!.first
           : null;
 
+      // 호스트: 마이 프로필 사진(profile_image_url) 사용 (로그인 계정 photoURL 아님)
       final memberProfileUrls = <String, String>{};
-      if (currentUser.photoURL != null && currentUser.photoURL!.isNotEmpty) {
-        memberProfileUrls[currentUser.uid] = currentUser.photoURL!;
+      try {
+        final appUser = await _apiService.getCurrentUser();
+        if (appUser.profileImageUrl != null &&
+            appUser.profileImageUrl!.isNotEmpty) {
+          memberProfileUrls[currentUser.uid] = appUser.profileImageUrl!;
+        }
+      } catch (_) {
+        // 프로필 조회 실패 시 프로필 사진 없이 진행
       }
       for (final user in approvedUsers) {
         final profileUrl = user['profileImageUrl'] as String?;
@@ -366,7 +371,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         meetingTitle: _meeting!.title,
         meetingImageUrl: meetingImageUrl,
         memberIds: memberIds,
-        memberNicknames: memberNicknames,
+        memberNames: memberNames,
         memberProfileUrls: memberProfileUrls.isNotEmpty
             ? memberProfileUrls
             : null,
@@ -523,7 +528,7 @@ class _ApplicationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final application = Application.fromJson(applicationData);
     final userInfo = applicationData['letsmeet_users'] as Map<String, dynamic>?;
-    final userNickname = userInfo?['nickname'] ?? '알 수 없음';
+    final userName = userInfo?['full_name'] ?? '알 수 없음';
     final userTrustScore = userInfo?['trust_score'] ?? 0;
 
     final statusColor = {
@@ -553,7 +558,7 @@ class _ApplicationCard extends StatelessWidget {
                   radius: 20,
                   backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   child: Text(
-                    userNickname.isNotEmpty ? userNickname[0] : '?',
+                    userName.isNotEmpty ? userName[0] : '?',
                     style: TextStyle(
                       color: AppTheme.primaryColor,
                       fontWeight: FontWeight.bold,
@@ -566,7 +571,7 @@ class _ApplicationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        userNickname,
+                        userName,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
