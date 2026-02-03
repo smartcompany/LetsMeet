@@ -408,6 +408,85 @@ class ChatService {
         });
   }
 
+  /// 1:1 채팅방 ID 생성 (두 사용자 UID를 정렬해 고정값 반환)
+  String _getDirectChatRoomDocId(String uid1, String uid2) {
+    final sorted = [uid1, uid2]..sort();
+    return 'dm_${sorted[0]}_${sorted[1]}';
+  }
+
+  /// 1:1 채팅방 생성 또는 조회
+  /// (존재하지 않는 문서에 get()하면 보안 규칙에서 거부되므로, 쿼리로 기존 방 검색)
+  Future<String> getOrCreateDirectChatRoom({
+    required String otherUserId,
+    required String otherUserName,
+    String? otherProfileImageUrl,
+    required String myUserName,
+    String? myProfileImageUrl,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('로그인이 필요합니다');
+    }
+    if (otherUserId == currentUser.uid) {
+      throw Exception('본인에게 메시지를 보낼 수 없습니다');
+    }
+
+    final firestore = _firestore;
+
+    // 본인이 멤버인 1:1 방만 쿼리 (보안 규칙 통과)
+    final querySnapshot = await firestore
+        .collection('chatRooms')
+        .where('memberIds', arrayContains: currentUser.uid)
+        .get();
+
+    for (final doc in querySnapshot.docs) {
+      final data = doc.data();
+      final memberIds = List<String>.from(data['memberIds'] ?? []);
+      final meetingId = data['meetingId'] as String? ?? '';
+      if (meetingId.isEmpty &&
+          memberIds.length == 2 &&
+          memberIds.contains(otherUserId)) {
+        return doc.id;
+      }
+    }
+
+    // 기존 방 없으면 새로 생성
+    final docId = _getDirectChatRoomDocId(currentUser.uid, otherUserId);
+    final docRef = firestore.collection('chatRooms').doc(docId);
+
+    final memberIds = [currentUser.uid, otherUserId];
+    final memberNames = {
+      currentUser.uid: myUserName,
+      otherUserId: otherUserName,
+    };
+    final memberProfileUrls = <String, String>{};
+    if (myProfileImageUrl != null && myProfileImageUrl.isNotEmpty) {
+      memberProfileUrls[currentUser.uid] = myProfileImageUrl;
+    }
+    if (otherProfileImageUrl != null && otherProfileImageUrl.isNotEmpty) {
+      memberProfileUrls[otherUserId] = otherProfileImageUrl;
+    }
+
+    final roomData = {
+      'meetingId': '', // 1:1 DM
+      'meetingTitle': otherUserName,
+      'memberIds': memberIds,
+      'memberNames': memberNames,
+      'memberProfileUrls': memberProfileUrls,
+      'createdAt': Timestamp.now(),
+      'updatedAt': Timestamp.now(),
+    };
+
+    try {
+      await docRef.set(roomData);
+    } catch (e, stack) {
+      print('❌ [ChatService] 1:1 채팅방 생성 실패: $e');
+      print('❌ [ChatService] 스택: $stack');
+      rethrow;
+    }
+    return docId;
+  }
+
   /// 채팅방 정보 가져오기
   Future<ChatRoom?> getChatRoom(String roomId) async {
     try {

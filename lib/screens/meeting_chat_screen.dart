@@ -602,19 +602,21 @@ class _ChatSettingsPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onShare,
-                      icon: const Icon(Icons.share_outlined),
-                      label: const Text('모임 공유'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
-                        side: const BorderSide(color: AppTheme.primaryColor),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                  if (room.meetingId.isNotEmpty) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onShare,
+                        icon: const Icon(Icons.share_outlined),
+                        label: const Text('모임 공유'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: onLeave,

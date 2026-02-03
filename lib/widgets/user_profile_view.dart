@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:share_lib/share_lib_auth.dart' as share_lib;
 import '../models/user.dart' as app_models;
+import '../screens/meeting_chat_screen.dart';
 import '../services/api_service.dart';
+import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 import 'profile_card.dart';
 
@@ -86,7 +90,9 @@ class UserProfileView extends StatefulWidget {
 
 class _UserProfileViewState extends State<UserProfileView> {
   final ApiService _apiService = ApiService();
+  final ChatService _chatService = ChatService();
   app_models.User? _user;
+  bool _isOpeningChat = false;
   int _hostedMeetingsCount = 0;
   int _participatedMeetingsCount = 0;
   bool _isLoading = true;
@@ -260,6 +266,56 @@ class _UserProfileViewState extends State<UserProfileView> {
     );
   }
 
+  Future<void> _openDirectChat() async {
+    if (_isOpeningChat || _user == null) return;
+    final authUser = context
+        .read<share_lib.AuthProvider<app_models.User>>()
+        .user;
+    if (authUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
+      }
+      return;
+    }
+    if (authUser.id == widget.userId) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('본인에게 메시지를 보낼 수 없습니다')));
+      }
+      return;
+    }
+
+    setState(() => _isOpeningChat = true);
+    try {
+      final roomId = await _chatService.getOrCreateDirectChatRoom(
+        otherUserId: widget.userId,
+        otherUserName: _user!.fullName,
+        otherProfileImageUrl: _user!.profileImageUrl,
+        myUserName: authUser.fullName,
+        myProfileImageUrl: authUser.profileImageUrl,
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              MeetingChatScreen(roomId: roomId, meetingTitle: _user!.fullName),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('채팅방 열기 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isOpeningChat = false);
+    }
+  }
+
   Widget _buildActionButtons() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -267,16 +323,18 @@ class _UserProfileViewState extends State<UserProfileView> {
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('채팅은 모임 채팅에서 이용해주세요'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.chat_bubble_outline, size: 18),
-              label: const Text('메시지 보내기'),
+              onPressed: _isOpeningChat ? null : _openDirectChat,
+              icon: _isOpeningChat
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.chat_bubble_outline, size: 18),
+              label: Text(_isOpeningChat ? '연결 중...' : '메시지 보내기'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
