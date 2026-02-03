@@ -44,12 +44,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_WEB_API_KEY',
-    appId: 'YOUR_WEB_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyC7GHNBsS21CL7ZKa-5MGd_6ogOk4v8g4k',
+    appId: '1:225419812075:web:7421d1841d06782f8972ae',
+    messagingSenderId: '225419812075',
+    projectId: 'letsmeet-8def5',
+    authDomain: 'letsmeet-8def5.firebaseapp.com',
+    storageBucket: 'letsmeet-8def5.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
