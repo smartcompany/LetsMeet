@@ -121,27 +121,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    if (!_hasUnsavedChanges) return true;
-
-    final shouldPop = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('변경사항이 있습니다'),
-        content: const Text('입력한 내용이 저장되지 않았습니다. 정말 나가시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
-    );
-
-    return shouldPop ?? false;
+    return true;
   }
 
   String? _validateTitle(String? value) {

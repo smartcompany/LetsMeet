@@ -10,6 +10,7 @@ import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
 import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
+import '../widgets/user_profile_view.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_applications_screen.dart';
 
@@ -602,6 +603,94 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
                   // 모임 상태 표시
                   _buildStatusBadge(meeting.status),
+                  const SizedBox(height: 24),
+
+                  // 호스트 프로필 카드
+                  InkWell(
+                    onTap: () {
+                      UserProfileView.show(
+                        context,
+                        userId: meeting.hostId,
+                        displayName: meeting.hostName,
+                        profileImageUrl: meeting.hostProfileImageUrl,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.dividerColor.withOpacity(0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: AppTheme.primaryColor.withOpacity(
+                              0.1,
+                            ),
+                            backgroundImage:
+                                meeting.hostProfileImageUrl != null &&
+                                    meeting.hostProfileImageUrl!.isNotEmpty
+                                ? NetworkImage(meeting.hostProfileImageUrl!)
+                                : null,
+                            child:
+                                meeting.hostProfileImageUrl == null ||
+                                    meeting.hostProfileImageUrl!.isEmpty
+                                ? Text(
+                                    meeting.hostName.isNotEmpty
+                                        ? meeting.hostName[0]
+                                        : '?',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '호스트',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  meeting.hostName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textPrimaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   // 2. 호스트 한 마디

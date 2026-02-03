@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/profile_photo_preview.dart';
+import '../widgets/user_profile_view.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final Future<void> Function()? onComplete;
@@ -214,58 +215,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             Icons.arrow_back_ios,
             color: AppTheme.textPrimaryColor,
           ),
-          onPressed: () {
-            // 프로필 설정이 필수인 경우 경고 표시
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Text(
-                  '프로필 설정',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimaryColor,
-                  ),
-                ),
-                content: const Text(
-                  '프로필 설정을 완료해야 서비스를 이용할 수 있습니다.\n정말 나가시겠습니까?',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppTheme.textSecondaryColor,
-                    height: 1.5,
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      '취소',
-                      style: TextStyle(
-                        color: AppTheme.textSecondaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // 다이얼로그 닫기
-                      Navigator.of(context).pop(); // 프로필 설정 화면 닫기
-                    },
-                    child: const Text(
-                      '나가기',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           '프로필 설정',
@@ -568,39 +518,81 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                 const SizedBox(height: 48),
 
-                // 완료 버튼
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                // 미리보기 & 완료 버튼
+                Row(
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        final user = context.read<AuthProvider<User>>().user;
+                        UserProfileView.showPreview(
+                          context,
+                          fullName: _nameController.text.trim().isEmpty
+                              ? '이름'
+                              : _nameController.text.trim(),
+                          profileImageUrl: _profileImageUrl,
+                          backgroundImageUrl: _backgroundImageUrl,
+                          bio: _bioController.text.trim().isEmpty
+                              ? null
+                              : _bioController.text.trim(),
+                          gender: _selectedGender,
+                          createdAt: user?.createdAt,
+                          trustScore: user?.trustScore ?? 70,
+                          interests: List.from(_selectedInterests),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: const BorderSide(color: AppTheme.primaryColor),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 18,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                      elevation: 0,
-                    ).copyWith(elevation: MaterialStateProperty.all(0)),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                        : const Text(
-                            '완료',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                      child: const Text(
+                        '미리보기',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                  ),
+                          elevation: 0,
+                        ).copyWith(elevation: MaterialStateProperty.all(0)),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                '완료',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

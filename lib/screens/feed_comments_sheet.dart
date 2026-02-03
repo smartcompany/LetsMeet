@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/feed_comment.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/user_profile_view.dart';
 import 'package:intl/intl.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
@@ -173,15 +174,25 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                CircleAvatar(
-                                  backgroundImage:
-                                      comment.userProfileImage != null
-                                      ? NetworkImage(comment.userProfileImage!)
-                                      : null,
-                                  child: comment.userProfileImage == null
-                                      ? const Icon(Icons.person, size: 16)
-                                      : null,
-                                  radius: 16,
+                                GestureDetector(
+                                  onTap: () => UserProfileView.show(
+                                    context,
+                                    userId: comment.userId,
+                                    displayName: comment.userName,
+                                    profileImageUrl: comment.userProfileImage,
+                                  ),
+                                  child: CircleAvatar(
+                                    backgroundImage:
+                                        comment.userProfileImage != null
+                                        ? NetworkImage(
+                                            comment.userProfileImage!,
+                                          )
+                                        : null,
+                                    child: comment.userProfileImage == null
+                                        ? const Icon(Icons.person, size: 16)
+                                        : null,
+                                    radius: 16,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(

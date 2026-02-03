@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/feed.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/user_profile_view.dart';
 import 'feed_comments_sheet.dart';
 import 'package:intl/intl.dart';
 
@@ -196,36 +197,45 @@ class _FeedCard extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: feed.authorProfileImage != null
-                      ? NetworkImage(feed.authorProfileImage!)
-                      : null,
-                  child: feed.authorProfileImage == null
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        feed.authorName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        DateFormat('yyyy.MM.dd HH:mm').format(feed.createdAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                      ),
-                    ],
+            child: InkWell(
+              onTap: () => UserProfileView.show(
+                context,
+                userId: feed.authorId,
+                displayName: feed.authorName,
+                profileImageUrl: feed.authorProfileImage,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: feed.authorProfileImage != null
+                        ? NetworkImage(feed.authorProfileImage!)
+                        : null,
+                    child: feed.authorProfileImage == null
+                        ? const Icon(Icons.person)
+                        : null,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          feed.authorName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          DateFormat('yyyy.MM.dd HH:mm').format(feed.createdAt),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (feed.imageUrls.isNotEmpty)

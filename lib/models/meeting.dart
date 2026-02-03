@@ -2,6 +2,7 @@ class Meeting {
   final String id;
   final String hostId;
   final String hostName;
+  final String? hostProfileImageUrl;
   final String title;
   final String? description;
   final String? shortDescription; // 한 줄 설명
@@ -33,6 +34,7 @@ class Meeting {
     required this.id,
     required this.hostId,
     required this.hostName,
+    this.hostProfileImageUrl,
     required this.title,
     this.description,
     this.shortDescription,
@@ -66,6 +68,7 @@ class Meeting {
       id: json['id'],
       hostId: json['host_id'],
       hostName: json['host_name'] ?? '',
+      hostProfileImageUrl: json['host_profile_image_url'] as String?,
       title: json['title'],
       description: json['description'],
       shortDescription: json['short_description'],

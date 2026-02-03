@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// 배경 이미지 + 프로필 아바타를 함께 보여주는 공통 위젯
-/// - 배경 탭: onTapBackground
-/// - 아바타 탭: onTapProfile
+/// - 배경 이미지 상단, 프로필 사진은 배경 하단과 겹쳐서 배치
+/// - 배경 탭: onTapBackground, 아바타 탭: onTapProfile
 class ProfilePhotoPreview extends StatelessWidget {
   final String? backgroundImageUrl;
   final String? profileImageUrl;
@@ -25,174 +25,216 @@ class ProfilePhotoPreview extends StatelessWidget {
     this.editable = true,
   });
 
+  Widget _buildPlaceholderBanner() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor.withOpacity(0.15),
+            AppTheme.primaryColor.withOpacity(0.05),
+          ],
+        ),
+      ),
+      child: editable
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.photo_outlined,
+                    size: 32,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '배경 사진 추가',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      // 배경(160) + 아바타가 배경보다 약 10px 아래로 살짝 걸치도록 필요한 높이
-      height: 180,
-      width: double.infinity,
-      child: Stack(
-        clipBehavior: Clip.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 배경 사진
-          GestureDetector(
-            onTap: !editable || isUploadingBackground ? null : onTapBackground,
-            child: Container(
-              height: 160,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-                border: Border.all(
-                  color: AppTheme.dividerColor.withOpacity(0.5),
-                ),
-                image: backgroundImageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(backgroundImageUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: backgroundImageUrl == null
-                  ? (editable
-                        ? Align(
-                            alignment: Alignment.topCenter,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.photo_outlined,
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '배경 사진 추가',
-                                    style: TextStyle(
-                                      color: AppTheme.textSecondaryColor,
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // 배경 사진 상단
+              GestureDetector(
+                onTap: !editable || isUploadingBackground
+                    ? null
+                    : onTapBackground,
+                child: AspectRatio(
+                  aspectRatio: 16 / 6,
+                  child:
+                      backgroundImageUrl != null &&
+                          backgroundImageUrl!.isNotEmpty
+                      ? Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              backgroundImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildPlaceholderBanner(),
+                            ),
+                            if (editable)
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: GestureDetector(
+                                  onTap: isUploadingBackground
+                                      ? null
+                                      : onTapBackground,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
                                     ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: isUploadingBackground
+                                        ? const SizedBox(
+                                            height: 14,
+                                            width: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.edit,
+                                                size: 14,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                '변경',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
+                      : _buildPlaceholderBanner(),
+                ),
+              ),
+
+              // 프로필 사진 - 배경 하단 중앙에 겹쳐서 배치
+              Positioned(
+                bottom: -40,
+                child: GestureDetector(
+                  onTap: !editable || isUploadingProfile ? null : onTapProfile,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.white,
+                        child: CircleAvatar(
+                          radius: 37,
+                          backgroundColor: AppTheme.primaryColor.withOpacity(
+                            0.1,
+                          ),
+                          backgroundImage:
+                              profileImageUrl != null &&
+                                  profileImageUrl!.isNotEmpty
+                              ? NetworkImage(profileImageUrl!)
+                              : null,
+                          child:
+                              profileImageUrl == null ||
+                                  profileImageUrl!.isEmpty
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  size: 40,
+                                  color: AppTheme.primaryColor,
+                                )
+                              : null,
+                        ),
+                      ),
+                      if (editable)
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: InkWell(
+                            onTap: isUploadingProfile ? null : onTapProfile,
+                            customBorder: const CircleBorder(),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
-                            ),
-                          )
-                        : const SizedBox.shrink())
-                  : (editable
-                        ? Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isUploadingBackground)
-                                      const SizedBox(
-                                        height: 14,
-                                        width: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                    else
-                                      const Icon(
-                                        Icons.edit,
-                                        size: 14,
-                                        color: Colors.white,
+                              child: isUploadingProfile
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                       ),
-                                    const SizedBox(width: 4),
-                                    const Text(
-                                      '변경',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 18,
+                                      color: AppTheme.primaryColor,
                                     ),
-                                  ],
-                                ),
-                              ),
                             ),
-                          )
-                        : const SizedBox.shrink()),
-            ),
-          ),
-
-          // 배경 위에 겹쳐 보이는 프로필 사진
-          Positioned(
-            // 아바타의 bottom이 배경 bottom(160)보다 약 10px 아래(170)로 오도록 조정
-            // Stack 높이 180이므로 bottom = 180 - 170 = 10
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                    backgroundImage: profileImageUrl != null
-                        ? NetworkImage(profileImageUrl!)
-                        : null,
-                    child: profileImageUrl == null
-                        ? const Icon(
-                            Icons.person_rounded,
-                            size: 40,
-                            color: AppTheme.primaryColor,
-                          )
-                        : null,
-                  ),
-                  if (editable)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: InkWell(
-                        onTap: isUploadingProfile ? null : onTapProfile,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
-                          child: isUploadingProfile
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.camera_alt_rounded,
-                                  size: 18,
-                                  color: AppTheme.primaryColor,
-                                ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );

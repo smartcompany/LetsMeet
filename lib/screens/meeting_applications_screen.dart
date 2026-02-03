@@ -6,6 +6,7 @@ import '../models/meeting.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/user_profile_view.dart';
 import 'meeting_chat_screen.dart';
 
 class MeetingApplicationsScreen extends StatefulWidget {
@@ -95,8 +96,28 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
 
       if (!mounted) return;
 
+      // 즉시 참여 모임인데 대기 중인 신청이 있으면 자동 승인 (기존 데이터 정합성)
+      Meeting? meeting = _meeting;
+      if (meeting == null) {
+        meeting = await _apiService.getMeeting(widget.meetingId);
+        if (mounted) setState(() => _meeting = meeting);
+      }
+      var finalApplications = applications;
+      if (meeting.approvalType == ApprovalType.immediate && mounted) {
+        for (final app in applications) {
+          if (Application.fromJson(app).status == ApplicationStatus.pending) {
+            try {
+              await _apiService.approveApplication(app['id'] as String);
+            } catch (_) {}
+          }
+        }
+        if (!mounted) return;
+        finalApplications = await _apiService.getApplications(widget.meetingId);
+      }
+
+      if (!mounted) return;
       setState(() {
-        _applications = applications;
+        _applications = finalApplications;
         _isLoading = false;
       });
     } catch (e) {
@@ -527,8 +548,10 @@ class _ApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final application = Application.fromJson(applicationData);
+    final userId = applicationData['user_id'] as String? ?? '';
     final userInfo = applicationData['letsmeet_users'] as Map<String, dynamic>?;
     final userName = userInfo?['full_name'] ?? '알 수 없음';
+    final profileImageUrl = userInfo?['profile_image_url'] as String?;
     final userTrustScore = userInfo?['trust_score'] ?? 0;
 
     final statusColor = {
@@ -554,43 +577,72 @@ class _ApplicationCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: Text(
-                    userName.isNotEmpty ? userName[0] : '?',
-                    style: TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.star,
-                            size: 14,
-                            color: AppTheme.textSecondaryColor,
+                  child: InkWell(
+                    onTap: userId.isNotEmpty
+                        ? () => UserProfileView.show(
+                            context,
+                            userId: userId,
+                            displayName: userName,
+                            profileImageUrl: profileImageUrl,
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppTheme.primaryColor.withOpacity(
+                            0.1,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '신뢰도: $userTrustScore',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppTheme.textSecondaryColor),
+                          backgroundImage:
+                              profileImageUrl != null &&
+                                  profileImageUrl.isNotEmpty
+                              ? NetworkImage(profileImageUrl)
+                              : null,
+                          child:
+                              profileImageUrl == null || profileImageUrl.isEmpty
+                              ? Text(
+                                  userName.isNotEmpty ? userName[0] : '?',
+                                  style: TextStyle(
+                                    color: AppTheme.primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    size: 14,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '신뢰도: $userTrustScore',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: AppTheme.textSecondaryColor,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Container(

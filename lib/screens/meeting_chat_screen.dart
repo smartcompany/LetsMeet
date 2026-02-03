@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/user_profile_view.dart';
 
 class MeetingChatScreen extends StatefulWidget {
   final String roomId;
@@ -202,8 +203,12 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     return '$base/meeting/$meetingId';
   }
 
-  Widget _buildAvatar({required String? profileUrl, required String name}) {
-    return CircleAvatar(
+  Widget _buildAvatar({
+    required String? profileUrl,
+    required String name,
+    String? userId,
+  }) {
+    final avatar = CircleAvatar(
       radius: 16,
       backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
       backgroundImage: profileUrl != null && profileUrl.isNotEmpty
@@ -220,6 +225,18 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
             )
           : null,
     );
+    if (userId != null && userId.isNotEmpty) {
+      return GestureDetector(
+        onTap: () => UserProfileView.show(
+          context,
+          userId: userId,
+          displayName: name,
+          profileImageUrl: profileUrl,
+        ),
+        child: avatar,
+      );
+    }
+    return avatar;
   }
 
   @override
@@ -335,6 +352,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                             _buildAvatar(
                               profileUrl: displayProfileUrl,
                               name: displayName,
+                              userId: message.userId,
                             ),
                             const SizedBox(width: 8),
                           ],
@@ -528,39 +546,51 @@ class _ChatSettingsPanel extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final p = participants[index];
-                return Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      backgroundImage:
-                          p.profileImageUrl != null &&
-                              p.profileImageUrl!.isNotEmpty
-                          ? NetworkImage(p.profileImageUrl!)
-                          : null,
-                      child:
-                          p.profileImageUrl == null ||
-                              p.profileImageUrl!.isEmpty
-                          ? Text(
-                              p.name.isNotEmpty ? p.name[0] : '?',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${p.name}${p.isCurrentUser ? ' (나)' : ''}',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                return InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    UserProfileView.show(
+                      context,
+                      userId: p.userId,
+                      displayName: p.name,
+                      profileImageUrl: p.profileImageUrl,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                        backgroundImage:
+                            p.profileImageUrl != null &&
+                                p.profileImageUrl!.isNotEmpty
+                            ? NetworkImage(p.profileImageUrl!)
+                            : null,
+                        child:
+                            p.profileImageUrl == null ||
+                                p.profileImageUrl!.isEmpty
+                            ? Text(
+                                p.name.isNotEmpty ? p.name[0] : '?',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${p.name}${p.isCurrentUser ? ' (나)' : ''}',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

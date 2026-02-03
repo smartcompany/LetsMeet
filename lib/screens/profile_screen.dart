@@ -7,7 +7,7 @@ import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
-import '../widgets/profile_photo_preview.dart';
+import '../widgets/profile_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -149,159 +149,19 @@ class ProfileScreen extends StatelessWidget {
           child: Column(
             children: [
               // 프로필 카드
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.primaryColor.withOpacity(0.1),
-                      AppTheme.primaryColor.withOpacity(0.05),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: AppTheme.dividerColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // 배경 + 프로필 사진 (보기 전용)
-                    ProfilePhotoPreview(
-                      backgroundImageUrl: user.backgroundImageUrl,
-                      profileImageUrl: user.profileImageUrl,
-                      isUploadingBackground: false,
-                      isUploadingProfile: false,
-                      onTapBackground: () {
-                        // 마이페이지에서는 편집은 아래 "프로필 수정" 버튼에서 수행
-                      },
-                      onTapProfile: () {
-                        // 마이페이지에서는 편집은 아래 "프로필 수정" 버튼에서 수행
-                      },
-                      editable: false,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 닉네임
-                    Text(
-                      user.fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // 이름
-                    if (user.fullName != null && user.fullName!.isNotEmpty) ...[
-                      Text(
-                        user.fullName!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-
-                    // 성별
-                    if (user.gender != null) ...[
-                      Text(
-                        user.gender == 'male' ? '남성' : '여성',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-
-                    // 자기소개
-                    if (user.bio != null && user.bio!.isNotEmpty) ...[
-                      Text(
-                        user.bio!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondaryColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // 신뢰 점수
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getTrustLevelColor(
-                          user.trustLevel,
-                        ).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.verified_rounded,
-                            size: 16,
-                            color: _getTrustLevelColor(user.trustLevel),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            user.trustLevel.displayName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: _getTrustLevelColor(user.trustLevel),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '• ${user.trustScore}점',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 관심사
-                    if (user.interests.isNotEmpty)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: user.interests.map((interest) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              interest,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
+              ProfileCard(
+                fullName: user.fullName,
+                profileImageUrl: user.profileImageUrl,
+                backgroundImageUrl: user.backgroundImageUrl,
+                createdAt: user.createdAt,
+                bio: user.bio,
+                gender: user.gender,
+                trustScore: user.trustScore,
+                trustLevel: user.trustLevel,
+                interests: user.interests,
+                showTrustBadge: true,
+                showInterests: true,
+                margin: EdgeInsets.zero,
               ),
 
               const SizedBox(height: 24),
@@ -407,19 +267,6 @@ class ProfileScreen extends StatelessWidget {
         );
       },
     );
-  }
-
-  Color _getTrustLevelColor(TrustLevel level) {
-    switch (level) {
-      case TrustLevel.trust:
-        return const Color(0xFF10B981);
-      case TrustLevel.stable:
-        return const Color(0xFF3B82F6);
-      case TrustLevel.caution:
-        return const Color(0xFFF59E0B);
-      case TrustLevel.restricted:
-        return const Color(0xFFEF4444);
-    }
   }
 }
 
