@@ -80,9 +80,9 @@ dependencies:
   sign_in_with_apple: ^6.1.3
   google_sign_in: ^6.2.1
   
-  # Shared library for authentication
+  # Shared library for authentication (git submodule)
   share_lib:
-    path: ../../flutter_share_lib
+    path: flutter_share_lib
   
   # i18n support
   flutter_localizations:
