@@ -1,0 +1,3 @@
+[submodule "flutter_share_lib"]
+	path = flutter_share_lib
+	url = https://github.com/smartcompany/flutter_share_lib.git
