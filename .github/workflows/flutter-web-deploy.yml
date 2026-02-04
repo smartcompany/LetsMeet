@@ -36,7 +36,7 @@ jobs:
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: 'build/web --prod --yes'  # --prod = Production 배포
+          vercel-args: 'build/web --prod'  # Vercel CLI 25+ 에서 --yes 제거됨
           vercel-project-name: letsmeet-web
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
