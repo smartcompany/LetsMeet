@@ -23,6 +23,12 @@
   <!-- Google Sign-In for Web: content에 Web Client ID 입력 (Firebase Console → Authentication → Google → 웹 클라이언트 ID) -->
   <meta name="google-signin-client_id" content="225419812075-n7imgrhem59uo9bdtpfkr9v92jb0ro3o.apps.googleusercontent.com">
 
+  <!-- Kakao JavaScript SDK (웹 카카오 로그인용) - 카카오 개발자 콘솔에 웹 플랫폼·도메인 등록 필요 -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.9/kakao.min.js" crossorigin="anonymous"></script>
+  <script>
+    Kakao.init('d7c582cd72cf487332fe74fd6cf3b5bc');
+  </script>
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
