@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/meeting_card.dart';
 import 'meeting_detail_screen.dart';
+import 'meeting_applications_screen.dart';
 
 class MyMeetingsScreen extends StatefulWidget {
   const MyMeetingsScreen({super.key});
@@ -16,7 +17,15 @@ class MyMeetingsScreen extends StatefulWidget {
 class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
   bool _isLoading = true;
   List<Meeting> _myMeetings = [];
+  Map<String, int> _pendingCounts = {};
   final ApiService _apiService = ApiService();
+
+  Future<void> _loadPendingCounts() async {
+    try {
+      final counts = await _apiService.getPendingApplicationCounts();
+      if (mounted) setState(() => _pendingCounts = counts);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
@@ -52,6 +61,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
             _myMeetings = myMeetings;
             _isLoading = false;
           });
+          _loadPendingCounts();
         }
       } else {
         if (mounted) {
@@ -107,103 +117,165 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _myMeetings.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.event_busy_rounded,
-                    size: 64,
-                    color: AppTheme.textTertiaryColor.withOpacity(0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '아직 만든 모임이 없습니다.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadMyMeetings,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // 진행 중인 모임
-                  if (activeMeetings.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        '진행중',
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.event_busy_rounded,
+                        size: 64,
+                        color: AppTheme.textTertiaryColor.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '아직 만든 모임이 없습니다.',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimaryColor,
+                          fontSize: 16,
+                          color: AppTheme.textSecondaryColor,
                         ),
                       ),
-                    ),
-                    ...activeMeetings.map(
-                      (meeting) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: MeetingCard(
-                          meeting: meeting,
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    MeetingDetailScreen(meetingId: meeting.id),
-                              ),
-                            );
-                            if (result == true) {
-                              _loadMyMeetings();
-                            }
-                          },
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadMyMeetings,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // 진행 중인 모임
+                      if (activeMeetings.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            '진행중',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  // 완료된 모임
-                  if (completedMeetings.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12, top: 8),
-                      child: Text(
-                        '완료',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimaryColor,
+                        ...activeMeetings.map(
+                          (meeting) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                MeetingCard(
+                                  meeting: meeting,
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MeetingDetailScreen(
+                                            meetingId: meeting.id),
+                                      ),
+                                    );
+                                    if (result == true) {
+                                      _loadMyMeetings();
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              MeetingApplicationsScreen(
+                                            meetingId: meeting.id,
+                                          ),
+                                        ),
+                                      ).then((_) => _loadPendingCounts());
+                                    },
+                                    icon: const Icon(Icons.people_outline, size: 20),
+                                    label: Text(
+                                      '신청 관리${_pendingCounts[meeting.id] != null && _pendingCounts[meeting.id]! > 0 ? ' (${_pendingCounts[meeting.id]})' : ''}',
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppTheme.primaryColor,
+                                      side: const BorderSide(color: AppTheme.primaryColor),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    ...completedMeetings.map(
-                      (meeting) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: MeetingCard(
-                          meeting: meeting,
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    MeetingDetailScreen(meetingId: meeting.id),
-                              ),
-                            );
-                            if (result == true) {
-                              _loadMyMeetings();
-                            }
-                          },
+                        const SizedBox(height: 8),
+                      ],
+                      // 완료된 모임
+                      if (completedMeetings.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12, top: 8),
+                          child: Text(
+                            '완료',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                        ...completedMeetings.map(
+                          (meeting) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                MeetingCard(
+                                  meeting: meeting,
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MeetingDetailScreen(
+                                            meetingId: meeting.id),
+                                      ),
+                                    );
+                                    if (result == true) {
+                                      _loadMyMeetings();
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              MeetingApplicationsScreen(
+                                            meetingId: meeting.id,
+                                          ),
+                                        ),
+                                      ).then((_) => _loadPendingCounts());
+                                    },
+                                    icon: const Icon(Icons.people_outline, size: 20),
+                                    label: Text(
+                                      '신청 관리${_pendingCounts[meeting.id] != null && _pendingCounts[meeting.id]! > 0 ? ' (${_pendingCounts[meeting.id]})' : ''}',
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppTheme.primaryColor,
+                                      side: const BorderSide(color: AppTheme.primaryColor),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
     );
   }
 }

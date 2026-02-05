@@ -12,7 +12,6 @@ import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import 'create_meeting_screen.dart';
-import 'meeting_applications_screen.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
   final String meetingId;
@@ -957,31 +956,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isHost)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      MeetingApplicationsScreen(
-                                        meetingId: meeting.id,
-                                      ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.people_outline),
-                            label: const Text('신청 관리'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                          ),
-                        )
-                      else ...[
+                      if (!isHost) ...[
                         // 질문이 있고 아직 신청 폼을 보여주지 않은 경우
                         if (!_showApplicationForm && !_isApplied)
                           SizedBox(

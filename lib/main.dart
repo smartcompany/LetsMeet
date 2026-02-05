@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:share_lib/share_lib_auth.dart';
@@ -11,11 +12,15 @@ import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/api_service.dart';
+import 'services/push_service.dart';
 import 'models/user.dart';
 import 'utils/deep_link_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 푸시 알림 백그라운드 핸들러 (최상단에 등록)
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Firebase 초기화 (이미 초기화된 경우 스킵)
   try {
@@ -54,10 +59,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final apiService = ApiService();
     return MultiProvider(
       providers: [
+        Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider(
-          create: (_) => AuthProvider<User>(authService: ApiService()),
+          create: (_) => AuthProvider<User>(authService: apiService),
         ),
         ChangeNotifierProvider(create: (_) => MeetingProvider()),
       ],
@@ -87,6 +94,8 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _pushInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,8 +104,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
     });
   }
 
+  void _initPushIfLoggedIn(AuthProvider<User> authProvider) {
+    if (authProvider.user == null || _pushInitialized) return;
+    _pushInitialized = true;
+    final api = context.read<ApiService>();
+    PushService(apiService: api).initialize();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const MainTabScreen();
+    return Consumer<AuthProvider<User>>(
+      builder: (context, authProvider, _) {
+        // 로그인 시 푸시 알림 초기화 (한 번만)
+        if (authProvider.user != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _initPushIfLoggedIn(authProvider);
+          });
+        }
+        return const MainTabScreen();
+      },
+    );
   }
 }

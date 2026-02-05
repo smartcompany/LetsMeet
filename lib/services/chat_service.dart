@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatMessage {
   final String id;
@@ -557,6 +560,102 @@ class ChatService {
 
           print('🔵 [ChatService] 최종 채팅방 수: ${rooms.length}');
           return rooms;
+        });
+  }
+
+  static const String _lastReadPrefix = 'chat_last_read_';
+
+  static final _lastReadUpdatedController =
+      StreamController<String>.broadcast(sync: true);
+
+  /// 해당 채팅방의 읽지 않음 기준 시각 (SharedPreferences)
+  Future<DateTime?> getLastReadAt(String roomId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt('$_lastReadPrefix$roomId');
+    return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : null;
+  }
+
+  /// 채팅방 진입 시 마지막 읽은 시각 갱신
+  Future<void> updateLastRead(String roomId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      '$_lastReadPrefix$roomId',
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    _lastReadUpdatedController.add(roomId);
+  }
+
+  /// 방별 읽지 않은 메시지 수 스트림 (본인 메시지 제외)
+  /// updateLastRead 호출 시에도 재계산되도록 lastRead 갱신 스트림과 병합
+  Stream<int> getRoomUnreadCountStream(String roomId) {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return Stream.value(0);
+    final myUid = currentUser.uid;
+    final firestore = _firestore;
+
+    Future<int> computeCount(QuerySnapshot snapshot) async {
+      final lastReadAt = await getLastReadAt(roomId);
+      final cutoff = lastReadAt ?? DateTime(1970);
+      int count = 0;
+      for (final d in snapshot.docs) {
+        final data = d.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+        final t = (data['createdAt'] as Timestamp?)?.toDate();
+        final uid = data['userId'] as String? ?? '';
+        if (t != null && t.isAfter(cutoff) && uid != myUid) count++;
+      }
+      return count;
+    }
+
+    final messagesStream = firestore
+        .collection('chatRooms')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('createdAt', descending: false)
+        .snapshots();
+
+    final lastReadUpdates = _lastReadUpdatedController.stream
+        .where((id) => id == roomId)
+        .asyncMap((_) async {
+      return await firestore
+          .collection('chatRooms')
+          .doc(roomId)
+          .collection('messages')
+          .orderBy('createdAt', descending: false)
+          .get();
+    });
+
+    final controller = StreamController<int>.broadcast();
+    StreamSubscription? sub1, sub2;
+
+    void onData(QuerySnapshot snapshot) async {
+      final count = await computeCount(snapshot);
+      if (!controller.isClosed) controller.add(count);
+    }
+
+    sub1 = messagesStream.listen(onData);
+    sub2 = lastReadUpdates.listen(onData);
+
+    controller.onCancel = () {
+      sub1?.cancel();
+      sub2?.cancel();
+    };
+
+    return controller.stream;
+  }
+
+  /// 채팅방의 마지막 메시지 스트림 (리스트 부제목용)
+  Stream<ChatMessage?> getLastMessageStream(String roomId) {
+    return _firestore
+        .collection('chatRooms')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          return ChatMessage.fromFirestore(snapshot.docs.first);
         });
   }
 

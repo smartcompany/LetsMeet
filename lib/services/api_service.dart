@@ -143,6 +143,78 @@ class ApiService implements AuthServiceInterface {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// 호스트인 모임별 pending 신청 수 조회
+  Future<Map<String, int>> getPendingApplicationCounts() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/pending-application-counts'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      return {};
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data.map((k, v) => MapEntry(k, (v as num).toInt()));
+  }
+
+  /// 채팅 새 메시지 푸시 알림 요청 (수신자에게 푸시 전송)
+  Future<void> notifyChatMessage({
+    required List<String> recipientUserIds,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    if (recipientUserIds.isEmpty) return;
+    final response = await http.post(
+      Uri.parse('$baseUrl/chat/notify'),
+      headers: _headers,
+      body: jsonEncode({
+        'recipient_user_ids': recipientUserIds,
+        'title': title,
+        'body': body,
+        if (data != null) 'data': data,
+      }),
+    );
+    if (response.statusCode != 200) {
+      debugPrint('[ApiService] Chat notify failed: ${response.statusCode}');
+    }
+  }
+
+  /// 사용자 설정 조회 (채팅 푸시 on/off 등)
+  Future<Map<String, dynamic>> getMySettings() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/settings'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      return {'chat_push_enabled': true};
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// 채팅 푸시 알림 설정 업데이트
+  Future<void> updateChatPushEnabled(bool enabled) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/me/settings'),
+      headers: _headers,
+      body: jsonEncode({'chat_push_enabled': enabled}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update chat push setting');
+    }
+  }
+
+  /// FCM 토큰 저장 (푸시 알림용)
+  Future<void> saveFcmToken(String token) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/me/fcm-token'),
+      headers: _headers,
+      body: jsonEncode({'fcm_token': token}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to save FCM token');
+    }
+  }
+
   /// 프로필 이미지 업로드 (Supabase Storage 경유)
   Future<String> uploadProfileImage(File file) async {
     final uri = Uri.parse('$baseUrl/users/me/profile-image');

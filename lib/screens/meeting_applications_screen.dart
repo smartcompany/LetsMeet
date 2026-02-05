@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -399,8 +401,25 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       );
 
       print('✅ [MeetingApplicationsScreen] 채팅방 생성 완료 - Room ID: $roomId');
-      print('✅ [MeetingApplicationsScreen] Firebase Console에서 확인하세요:');
-      print('   프로젝트 ID는 콘솔 로그에서 확인 가능합니다');
+
+      // 승인된 참가자들에게 채팅방 생성 알림 전송 (백그라운드, UI 블로킹 방지)
+      final recipientIds = approvedUsers.map((u) => u['userId'] as String).toList();
+      if (recipientIds.isNotEmpty) {
+        unawaited(
+          _apiService
+              .notifyChatMessage(
+                recipientUserIds: recipientIds,
+                title: '${_meeting!.title}',
+                body: '모임장이 채팅방을 만들었습니다. 대화를 시작해보세요!',
+                data: {
+                  'type': 'chat_room_created',
+                  'room_id': roomId,
+                  'meeting_id': widget.meetingId,
+                },
+              )
+              .catchError((_) {}),
+        );
+      }
 
       if (mounted) {
         // 채팅방 생성 후 상태 업데이트 및 다시 확인

@@ -1,6 +1,7 @@
 {
     "name": "letsmeet",
     "short_name": "letsmeet",
+    "gcm_sender_id": "225419812075",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

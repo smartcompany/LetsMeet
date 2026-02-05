@@ -10,7 +10,9 @@ import '../services/chat_service.dart';
 import 'meeting_chat_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final void Function(int totalUnread)? onUnreadCountChanged;
+
+  const ChatScreen({super.key, this.onUnreadCountChanged});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -130,33 +132,113 @@ class _ChatScreenState extends State<ChatScreen> {
               );
             }
 
-            return RefreshIndicator(
-              onRefresh: () async {
-                // 스트림이 자동으로 업데이트되므로 새로고침은 필요 없지만
-                // 사용자 경험을 위해 추가
-                await Future.delayed(const Duration(milliseconds: 500));
+            return _ChatListWithUnread(
+              chatRooms: chatRooms,
+              chatService: _chatService,
+              onUnreadTotalChanged: widget.onUnreadCountChanged,
+              onRoomTap: (room) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MeetingChatScreen(
+                      roomId: room.id,
+                      meetingTitle: room.meetingTitle,
+                    ),
+                  ),
+                );
               },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: chatRooms.length,
-                itemBuilder: (context, index) {
-                  final room = chatRooms[index];
-                  return _ChatRoomCard(
-                    room: room,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MeetingChatScreen(
-                            roomId: room.id,
-                            meetingTitle: room.meetingTitle,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ChatListWithUnread extends StatefulWidget {
+  final List<ChatRoom> chatRooms;
+  final ChatService chatService;
+  final void Function(int)? onUnreadTotalChanged;
+  final void Function(ChatRoom room) onRoomTap;
+
+  const _ChatListWithUnread({
+    required this.chatRooms,
+    required this.chatService,
+    required this.onUnreadTotalChanged,
+    required this.onRoomTap,
+  });
+
+  @override
+  State<_ChatListWithUnread> createState() => _ChatListWithUnreadState();
+}
+
+class _ChatListWithUnreadState extends State<_ChatListWithUnread> {
+  final Map<String, int> _roomUnread = {};
+  int _totalUnread = 0;
+
+  void _onRoomUnreadChanged(String roomId, int unread) {
+    if (_roomUnread[roomId] == unread) return;
+    _roomUnread[roomId] = unread;
+    final total = _roomUnread.values.fold(0, (a, b) => a + b);
+    if (total != _totalUnread) {
+      _totalUnread = total;
+      widget.onUnreadTotalChanged?.call(total);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.delayed(const Duration(milliseconds: 500));
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: widget.chatRooms.length,
+        itemBuilder: (context, index) {
+          final room = widget.chatRooms[index];
+          return _ChatRoomCardWithUnread(
+            room: room,
+            chatService: widget.chatService,
+            onTap: () => widget.onRoomTap(room),
+            onUnreadChanged: (count) => _onRoomUnreadChanged(room.id, count),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 리스트 전체가 아닌 해당 아이템만 리빌드되도록 StreamBuilder를 개별 위젯으로 분리
+class _ChatRoomCardWithUnread extends StatelessWidget {
+  final ChatRoom room;
+  final ChatService chatService;
+  final VoidCallback onTap;
+  final void Function(int count) onUnreadChanged;
+
+  const _ChatRoomCardWithUnread({
+    required this.room,
+    required this.chatService,
+    required this.onTap,
+    required this.onUnreadChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: chatService.getRoomUnreadCountStream(room.id),
+      initialData: 0,
+      builder: (context, unreadSnapshot) {
+        final unread = unreadSnapshot.data ?? 0;
+        onUnreadChanged(unread);
+        return StreamBuilder<ChatMessage?>(
+          stream: chatService.getLastMessageStream(room.id),
+          builder: (context, lastMsgSnapshot) {
+            return _ChatRoomCard(
+              room: room,
+              unreadCount: unread,
+              lastMessage: lastMsgSnapshot.data,
+              onTap: onTap,
             );
           },
         );
@@ -167,9 +249,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _ChatRoomCard extends StatelessWidget {
   final ChatRoom room;
+  final int unreadCount;
+  final ChatMessage? lastMessage;
   final VoidCallback onTap;
 
-  const _ChatRoomCard({required this.room, required this.onTap});
+  const _ChatRoomCard({
+    required this.room,
+    required this.onTap,
+    this.unreadCount = 0,
+    this.lastMessage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -178,6 +267,16 @@ class _ChatRoomCard extends StatelessWidget {
         .where((id) => id != currentUser?.uid)
         .map((id) => room.memberNames[id] ?? '알 수 없음')
         .toList();
+
+    // 1:1 DM: 제목 = 상대방 이름, 모임 채팅: 제목 = 모임명
+    final isDirectMessage = room.meetingId.isEmpty;
+    final displayTitle =
+        isDirectMessage && otherMembers.isNotEmpty
+            ? otherMembers.join(', ')
+            : room.meetingTitle;
+
+    // 부제목 = 마지막 대화 내용
+    final displaySubtitle = lastMessage?.message ?? '';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -210,7 +309,7 @@ class _ChatRoomCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      room.meetingTitle,
+                      displayTitle,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -219,20 +318,22 @@ class _ChatRoomCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      otherMembers.isEmpty ? '나' : otherMembers.join(', '),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textSecondaryColor,
+                    if (displaySubtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        displaySubtitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ],
                 ),
               ),
-              // 마지막 업데이트 시간
+              // 읽지 않음 + 마지막 업데이트 시간
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -243,6 +344,24 @@ class _ChatRoomCard extends StatelessWidget {
                       color: AppTheme.textTertiaryColor,
                     ),
                   ),
+                  if (unreadCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Icon(
                     Icons.chevron_right,

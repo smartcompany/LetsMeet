@@ -199,18 +199,6 @@ class ProfileScreen extends StatelessWidget {
               _MenuSection(
                 items: [
                   _MenuItem(
-                    icon: Icons.feed_rounded,
-                    title: '내 피드 보기',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MyFeedsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _MenuItem(
                     icon: Icons.event_note_rounded,
                     title: '내가 만든 모임',
                     onTap: () {
@@ -218,6 +206,18 @@ class ProfileScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MyMeetingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.feed_rounded,
+                    title: '내 피드 보기',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MyFeedsScreen(),
                         ),
                       );
                     },

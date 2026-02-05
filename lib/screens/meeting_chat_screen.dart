@@ -34,6 +34,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
   void initState() {
     super.initState();
     _loadRoom();
+    _chatService.updateLastRead(widget.roomId);
   }
 
   Future<void> _loadRoom() async {
@@ -86,13 +87,39 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       await _loadRoom();
     }
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final messageText = _messageController.text.trim();
+
     try {
       await _chatService.sendMessage(
         roomId: widget.roomId,
-        message: _messageController.text.trim(),
+        message: messageText,
         userName: _userName ?? '알 수 없음',
       );
       _messageController.clear();
+
+      // 다른 참가자들에게 푸시 알림
+      final room = _room;
+      if (room != null) {
+        final recipientIds =
+            room.memberIds.where((id) => id != currentUser.uid).toList();
+        if (recipientIds.isNotEmpty) {
+          _apiService.notifyChatMessage(
+            recipientUserIds: recipientIds,
+            title: '${room.meetingTitle}',
+            body: messageText.length > 50
+                ? '${messageText.substring(0, 50)}...'
+                : messageText,
+            data: {
+              'type': 'chat',
+              'room_id': widget.roomId,
+              'meeting_id': room.meetingId,
+            },
+          );
+        }
+      }
 
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -110,12 +137,19 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     }
   }
 
-  void _showChatSettingsPanel() {
+  void _showChatSettingsPanel() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final token = await currentUser.getIdToken();
+      if (token != null) _apiService.setToken(token);
+    }
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _ChatSettingsPanel(
+        apiService: _apiService,
         room:
             _room ??
             ChatRoom(
@@ -464,7 +498,8 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
   }
 }
 
-class _ChatSettingsPanel extends StatelessWidget {
+class _ChatSettingsPanel extends StatefulWidget {
+  final ApiService apiService;
   final ChatRoom room;
   final Map<String, String> memberProfileUrls;
   final VoidCallback onLeave;
@@ -472,6 +507,7 @@ class _ChatSettingsPanel extends StatelessWidget {
   final VoidCallback? onRefresh;
 
   const _ChatSettingsPanel({
+    required this.apiService,
     required this.room,
     required this.memberProfileUrls,
     required this.onLeave,
@@ -480,11 +516,54 @@ class _ChatSettingsPanel extends StatelessWidget {
   });
 
   @override
+  State<_ChatSettingsPanel> createState() => _ChatSettingsPanelState();
+}
+
+class _ChatSettingsPanelState extends State<_ChatSettingsPanel> {
+  bool _chatPushEnabled = true;
+  bool _loadingSettings = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settings = await widget.apiService.getMySettings();
+      if (mounted) {
+        setState(() {
+          _chatPushEnabled = settings['chat_push_enabled'] as bool? ?? true;
+          _loadingSettings = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSettings = false);
+    }
+  }
+
+  Future<void> _toggleChatPush(bool value) async {
+    setState(() => _chatPushEnabled = value);
+    try {
+      await widget.apiService.updateChatPushEnabled(value);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _chatPushEnabled = !value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('설정 저장 실패: $e')),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final room = widget.room;
     final currentUser = FirebaseAuth.instance.currentUser;
     final participants = room.memberIds.map((id) {
       final name = room.memberNames[id] ?? '알 수 없음';
-      final profileUrl = memberProfileUrls[id];
+      final profileUrl = widget.memberProfileUrls[id];
       return _ParticipantInfo(
         userId: id,
         name: name,
@@ -524,6 +603,34 @@ class _ChatSettingsPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          // 채팅 푸시 알림 on/off
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '채팅 알림',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                ),
+                if (_loadingSettings)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Switch.adaptive(
+                    value: _chatPushEnabled,
+                    onChanged: _toggleChatPush,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           // 참가자 표시
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -605,7 +712,7 @@ class _ChatSettingsPanel extends StatelessWidget {
                   if (room.meetingId.isNotEmpty) ...[
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: onShare,
+                        onPressed: widget.onShare,
                         icon: const Icon(Icons.share_outlined),
                         label: const Text('모임 공유'),
                         style: OutlinedButton.styleFrom(
@@ -619,7 +726,7 @@ class _ChatSettingsPanel extends StatelessWidget {
                   ],
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: onLeave,
+                      onPressed: widget.onLeave,
                       icon: const Icon(Icons.exit_to_app),
                       label: const Text('나가기'),
                       style: OutlinedButton.styleFrom(

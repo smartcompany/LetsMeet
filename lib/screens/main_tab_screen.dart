@@ -17,6 +17,14 @@ class MainTabScreen extends StatefulWidget {
 }
 
 class _MainTabScreenState extends State<MainTabScreen> {
+  final ValueNotifier<int> _chatUnreadNotifier = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _chatUnreadNotifier.dispose();
+    super.dispose();
+  }
+
   // 탭 영역 패딩 및 간격 상수
   static const double _tabBarHorizontalPadding = 8.0;
   static const double _tabBarVerticalPadding = 8.0;
@@ -150,7 +158,13 @@ class _MainTabScreenState extends State<MainTabScreen> {
             children: [
               const HomeScreen(),
               FeedScreen(key: _feedScreenKey),
-              const ChatScreen(),
+              ChatScreen(
+                onUnreadCountChanged: (count) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _chatUnreadNotifier.value = count;
+                  });
+                },
+              ),
               const ProfileScreen(),
             ],
           ),
@@ -200,12 +214,15 @@ class _MainTabScreenState extends State<MainTabScreen> {
                             });
                           },
                         ),
-                        _TabItem(
-                          icon: Icons.forum_rounded,
-                          label: '채팅',
-                          isSelected: _currentIndex == 2,
-                          onTap: () => setState(() => _currentIndex = 2),
-                          badge: 6, // 임시 뱃지
+                        ValueListenableBuilder<int>(
+                          valueListenable: _chatUnreadNotifier,
+                          builder: (_, count, __) => _TabItem(
+                            icon: Icons.forum_rounded,
+                            label: '채팅',
+                            isSelected: _currentIndex == 2,
+                            onTap: () => setState(() => _currentIndex = 2),
+                            badge: count > 0 ? count : null,
+                          ),
                         ),
                         _TabItem(
                           icon: Icons.account_circle_rounded,
