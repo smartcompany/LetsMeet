@@ -9,6 +9,7 @@ import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kakao_map_location_picker.dart';
 import '../widgets/age_range_selector.dart';
+import '../widgets/category_picker_sheet.dart';
 import '../models/meeting.dart';
 import 'meeting_detail_screen.dart';
 
@@ -98,8 +99,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _timeError;
   String? _locationError;
   String? _approvalTypeError;
-
-  final List<String> _categories = ['운동', '취미', '자기계발', '여행', '투자', '기타'];
 
   final List<String> _approvalOptions = ['즉시 참여', '승인 필요 (호스트 승인)'];
 
@@ -355,9 +354,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       }
 
       // Map approval type
-      final approvalType = _approvalType == '즉시 참여'
-          ? 'immediate'
-          : 'approval_required';
+      final approvalType =
+          _approvalType == '즉시 참여' ? 'immediate' : 'approval_required';
 
       final apiService = ApiService();
       final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -547,31 +545,48 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: InputDecoration(
-                        hintText: '카테고리를 선택하세요',
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: _categoryError != null
-                                ? Colors.red
+                    InkWell(
+                      onTap: () async {
+                        final result = await CategoryPickerSheet.show(
+                          context,
+                          initial: _selectedCategory,
+                        );
+                        if (mounted && result != null) {
+                          setState(() {
+                            _selectedCategory = identical(result,
+                                    CategoryPickerSheet.categoryClearSentinel)
+                                ? null
+                                : result as String;
+                            _categoryError = null;
+                            _hasUnsavedChanges = true;
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          hintText: '카테고리를 선택하세요',
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: _categoryError != null
+                                  ? Colors.red
+                                  : Colors.grey,
+                            ),
+                          ),
+                          suffixIcon: const Icon(
+                            Icons.arrow_drop_down_rounded,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        child: Text(
+                          _selectedCategory ?? '',
+                          style: TextStyle(
+                            color: _selectedCategory != null
+                                ? Colors.black87
                                 : Colors.grey,
                           ),
                         ),
                       ),
-                      items: _categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value;
-                          _categoryError = null;
-                          _hasUnsavedChanges = true;
-                        });
-                      },
                     ),
                   ],
                 ),

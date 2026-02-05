@@ -9,6 +9,7 @@ import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/meeting_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -50,13 +51,19 @@ void main() async {
 
   // 한국어 로케일 데이터 초기화
   await initializeDateFormatting('ko_KR', null);
-  runApp(const MyApp());
+
+  // 설정 API 로드 (카테고리, 광고 등) - 앱 시작 시
+  final settingsProvider = SettingsProvider();
+  await settingsProvider.load();
+
+  runApp(MyApp(settingsProvider: settingsProvider));
 }
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.settingsProvider});
+  final SettingsProvider settingsProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +76,10 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => MeetingProvider()),
         ChangeNotifierProvider(
-          create: (ctx) => NotificationProvider(apiService: ctx.read<ApiService>()),
+          create: (ctx) =>
+              NotificationProvider(apiService: ctx.read<ApiService>()),
         ),
+        ChangeNotifierProvider<SettingsProvider>.value(value: settingsProvider),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
