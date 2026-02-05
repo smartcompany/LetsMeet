@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kakao_map_location_picker.dart';
+import '../widgets/age_range_selector.dart';
 import '../models/meeting.dart';
 import 'meeting_detail_screen.dart';
 
@@ -933,7 +934,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 // Age Range
                 _buildSectionTitle('연령 제한 (선택)'),
                 const SizedBox(height: 8),
-                _AgeRangeSelector(
+                AgeRangeSelector(
                   minAge: _ageRangeMin,
                   maxAge: _ageRangeMax,
                   onChanged: (min, max) {
@@ -1193,175 +1194,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _AgeRangeSelector extends StatefulWidget {
-  final int? minAge;
-  final int? maxAge;
-  final Function(int?, int?) onChanged;
-
-  const _AgeRangeSelector({
-    required this.minAge,
-    required this.maxAge,
-    required this.onChanged,
-  });
-
-  @override
-  State<_AgeRangeSelector> createState() => _AgeRangeSelectorState();
-}
-
-class _AgeRangeSelectorState extends State<_AgeRangeSelector> {
-  static const List<int> _ageOptions = [20, 25, 30, 35, 40, 45, 50];
-  late double _minValue;
-  late double _maxValue;
-
-  @override
-  void initState() {
-    super.initState();
-    _minValue = widget.minAge != null
-        ? _ageOptions
-              .indexOf(widget.minAge!)
-              .toDouble()
-              .clamp(0, _ageOptions.length - 1)
-        : 0.0;
-    _maxValue = widget.maxAge != null
-        ? _ageOptions
-              .indexOf(widget.maxAge!)
-              .toDouble()
-              .clamp(0, _ageOptions.length - 1)
-        : (_ageOptions.length - 1).toDouble();
-  }
-
-  @override
-  void didUpdateWidget(_AgeRangeSelector oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.minAge != oldWidget.minAge ||
-        widget.maxAge != oldWidget.maxAge) {
-      _minValue = widget.minAge != null
-          ? _ageOptions
-                .indexOf(widget.minAge!)
-                .toDouble()
-                .clamp(0, _ageOptions.length - 1)
-          : 0.0;
-      _maxValue = widget.maxAge != null
-          ? _ageOptions
-                .indexOf(widget.maxAge!)
-                .toDouble()
-                .clamp(0, _ageOptions.length - 1)
-          : (_ageOptions.length - 1).toDouble();
-    }
-  }
-
-  String _getAgeLabel(int index) {
-    if (index == _ageOptions.length - 1) {
-      return '50+';
-    }
-    return '${_ageOptions[index]}';
-  }
-
-  String _getRangeText() {
-    if (_minValue == 0 && _maxValue == _ageOptions.length - 1) {
-      return '누구나';
-    }
-    final minAge = _ageOptions[_minValue.toInt()];
-    final maxAge = _ageOptions[_maxValue.toInt()];
-    if (maxAge == 50) {
-      return '$minAge세 ~ 50+세';
-    }
-    return '$minAge세 ~ $maxAge세';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Range display at top right
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '연령 범위',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _getRangeText(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Age labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(_ageOptions.length, (index) {
-              return SizedBox(
-                width: 40,
-                child: Text(
-                  _getAgeLabel(index),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color:
-                        index >= _minValue.toInt() && index <= _maxValue.toInt()
-                        ? AppTheme.primaryColor
-                        : AppTheme.textSecondaryColor,
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          // Range slider
-          RangeSlider(
-            values: RangeValues(_minValue, _maxValue),
-            min: 0,
-            max: (_ageOptions.length - 1).toDouble(),
-            divisions: _ageOptions.length - 1,
-            labels: RangeLabels(
-              _getAgeLabel(_minValue.toInt()),
-              _getAgeLabel(_maxValue.toInt()),
-            ),
-            onChanged: (values) {
-              setState(() {
-                _minValue = values.start;
-                _maxValue = values.end;
-              });
-              final minAge = _ageOptions[_minValue.toInt()];
-              final maxAge = _ageOptions[_maxValue.toInt()];
-              widget.onChanged(minAge, maxAge == 50 ? null : maxAge);
-            },
-          ),
-        ],
-      ),
     );
   }
 }

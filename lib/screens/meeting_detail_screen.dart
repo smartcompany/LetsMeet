@@ -858,6 +858,86 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // 6-1. 참가자들
+                  if (meeting.participants != null &&
+                      meeting.participants!.isNotEmpty) ...[
+                    _Section(
+                      title: '참가자들',
+                      child: Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: meeting.participants!.map((p) {
+                          final bio = p.bio?.trim();
+                          final bioLine = bio != null && bio.isNotEmpty
+                              ? (bio.length > 30 ? '${bio.substring(0, 30)}...' : bio)
+                              : null;
+                          return SizedBox(
+                            width: 100,
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    UserProfileView.show(
+                                      context,
+                                      userId: p.userId,
+                                      displayName: p.fullName,
+                                      profileImageUrl: p.profileImageUrl,
+                                    );
+                                  },
+                                  child: CircleAvatar(
+                                    radius: 36,
+                                    backgroundImage: p.profileImageUrl != null &&
+                                            p.profileImageUrl!.isNotEmpty
+                                        ? NetworkImage(p.profileImageUrl!)
+                                        : null,
+                                    child: p.profileImageUrl == null ||
+                                            p.profileImageUrl!.isEmpty
+                                        ? Icon(
+                                            Icons.person_rounded,
+                                            size: 36,
+                                            color: AppTheme.textTertiaryColor,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  p.fullName,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textPrimaryColor,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (bioLine != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    bioLine,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: AppTheme.textSecondaryColor,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
                   // 7. 대화 흐름 요약
                   if (meeting.conversationFlow != null) ...[
                     _Section(

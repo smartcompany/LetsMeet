@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
@@ -11,23 +12,59 @@ class MeetingProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
 
   // 필터 상태
+  int? _selectedAgeMin;
+  int? _selectedAgeMax;
   String? _selectedLocation;
   String? _selectedInterest;
   MeetingFormat? _selectedFormat;
 
+  // 검색
+  String _searchQuery = '';
+
+  // 찜 (로컬 저장)
+  Set<String> _favoriteIds = {};
+  bool _showFavoritesOnly = false;
+
+  static const String _favoritesKey = 'meeting_favorite_ids';
+
   List<Meeting> get meetings => _meetings;
   List<Application> get applications => _applications;
   bool get isLoading => _isLoading;
+  int? get selectedAgeMin => _selectedAgeMin;
+  int? get selectedAgeMax => _selectedAgeMax;
   String? get selectedLocation => _selectedLocation;
   String? get selectedInterest => _selectedInterest;
   MeetingFormat? get selectedFormat => _selectedFormat;
+  String get searchQuery => _searchQuery;
+  bool get showFavoritesOnly => _showFavoritesOnly;
+  Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
+
+  bool isFavorite(String meetingId) => _favoriteIds.contains(meetingId);
 
   // 필터링된 모임 리스트
   List<Meeting> get filteredMeetings {
     var filtered = _meetings.where((m) => m.status == MeetingStatus.open);
 
+    if (_selectedAgeMin != null || _selectedAgeMax != null) {
+      filtered = filtered.where((m) {
+        final min = m.ageRangeMin;
+        final max = m.ageRangeMax;
+        if (min == null && max == null) return true;
+        final filterMin = _selectedAgeMin ?? 0;
+        final filterMax = _selectedAgeMax ?? 999;
+        if (min != null && max != null) {
+          return !(max < filterMin || min > filterMax);
+        }
+        if (min != null && min > filterMax) return false;
+        if (max != null && max < filterMin) return false;
+        return true;
+      });
+    }
+
     if (_selectedLocation != null) {
-      filtered = filtered.where((m) => m.location == _selectedLocation);
+      filtered = filtered.where((m) {
+        return _locationMatches(m.location, _selectedLocation!);
+      });
     }
 
     if (_selectedInterest != null) {
@@ -38,12 +75,65 @@ class MeetingProvider with ChangeNotifier {
       filtered = filtered.where((m) => m.format == _selectedFormat);
     }
 
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      filtered = filtered.where((m) {
+        if (m.title.toLowerCase().contains(q)) return true;
+        if (m.description?.toLowerCase().contains(q) ?? false) return true;
+        if (m.shortDescription?.toLowerCase().contains(q) ?? false) return true;
+        if (m.location.toLowerCase().contains(q)) return true;
+        if (m.interests.any((i) => i.toLowerCase().contains(q))) return true;
+        if (m.category?.toLowerCase().contains(q) ?? false) return true;
+        return false;
+      });
+    }
+
+    if (_showFavoritesOnly) {
+      filtered = filtered.where((m) => _favoriteIds.contains(m.id));
+    }
+
     return filtered.toList();
   }
 
   MeetingProvider() {
-    // 인증 없이도 모임 목록 로드 가능
+    _loadFavorites();
     loadMeetings();
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_favoritesKey);
+      _favoriteIds = list != null ? list.toSet() : {};
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _saveFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_favoritesKey, _favoriteIds.toList());
+    } catch (_) {}
+  }
+
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  void setShowFavoritesOnly(bool value) {
+    _showFavoritesOnly = value;
+    notifyListeners();
+  }
+
+  Future<void> toggleFavorite(String meetingId) async {
+    if (_favoriteIds.contains(meetingId)) {
+      _favoriteIds.remove(meetingId);
+    } else {
+      _favoriteIds.add(meetingId);
+    }
+    await _saveFavorites();
+    notifyListeners();
   }
 
   Meeting? getMeetingById(String id) {
@@ -64,6 +154,20 @@ class MeetingProvider with ChangeNotifier {
     }
   }
 
+  void setAgeRangeFilter(int? min, int? max) {
+    _selectedAgeMin = min;
+    _selectedAgeMax = max;
+    notifyListeners();
+  }
+
+  bool _locationMatches(String meetingLocation, String filterValue) {
+    if (filterValue.endsWith('전체') || filterValue.contains(' 전체')) {
+      final prefix = filterValue.replaceAll(' 전체', '').trim();
+      return meetingLocation.contains(prefix);
+    }
+    return meetingLocation.contains(filterValue);
+  }
+
   void setLocationFilter(String? location) {
     _selectedLocation = location;
     notifyListeners();
@@ -80,6 +184,8 @@ class MeetingProvider with ChangeNotifier {
   }
 
   void clearFilters() {
+    _selectedAgeMin = null;
+    _selectedAgeMax = null;
     _selectedLocation = null;
     _selectedInterest = null;
     _selectedFormat = null;

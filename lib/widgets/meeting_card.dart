@@ -6,8 +6,16 @@ import '../theme/app_theme.dart';
 class MeetingCard extends StatelessWidget {
   final Meeting meeting;
   final VoidCallback onTap;
+  final bool isFavorite;
+  final VoidCallback? onToggleFavorite;
 
-  const MeetingCard({super.key, required this.meeting, required this.onTap});
+  const MeetingCard({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+    this.isFavorite = false,
+    this.onToggleFavorite,
+  });
 
   String _formatMeetingDate(DateTime date) {
     final now = DateTime.now();
@@ -162,6 +170,28 @@ class MeetingCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // 찜 버튼
+                      if (onToggleFavorite != null)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Material(
+                            color: Colors.black.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(24),
+                            child: InkWell(
+                              onTap: onToggleFavorite,
+                              borderRadius: BorderRadius.circular(24),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                                  color: isFavorite ? Colors.red : Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

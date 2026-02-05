@@ -132,17 +132,31 @@ class _ChatScreenState extends State<ChatScreen> {
               );
             }
 
-            return _ChatListWithUnread(
-              chatRooms: chatRooms,
+            final meetingRooms =
+                chatRooms.where((r) => r.meetingId.isNotEmpty).toList();
+            final personalRooms =
+                chatRooms.where((r) => r.meetingId.isEmpty).toList();
+
+            return _ChatListWithTabs(
+              meetingRooms: meetingRooms,
+              personalRooms: personalRooms,
               chatService: _chatService,
               onUnreadTotalChanged: widget.onUnreadCountChanged,
               onRoomTap: (room) {
+                String title = room.meetingTitle;
+                if (title.isEmpty) {
+                  title = room.memberIds
+                      .where((id) => id != currentUser.uid)
+                      .map((id) => room.memberNames[id] ?? '')
+                      .join(', ');
+                  if (title.isEmpty) title = '채팅';
+                }
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => MeetingChatScreen(
                       roomId: room.id,
-                      meetingTitle: room.meetingTitle,
+                      meetingTitle: title,
                     ),
                   ),
                 );
@@ -155,53 +169,207 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-class _ChatListWithUnread extends StatefulWidget {
-  final List<ChatRoom> chatRooms;
+class _ChatListWithTabs extends StatefulWidget {
+  final List<ChatRoom> meetingRooms;
+  final List<ChatRoom> personalRooms;
   final ChatService chatService;
   final void Function(int)? onUnreadTotalChanged;
   final void Function(ChatRoom room) onRoomTap;
 
-  const _ChatListWithUnread({
-    required this.chatRooms,
+  const _ChatListWithTabs({
+    required this.meetingRooms,
+    required this.personalRooms,
     required this.chatService,
     required this.onUnreadTotalChanged,
     required this.onRoomTap,
   });
 
   @override
-  State<_ChatListWithUnread> createState() => _ChatListWithUnreadState();
+  State<_ChatListWithTabs> createState() => _ChatListWithTabsState();
 }
 
-class _ChatListWithUnreadState extends State<_ChatListWithUnread> {
+class _ChatListWithTabsState extends State<_ChatListWithTabs> {
   final Map<String, int> _roomUnread = {};
-  int _totalUnread = 0;
+  final Map<String, bool> _roomIsMeeting = {};
+  int _meetingUnread = 0;
+  int _personalUnread = 0;
 
-  void _onRoomUnreadChanged(String roomId, int unread) {
+  void _onRoomUnreadChanged(String roomId, int unread, bool isMeeting) {
     if (_roomUnread[roomId] == unread) return;
     _roomUnread[roomId] = unread;
-    final total = _roomUnread.values.fold(0, (a, b) => a + b);
-    if (total != _totalUnread) {
-      _totalUnread = total;
-      widget.onUnreadTotalChanged?.call(total);
+    _roomIsMeeting[roomId] = isMeeting;
+    int meetingTotal = 0;
+    int personalTotal = 0;
+    for (final e in _roomUnread.entries) {
+      if (_roomIsMeeting[e.key] == true) {
+        meetingTotal += e.value;
+      } else {
+        personalTotal += e.value;
+      }
+    }
+    if (meetingTotal != _meetingUnread || personalTotal != _personalUnread) {
+      setState(() {
+        _meetingUnread = meetingTotal;
+        _personalUnread = personalTotal;
+      });
+      widget.onUnreadTotalChanged
+          ?.call(meetingTotal + personalTotal);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              labelColor: AppTheme.primaryColor,
+              unselectedLabelColor: AppTheme.textSecondaryColor,
+              indicatorColor: AppTheme.primaryColor,
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('모임'),
+                      if (_meetingUnread > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _meetingUnread > 99 ? '99+' : '$_meetingUnread',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('개인'),
+                      if (_personalUnread > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _personalUnread > 99 ? '99+' : '$_personalUnread',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _ChatListTab(
+                  chatRooms: widget.meetingRooms,
+                  chatService: widget.chatService,
+                  onRoomTap: widget.onRoomTap,
+                  onUnreadChanged: (roomId, count) =>
+                      _onRoomUnreadChanged(roomId, count, true),
+                ),
+                _ChatListTab(
+                  chatRooms: widget.personalRooms,
+                  chatService: widget.chatService,
+                  onRoomTap: widget.onRoomTap,
+                  onUnreadChanged: (roomId, count) =>
+                      _onRoomUnreadChanged(roomId, count, false),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatListTab extends StatelessWidget {
+  final List<ChatRoom> chatRooms;
+  final ChatService chatService;
+  final void Function(ChatRoom room) onRoomTap;
+  final void Function(String roomId, int count) onUnreadChanged;
+
+  const _ChatListTab({
+    required this.chatRooms,
+    required this.chatService,
+    required this.onRoomTap,
+    required this.onUnreadChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (chatRooms.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 56,
+              color: AppTheme.textTertiaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '채팅 목록이 없습니다',
+              style: TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return RefreshIndicator(
       onRefresh: () async {
         await Future.delayed(const Duration(milliseconds: 500));
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: widget.chatRooms.length,
+        itemCount: chatRooms.length,
         itemBuilder: (context, index) {
-          final room = widget.chatRooms[index];
+          final room = chatRooms[index];
           return _ChatRoomCardWithUnread(
             room: room,
-            chatService: widget.chatService,
-            onTap: () => widget.onRoomTap(room),
-            onUnreadChanged: (count) => _onRoomUnreadChanged(room.id, count),
+            chatService: chatService,
+            onTap: () => onRoomTap(room),
+            onUnreadChanged: (count) => onUnreadChanged(room.id, count),
           );
         },
       ),

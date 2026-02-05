@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/auth_helper.dart';
+import '../providers/meeting_provider.dart';
+import '../providers/notification_provider.dart';
 import 'home_screen.dart';
+import 'notifications_screen.dart';
 import 'feed_screen.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
@@ -18,9 +22,22 @@ class MainTabScreen extends StatefulWidget {
 
 class _MainTabScreenState extends State<MainTabScreen> {
   final ValueNotifier<int> _chatUnreadNotifier = ValueNotifier<int>(0);
+  bool _showSearchBar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().loadUnreadCount();
+    });
+  }
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _chatUnreadNotifier.dispose();
     super.dispose();
   }
@@ -45,46 +62,113 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   int _currentIndex = 0;
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     switch (_currentIndex) {
-      case 0:
-        // 모임 탭 AppBar
-        return AppBar(
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+      case 0: {
+        // 모임 탭 AppBar - 검색, 찜, 알림 아이콘
+        final meetingProvider = context.watch<MeetingProvider>();
+        final notificationProvider = context.watch<NotificationProvider>();
+        if (_showSearchBar) {
+          return AppBar(
+                elevation: 0,
+                backgroundColor: Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    setState(() {
+                      _showSearchBar = false;
+                      _searchController.clear();
+                      meetingProvider.setSearchQuery('');
+                    });
+                  },
                 ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                title: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: '모임 검색',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  onChanged: meetingProvider.setSearchQuery,
                 ),
-                child: const Text(
-                  'LetsMeet',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    letterSpacing: -0.5,
+              );
+            }
+            return AppBar(
+              elevation: 0,
+              backgroundColor: Colors.white,
+              title: const SizedBox.shrink(),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _showSearchBar = true;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _searchFocusNode.requestFocus();
+                      });
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    meetingProvider.showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+                    color: meetingProvider.showFavoritesOnly ? Colors.red : null,
                   ),
+                  onPressed: () {
+                    meetingProvider.setShowFavoritesOnly(!meetingProvider.showFavoritesOnly);
+                  },
                 ),
-              ),
-            ],
-          ),
-        );
+                IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.notifications_outlined),
+                      if (notificationProvider.unreadCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              notificationProvider.unreadCount > 99
+                                  ? '99+'
+                                  : '${notificationProvider.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationsScreen(),
+                      ),
+                    );
+                    if (context.mounted) {
+                      context.read<NotificationProvider>().loadUnreadCount();
+                    }
+                  },
+                ),
+              ],
+            );
+      }
       case 1:
         // 피드 탭 AppBar
         return AppBar(
@@ -151,7 +235,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
         backgroundColor: const Color(0xFFF5F7FA),
         extendBody: false,
         extendBodyBehindAppBar: false,
-        appBar: _buildAppBar(),
+        appBar: _buildAppBar(context),
         body: SafeArea(
           child: IndexedStack(
             index: _currentIndex,

@@ -39,12 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final meetings = meetingProvider.filteredMeetings;
         
-        final locations = meetingProvider.meetings
-            .map((m) => m.location)
-            .toSet()
-            .toList()
-          ..sort();
-        
         final interests = meetingProvider.meetings
             .expand((m) => m.interests)
             .toSet()
@@ -55,54 +49,18 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 상단 문구 (토스 스타일)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white,
-                      const Color(0xFFF5F7FA),
-                    ],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '오늘 이런 대화는 어때요?',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
-                        height: 1.2,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '소규모 · 주제 중심 · 질문 기반',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: AppTheme.textSecondaryColor.withOpacity(0.8),
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
               
               // 필터 영역
               FilterBar(
+                selectedAgeMin: meetingProvider.selectedAgeMin,
+                selectedAgeMax: meetingProvider.selectedAgeMax,
                 selectedLocation: meetingProvider.selectedLocation,
                 selectedInterest: meetingProvider.selectedInterest,
                 selectedFormat: meetingProvider.selectedFormat,
-                availableLocations: locations,
                 availableInterests: interests,
+                onAgeRangeChanged: (min, max) {
+                  meetingProvider.setAgeRangeFilter(min, max);
+                },
                 onLocationChanged: (location) {
                   meetingProvider.setLocationFilter(location);
                 },
@@ -170,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: meetings.map((meeting) {
                       return MeetingCard(
                         meeting: meeting,
+                        isFavorite: meetingProvider.isFavorite(meeting.id),
+                        onToggleFavorite: () => meetingProvider.toggleFavorite(meeting.id),
                         onTap: () {
                           Navigator.push(
                             context,

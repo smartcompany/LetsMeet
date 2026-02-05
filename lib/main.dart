@@ -8,6 +8,7 @@ import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/meeting_provider.dart';
+import 'providers/notification_provider.dart';
 import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -67,6 +68,9 @@ class MyApp extends StatelessWidget {
           create: (_) => AuthProvider<User>(authService: apiService),
         ),
         ChangeNotifierProvider(create: (_) => MeetingProvider()),
+        ChangeNotifierProvider(
+          create: (ctx) => NotificationProvider(apiService: ctx.read<ApiService>()),
+        ),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

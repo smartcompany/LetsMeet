@@ -29,6 +29,7 @@ class Meeting {
   final DateTime createdAt;
   final DateTime updatedAt;
   final Map<String, dynamic>? userApplication; // 현재 사용자의 신청 정보
+  final List<MeetingParticipant>? participants; // 참가자 목록 (호스트 + 승인된 신청자)
 
   Meeting({
     required this.id,
@@ -61,6 +62,7 @@ class Meeting {
     required this.createdAt,
     required this.updatedAt,
     this.userApplication,
+    this.participants,
   });
 
   factory Meeting.fromJson(Map<String, dynamic> json) {
@@ -109,6 +111,12 @@ class Meeting {
       userApplication: json['user_application'] != null
           ? Map<String, dynamic>.from(json['user_application'])
           : null,
+      participants: json['participants'] != null
+          ? (json['participants'] as List)
+              .map((e) => MeetingParticipant.fromJson(
+                  Map<String, dynamic>.from(e as Map)))
+              .toList()
+          : null,
     );
   }
 
@@ -143,6 +151,29 @@ class Meeting {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+  }
+}
+
+class MeetingParticipant {
+  final String userId;
+  final String fullName;
+  final String? profileImageUrl;
+  final String? bio;
+
+  MeetingParticipant({
+    required this.userId,
+    required this.fullName,
+    this.profileImageUrl,
+    this.bio,
+  });
+
+  factory MeetingParticipant.fromJson(Map<String, dynamic> json) {
+    return MeetingParticipant(
+      userId: json['user_id'] as String,
+      fullName: (json['full_name'] as String?) ?? '',
+      profileImageUrl: json['profile_image_url'] as String?,
+      bio: json['bio'] as String?,
+    );
   }
 }
 
