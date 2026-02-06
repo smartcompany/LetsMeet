@@ -55,79 +55,91 @@ class FilterBar extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            // 나이 필터
-            _AgeFilterChip(
-              minAge: selectedAgeMin,
-              maxAge: selectedAgeMax,
-              onChanged: onAgeRangeChanged,
-            ),
-            const SizedBox(width: 10),
-            // 지역 필터 (2단계)
-            _LocationFilterChip(
-              selectedLocation: selectedLocation,
-              onChanged: onLocationChanged,
-            ),
-            const SizedBox(width: 10),
-            // 관심사 필터
-            _FilterChip(
-              label: '관심사',
-              icon: Icons.label_outline,
-              value: selectedInterest,
-              options: availableInterests,
-              onChanged: onInterestChanged,
-            ),
-            const SizedBox(width: 10),
-            // 온라인/오프라인 필터
-            _FormatFilterChip(
-              selected: selectedFormat,
-              onChanged: onFormatChanged,
-            ),
-            // 필터 초기화 버튼
-            if (hasActiveFilters) ...[
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: onClear,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.backgroundColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.dividerColor,
-                      width: 1.5,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 나이 필터
+                    _AgeFilterChip(
+                      minAge: selectedAgeMin,
+                      maxAge: selectedAgeMax,
+                      onChanged: onAgeRangeChanged,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '초기화',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textSecondaryColor,
+                    const SizedBox(width: 10),
+                    // 지역 필터 (2단계)
+                    _LocationFilterChip(
+                      selectedLocation: selectedLocation,
+                      onChanged: onLocationChanged,
+                    ),
+                    const SizedBox(width: 10),
+                    // 관심사 필터
+                    _FilterChip(
+                      label: '관심사',
+                      icon: Icons.label_outline,
+                      value: selectedInterest,
+                      options: availableInterests,
+                      onChanged: onInterestChanged,
+                    ),
+                    const SizedBox(width: 10),
+                    // 온라인/오프라인 필터
+                    _FormatFilterChip(
+                      selected: selectedFormat,
+                      onChanged: onFormatChanged,
+                    ),
+                    // 필터 초기화 버튼
+                    if (hasActiveFilters) ...[
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: onClear,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.backgroundColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppTheme.dividerColor,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: AppTheme.textSecondaryColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '초기화',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textSecondaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ],
-        ),
+            ),
+          );
+        },
       ),
     );
   }

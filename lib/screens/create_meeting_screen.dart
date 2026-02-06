@@ -12,6 +12,7 @@ import '../widgets/age_range_selector.dart';
 import '../widgets/category_picker_sheet.dart';
 import '../models/meeting.dart';
 import 'meeting_detail_screen.dart';
+import 'package:share_lib/share_lib.dart';
 
 class CreateMeetingScreen extends StatefulWidget {
   final Meeting? meeting;
@@ -49,6 +50,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _approvalType;
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
+  bool _isRequestingAi = false;
   final List<File> _selectedImages = [];
   final List<String> _existingImageUrls = []; // 수정 모드에서 기존 이미지 URL
 
@@ -213,6 +215,45 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         _timeError = null;
         _hasUnsavedChanges = true;
       });
+    }
+  }
+
+  Future<void> _requestAiIntroduction() async {
+    setState(() => _isRequestingAi = true);
+    try {
+      await AdService.shared.showAd(
+        onAdDismissed: () async {
+          if (!mounted) return;
+          try {
+            final api = context.read<ApiService>();
+            final intro = await api.generateMeetingIntroduction(
+              content: _descriptionController.text.trim(),
+            );
+            if (mounted) {
+              setState(() {
+                _descriptionController.text = intro;
+                _descriptionError = null;
+                _hasUnsavedChanges = true;
+                _isRequestingAi = false;
+              });
+            }
+          } catch (e) {
+            if (mounted) {
+              setState(() => _isRequestingAi = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$e')),
+              );
+            }
+          }
+        },
+        onAdFailedToShow: () {
+          if (mounted) {
+            setState(() => _isRequestingAi = false);
+          }
+        },
+      );
+    } catch (_) {
+      if (mounted) setState(() => _isRequestingAi = false);
     }
   }
 
@@ -608,7 +649,25 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                   key: _descriptionSectionKey,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('모임 소개 *'),
+                    Row(
+                      children: [
+                        _buildSectionTitle('모임 소개 *'),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _isRequestingAi
+                              ? null
+                              : _requestAiIntroduction,
+                          icon: _isRequestingAi
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.auto_awesome, size: 18),
+                          label: const Text('광고보고 AI에게 요청하기'),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,

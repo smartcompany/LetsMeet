@@ -179,6 +179,22 @@ class ApiService implements AuthServiceInterface {
     }
   }
 
+  /// AI 모임 소개 문구 다듬기 (광고 시청 후 호출)
+  /// [content] 모임 소개 입력창에 사용자가 작성한 내용
+  Future<String> generateMeetingIntroduction({required String content}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/ai/meeting-introduction'),
+      headers: _headers,
+      body: jsonEncode({'content': content}),
+    );
+    if (response.statusCode != 200) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? '모임 소개 생성에 실패했습니다.');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['introduction'] as String;
+  }
+
   /// 사용자 설정 조회 (채팅 푸시 on/off 등)
   Future<Map<String, dynamic>> getMySettings() async {
     final response = await http.get(
