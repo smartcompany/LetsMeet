@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_localization.dart';
 import '../utils/auth_helper.dart';
 import '../providers/meeting_provider.dart';
 import '../providers/notification_provider.dart';
@@ -98,7 +99,16 @@ class _MainTabScreenState extends State<MainTabScreen> {
             return AppBar(
               elevation: 0,
               backgroundColor: Colors.white,
-              title: const SizedBox.shrink(),
+              centerTitle: false,
+              title: Text(
+                AppLocalization.appName(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              titleSpacing: 20,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search),
