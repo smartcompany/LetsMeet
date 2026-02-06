@@ -17,7 +17,7 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Background message:', payload);
-  const title = payload.notification?.title || 'LetsMeet';
+  const title = payload.notification?.title || 'Gather';
   const options = {
     body: payload.notification?.body || '',
     icon: '/icons/Icon-192.png',

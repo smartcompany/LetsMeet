@@ -1,6 +1,6 @@
 {
-    "name": "letsmeet",
-    "short_name": "letsmeet",
+    "name": "Gather",
+    "short_name": "Gather",
     "gcm_sender_id": "225419812075",
     "start_url": ".",
     "display": "standalone",

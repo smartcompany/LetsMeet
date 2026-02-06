@@ -17,6 +17,7 @@ import 'services/api_service.dart';
 import 'services/push_service.dart';
 import 'models/user.dart';
 import 'utils/deep_link_handler.dart';
+import 'utils/app_localization.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,7 +84,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
-        title: 'LetsMeet',
+        title: AppLocalization.appName(),
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
