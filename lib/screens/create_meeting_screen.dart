@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
@@ -51,7 +50,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
   bool _isRequestingAi = false;
-  final List<File> _selectedImages = [];
+  final List<XFile> _selectedImages = [];
   final List<String> _existingImageUrls = []; // 수정 모드에서 기존 이미지 URL
 
   @override
@@ -1139,7 +1138,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       final imagesToAdd = images.take(remainingSlots).toList();
 
       setState(() {
-        _selectedImages.addAll(imagesToAdd.map((xFile) => File(xFile.path)));
+        _selectedImages.addAll(imagesToAdd);
         _hasUnsavedChanges = true;
       });
 
@@ -1214,7 +1213,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                   ),
                 );
               }),
-              // 새로 선택한 이미지 표시
+              // 새로 선택한 이미지 표시 (XFile 사용 - 웹/모바일 공통)
               ..._selectedImages.asMap().entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -1222,11 +1221,24 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          entry.value,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
+                        child: FutureBuilder<dynamic>(
+                          future: entry.value.readAsBytes(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return Image.memory(
+                                snapshot.data!,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image),
+                            );
+                          },
                         ),
                       ),
                       Positioned(

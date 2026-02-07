@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
@@ -323,7 +324,7 @@ class ApiService implements AuthServiceInterface {
     return Meeting.fromJson(jsonDecode(response.body));
   }
 
-  Future<String> uploadMeetingImage(File file) async {
+  Future<String> uploadMeetingImage(XFile xFile) async {
     final uri = Uri.parse('$baseUrl/meetings/upload');
     final request = http.MultipartRequest('POST', uri);
 
@@ -331,7 +332,12 @@ class ApiService implements AuthServiceInterface {
       request.headers['Authorization'] = 'Bearer $_token';
     }
 
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    final bytes = await xFile.readAsBytes();
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: xFile.name,
+    ));
 
     final streamedResponse = await request.send();
     final responseBody = await streamedResponse.stream.bytesToString();
