@@ -130,8 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         meeting: meeting,
                         isFavorite: meetingProvider.isFavorite(meeting.id),
                         onToggleFavorite: () => meetingProvider.toggleFavorite(meeting.id),
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => MeetingDetailScreen(
@@ -139,6 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           );
+                          if (result == true && context.mounted) {
+                            meetingProvider.loadMeetings();
+                          }
                         },
                       );
                     }).toList(),

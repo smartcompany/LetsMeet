@@ -92,74 +92,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  Future<void> _confirmComplete() async {
-    if (_meeting == null) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('모임 종료'),
-        content: const Text('이 모임을 종료 처리하시겠습니까?\n종료된 모임은 더 이상 신청을 받을 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.green),
-            child: const Text('종료'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      setState(() {
-        _isSubmitting = true;
-      });
-
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      await apiService.completeMeeting(widget.meetingId);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('모임이 종료되었습니다'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // 모임 정보 다시 로드
-      _loadMeeting();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('모임 종료 중 오류가 발생했습니다: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
-    }
-  }
-
   Future<void> _confirmDelete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -342,8 +274,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       _editMeeting();
                     } else if (value == 'delete') {
                       _confirmDelete();
-                    } else if (value == 'complete') {
-                      _confirmComplete();
                     }
                   },
                   itemBuilder: (context) {
@@ -366,7 +296,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         ),
                       ];
                     } else {
-                      // 진행 중인 모임은 수정/삭제/종료 표시
+                      // 진행 중인 모임은 수정/삭제 표시
                       return [
                         const PopupMenuItem(
                           value: 'edit',
@@ -385,23 +315,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                               Icon(Icons.delete, size: 20, color: Colors.red),
                               SizedBox(width: 8),
                               Text('삭제하기', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'complete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 20,
-                                color: Colors.green,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                '모임 종료',
-                                style: TextStyle(color: Colors.green),
-                              ),
                             ],
                           ),
                         ),
