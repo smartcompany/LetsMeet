@@ -14,9 +14,11 @@ class ProfileCard extends StatelessWidget {
   final String? gender;
   final int? trustScore;
   final app_models.TrustLevel? trustLevel;
-  final List<String>? interests;
   final bool showTrustBadge;
-  final bool showInterests;
+  final bool showStyleSentences;
+  final String? lifeSceneText;
+  final String? selfStatementText;
+  final String? interactionStyleText;
   final EdgeInsetsGeometry? margin;
 
   const ProfileCard({
@@ -29,9 +31,11 @@ class ProfileCard extends StatelessWidget {
     this.gender,
     this.trustScore,
     this.trustLevel,
-    this.interests,
     this.showTrustBadge = true,
-    this.showInterests = true,
+    this.showStyleSentences = true,
+    this.lifeSceneText,
+    this.selfStatementText,
+    this.interactionStyleText,
     this.margin,
   });
 
@@ -223,34 +227,54 @@ class ProfileCard extends StatelessWidget {
               ),
             ),
           ],
-          if (showInterests && interests != null && interests!.isNotEmpty) ...[
+          if (showStyleSentences &&
+              (lifeSceneText != null ||
+                  selfStatementText != null ||
+                  interactionStyleText != null)) ...[
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: interests!.map((interest) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      interest,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (lifeSceneText != null && lifeSceneText!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        lifeSceneText!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                  );
-                }).toList(),
+                  if (selfStatementText != null && selfStatementText!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        selfStatementText!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  if (interactionStyleText != null &&
+                      interactionStyleText!.isNotEmpty)
+                    Text(
+                      interactionStyleText!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
               ),
             ),
           ] else

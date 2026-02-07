@@ -17,12 +17,15 @@ class AuthHelper {
       final user = authProvider.user;
       if (user != null &&
           user.fullName.isNotEmpty &&
-          user.interests.isNotEmpty) {
+          user.lifeSceneId != null && user.interactionStyleId != null) {
         return true;
       }
 
       // 로그인은 했지만 개인정보가 없으면 프로필 설정으로 이동
-      if (user != null && (user.fullName.isEmpty || user.interests.isEmpty)) {
+      if (user != null &&
+          (user.fullName.isEmpty ||
+              user.lifeSceneId == null ||
+              user.interactionStyleId == null)) {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
@@ -54,7 +57,9 @@ class AuthHelper {
       }
 
       // 프로필이 있지만 완전하지 않으면 프로필 설정 화면 표시
-      if (user.fullName.isEmpty || user.interests.isEmpty) {
+      if (user.fullName.isEmpty ||
+          user.lifeSceneId == null ||
+          user.interactionStyleId == null) {
         final profileResult = await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),

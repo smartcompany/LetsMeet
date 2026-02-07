@@ -93,14 +93,16 @@ class ApiService implements AuthServiceInterface {
     return User.fromJson(jsonDecode(response.body));
   }
 
-  @override
-  Future<dynamic> updateUser({
+  /// 프로필 업데이트 (앱 전용 - AuthServiceInterface에는 없음)
+  Future<dynamic> updateProfile({
     String? fullName,
     String? gender,
     String? bio,
     String? profileImageUrl,
     String? backgroundImageUrl,
-    List<String>? interests,
+    String? lifeSceneId,
+    String? selfStatementId,
+    String? interactionStyleId,
     String? kakaoId, // 카카오 로그인인 경우
   }) async {
     final response = await http.put(
@@ -113,7 +115,10 @@ class ApiService implements AuthServiceInterface {
         if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
         if (backgroundImageUrl != null)
           'background_image_url': backgroundImageUrl,
-        if (interests != null) 'interests': interests,
+        if (lifeSceneId != null) 'life_scene_id': lifeSceneId,
+        if (selfStatementId != null) 'self_statement_id': selfStatementId,
+        if (interactionStyleId != null)
+          'interaction_style_id': interactionStyleId,
         if (kakaoId != null) 'kakao_id': kakaoId,
       }),
     );

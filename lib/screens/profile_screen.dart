@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
 import '../widgets/profile_card.dart';
+import '../widgets/profile_style_section.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -148,7 +150,7 @@ class ProfileScreen extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              // 프로필 카드
+              // 프로필 카드 (스타일 제외)
               ProfileCard(
                 fullName: user.fullName,
                 profileImageUrl: user.profileImageUrl,
@@ -158,10 +160,34 @@ class ProfileScreen extends StatelessWidget {
                 gender: user.gender,
                 trustScore: user.trustScore,
                 trustLevel: user.trustLevel,
-                interests: user.interests,
                 showTrustBadge: true,
-                showInterests: true,
+                showStyleSentences: false,
                 margin: EdgeInsets.zero,
+              ),
+
+              const SizedBox(height: 16),
+
+              // 나를 설명하면 이런 편이에요 (스타일 섹션)
+              Consumer<SettingsProvider>(
+                builder: (context, settingsProvider, _) {
+                  final opts = settingsProvider.profileStyleOptions;
+                  if (opts == null) return const SizedBox.shrink();
+                  String? _resolve(String? id, List<ProfileStyleOption> list) {
+                    if (id == null) return null;
+                    try {
+                      return list.firstWhere((e) => e.id == id).text;
+                    } catch (_) {
+                      return null;
+                    }
+                  }
+                  return ProfileStyleSection(
+                    sectionTitle: opts.description,
+                    lifeSceneText: _resolve(user.lifeSceneId, opts.lifeScenes),
+                    selfStatementText: _resolve(user.selfStatementId, opts.selfStatements),
+                    interactionStyleText: _resolve(user.interactionStyleId, opts.interactionStyles),
+                    showSettingsButton: false,
+                  );
+                },
               ),
 
               const SizedBox(height: 24),

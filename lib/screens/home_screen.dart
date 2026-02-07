@@ -38,12 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final meetings = meetingProvider.filteredMeetings;
-        
-        final interests = meetingProvider.meetings
-            .expand((m) => m.interests)
-            .toSet()
-            .toList()
-          ..sort();
 
         return SingleChildScrollView(
           child: Column(
@@ -55,17 +49,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 selectedAgeMin: meetingProvider.selectedAgeMin,
                 selectedAgeMax: meetingProvider.selectedAgeMax,
                 selectedLocation: meetingProvider.selectedLocation,
-                selectedInterest: meetingProvider.selectedInterest,
+                selectedCategory: meetingProvider.selectedCategory,
                 selectedFormat: meetingProvider.selectedFormat,
-                availableInterests: interests,
                 onAgeRangeChanged: (min, max) {
                   meetingProvider.setAgeRangeFilter(min, max);
                 },
                 onLocationChanged: (location) {
                   meetingProvider.setLocationFilter(location);
                 },
-                onInterestChanged: (interest) {
-                  meetingProvider.setInterestFilter(interest);
+                onCategoryChanged: (category) {
+                  meetingProvider.setCategoryFilter(category);
                 },
                 onFormatChanged: (format) {
                   meetingProvider.setFormatFilter(format);

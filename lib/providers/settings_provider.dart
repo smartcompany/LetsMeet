@@ -4,6 +4,56 @@ import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib.dart';
 import '../services/api_service.dart'; // baseUrl용
 
+/// 프로필 스타일 옵션 (서버 settings.json)
+class ProfileStyleOptions {
+  final String description;
+  final List<ProfileStyleOption> lifeScenes;
+  final List<ProfileStyleOption> selfStatements;
+  final List<ProfileStyleOption> interactionStyles;
+
+  ProfileStyleOptions({
+    this.description = '나를 설명하면 이런 편이에요',
+    required this.lifeScenes,
+    required this.selfStatements,
+    required this.interactionStyles,
+  });
+
+  factory ProfileStyleOptions.fromJson(Map<String, dynamic> json) {
+    return ProfileStyleOptions(
+      description: json['description'] as String? ?? '나를 설명하면 이런 편이에요',
+      lifeScenes: _parseList(json['life_scenes']),
+      selfStatements: _parseList(json['self_statements']),
+      interactionStyles: _parseList(json['interaction_styles']),
+    );
+  }
+
+  static List<ProfileStyleOption> _parseList(dynamic list) {
+    if (list is! List) return [];
+    return list
+        .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+        .whereType<Map<String, dynamic>>()
+        .map((e) => ProfileStyleOption.fromJson(e))
+        .toList();
+  }
+}
+
+class ProfileStyleOption {
+  final String id;
+  final String text;
+
+  ProfileStyleOption({
+    required this.id,
+    required this.text,
+  });
+
+  factory ProfileStyleOption.fromJson(Map<String, dynamic> json) {
+    return ProfileStyleOption(
+      id: json['id'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+    );
+  }
+}
+
 /// 앱 설정 (서버 드리븐)
 /// - meetingCategory: 모임 카테고리 계층
 /// - 광고: AdService에 전달 (ios_ad, android_ad, ref, down_load_url 등)
@@ -13,6 +63,10 @@ class SettingsProvider extends ChangeNotifier {
   /// 서버에서 받은 meetingCategory (대분류 -> 소분류 목록)
   Map<String, List<String>>? _meetingCategory;
   Map<String, List<String>>? get meetingCategory => _meetingCategory;
+
+  /// 프로필 스타일 옵션 (좋아하는 시간, 중요한 포인트, 같이 있으면)
+  ProfileStyleOptions? _profileStyleOptions;
+  ProfileStyleOptions? get profileStyleOptions => _profileStyleOptions;
 
   bool _loaded = false;
   bool get loaded => _loaded;
@@ -65,6 +119,14 @@ class SettingsProvider extends ChangeNotifier {
             }
           }
         }
+      }
+
+      // profileStyleOptions 파싱
+      final styleRaw = data['profileStyleOptions'];
+      if (styleRaw is Map) {
+        _profileStyleOptions = ProfileStyleOptions.fromJson(
+          styleRaw as Map<String, dynamic>,
+        );
       }
 
       // AdService 설정 및 광고 로드

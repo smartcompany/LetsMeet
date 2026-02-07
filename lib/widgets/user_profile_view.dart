@@ -3,11 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart' as share_lib;
 import '../models/user.dart' as app_models;
+import '../providers/settings_provider.dart';
 import '../screens/meeting_chat_screen.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 import 'profile_card.dart';
+import 'profile_style_section.dart';
 
 /// 다른 사용자의 프로필을 보여주는 공통 위젯
 class UserProfileView extends StatefulWidget {
@@ -15,6 +17,8 @@ class UserProfileView extends StatefulWidget {
   final String? displayName;
   final String? profileImageUrl;
   final app_models.User? previewUser;
+  final ({String? lifeScene, String? selfStatement, String? interactionStyle})?
+      previewStyleTexts;
 
   const UserProfileView({
     super.key,
@@ -22,6 +26,7 @@ class UserProfileView extends StatefulWidget {
     this.displayName,
     this.profileImageUrl,
     this.previewUser,
+    this.previewStyleTexts,
   });
 
   /// 작성 중인 프로필 미리보기 (저장 전 데이터로 표시)
@@ -34,7 +39,9 @@ class UserProfileView extends StatefulWidget {
     String? gender,
     DateTime? createdAt,
     int trustScore = 70,
-    List<String> interests = const [],
+    String? lifeSceneText,
+    String? selfStatementText,
+    String? interactionStyleText,
   }) {
     final user = app_models.User(
       id: 'preview',
@@ -45,7 +52,9 @@ class UserProfileView extends StatefulWidget {
       gender: gender,
       trustScore: trustScore,
       trustLevel: _calcTrustLevel(trustScore),
-      interests: interests,
+      lifeSceneId: null,
+      selfStatementId: null,
+      interactionStyleId: null,
       createdAt: createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       isActive: true,
@@ -53,8 +62,19 @@ class UserProfileView extends StatefulWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            UserProfileView(userId: 'preview', previewUser: user),
+        builder: (context) => UserProfileView(
+          userId: 'preview',
+          previewUser: user,
+          previewStyleTexts: lifeSceneText != null ||
+                  selfStatementText != null ||
+                  interactionStyleText != null
+              ? (
+                  lifeScene: lifeSceneText,
+                  selfStatement: selfStatementText,
+                  interactionStyle: interactionStyleText,
+                )
+              : null,
+        ),
       ),
     );
   }
@@ -139,7 +159,9 @@ class _UserProfileViewState extends State<UserProfileView> {
           backgroundImageUrl: data['background_image_url'] as String?,
           trustScore: trustScore,
           trustLevel: _calculateTrustLevel(trustScore),
-          interests: List<String>.from(data['interests'] ?? []),
+          lifeSceneId: data['life_scene_id'] as String?,
+          selfStatementId: data['self_statement_id'] as String?,
+          interactionStyleId: data['interaction_style_id'] as String?,
           createdAt: createdAt,
           updatedAt: updatedAt,
           isActive: data['is_active'] as bool? ?? true,
@@ -216,8 +238,8 @@ class _UserProfileViewState extends State<UserProfileView> {
                   ],
                   const SizedBox(height: 16),
                   _buildStatisticsGrid(),
-                  const SizedBox(height: 24),
-                  _buildInterestsSection(),
+                  const SizedBox(height: 16),
+                  _buildProfileStyleSection(),
                 ],
               ),
             ),
@@ -261,9 +283,49 @@ class _UserProfileViewState extends State<UserProfileView> {
       bio: _user!.bio,
       gender: _user!.gender,
       showTrustBadge: false,
-      showInterests: false,
+      showStyleSentences: false,
       margin: const EdgeInsets.all(16),
     );
+  }
+
+  Widget _buildProfileStyleSection() {
+    final opts = context.read<SettingsProvider>().profileStyleOptions;
+    if (opts == null) return const SizedBox.shrink();
+    final lifeScene = widget.previewStyleTexts?.lifeScene ??
+        _resolveStyleText(_user!.lifeSceneId, optsKey: 0);
+    final selfStatement = widget.previewStyleTexts?.selfStatement ??
+        _resolveStyleText(_user!.selfStatementId, optsKey: 1);
+    final interactionStyle = widget.previewStyleTexts?.interactionStyle ??
+        _resolveStyleText(_user!.interactionStyleId, optsKey: 2);
+    if (lifeScene == null && selfStatement == null && interactionStyle == null) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: ProfileStyleSection(
+        sectionTitle: opts.description,
+        lifeSceneText: lifeScene,
+        selfStatementText: selfStatement,
+        interactionStyleText: interactionStyle,
+        showSettingsButton: false,
+      ),
+    );
+  }
+
+  String? _resolveStyleText(String? id, {required int optsKey}) {
+    if (id == null || id.isEmpty) return null;
+    final opts = context.read<SettingsProvider>().profileStyleOptions;
+    if (opts == null) return null;
+    final list = optsKey == 0
+        ? opts.lifeScenes
+        : optsKey == 1
+            ? opts.selfStatements
+            : opts.interactionStyles;
+    try {
+      return list.firstWhere((e) => e.id == id).text;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _openDirectChat() async {
@@ -480,60 +542,4 @@ class _UserProfileViewState extends State<UserProfileView> {
     );
   }
 
-  Widget _buildInterestsSection() {
-    if (_user!.interests.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '관심사',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _user!.interests.map((interest) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F1F3),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  interest,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 }

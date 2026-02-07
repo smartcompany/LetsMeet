@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
+import '../utils/category_hierarchy.dart';
 
 class MeetingProvider with ChangeNotifier {
   List<Meeting> _meetings = [];
@@ -15,7 +16,7 @@ class MeetingProvider with ChangeNotifier {
   int? _selectedAgeMin;
   int? _selectedAgeMax;
   String? _selectedLocation;
-  String? _selectedInterest;
+  String? _selectedCategory;
   MeetingFormat? _selectedFormat;
 
   // 검색
@@ -33,7 +34,7 @@ class MeetingProvider with ChangeNotifier {
   int? get selectedAgeMin => _selectedAgeMin;
   int? get selectedAgeMax => _selectedAgeMax;
   String? get selectedLocation => _selectedLocation;
-  String? get selectedInterest => _selectedInterest;
+  String? get selectedCategory => _selectedCategory;
   MeetingFormat? get selectedFormat => _selectedFormat;
   String get searchQuery => _searchQuery;
   bool get showFavoritesOnly => _showFavoritesOnly;
@@ -67,8 +68,8 @@ class MeetingProvider with ChangeNotifier {
       });
     }
 
-    if (_selectedInterest != null) {
-      filtered = filtered.where((m) => m.interests.contains(_selectedInterest));
+    if (_selectedCategory != null) {
+      filtered = filtered.where((m) => _categoryMatches(m.category, _selectedCategory!));
     }
 
     if (_selectedFormat != null) {
@@ -160,6 +161,17 @@ class MeetingProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 선택 카테고리가 "Main > 전체"이면 메인 카테고리만 매칭, 아니면 정확 매칭
+  bool _categoryMatches(String? meetingCategory, String selectedCategory) {
+    if (meetingCategory == null || meetingCategory.isEmpty) return false;
+    final selected = CategoryHierarchy.parse(selectedCategory);
+    if (selected.sub == '전체') {
+      final meeting = CategoryHierarchy.parse(meetingCategory);
+      return meeting.main == selected.main;
+    }
+    return meetingCategory == selectedCategory;
+  }
+
   bool _locationMatches(String meetingLocation, String filterValue) {
     if (filterValue.endsWith('전체') || filterValue.contains(' 전체')) {
       final prefix = filterValue.replaceAll(' 전체', '').trim();
@@ -173,8 +185,8 @@ class MeetingProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void setInterestFilter(String? interest) {
-    _selectedInterest = interest;
+  void setCategoryFilter(String? category) {
+    _selectedCategory = category;
     notifyListeners();
   }
 
@@ -187,7 +199,7 @@ class MeetingProvider with ChangeNotifier {
     _selectedAgeMin = null;
     _selectedAgeMax = null;
     _selectedLocation = null;
-    _selectedInterest = null;
+    _selectedCategory = null;
     _selectedFormat = null;
     notifyListeners();
   }

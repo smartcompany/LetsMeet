@@ -5,9 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
+import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/profile_photo_preview.dart';
+import '../widgets/profile_style_section.dart';
 import '../widgets/user_profile_view.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -23,7 +25,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
-  final List<String> _selectedInterests = [];
   bool _isSubmitting = false;
   String? _selectedGender; // 'male' or 'female'
   String? _profileImageUrl;
@@ -32,19 +33,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _isUploadingBackgroundImage = false;
   final ImagePicker _picker = ImagePicker();
 
-  final List<String> _availableInterests = [
-    '디자인',
-    '개발',
-    '협업',
-    '독서',
-    '글쓰기',
-    '문화',
-    '요리',
-    '음식',
-    '환경',
-    '라이프스타일',
-    '지속가능성',
-  ];
+  String? _selectedLifeSceneId;
+  String? _selectedSelfStatementId;
+  String? _selectedInteractionStyleId;
 
   @override
   void initState() {
@@ -52,7 +43,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final user = context.read<AuthProvider<User>>().user;
     if (user != null) {
       _nameController.text = user.fullName.isNotEmpty ? user.fullName : '';
-      _selectedInterests.addAll(user.interests);
+      _selectedLifeSceneId = user.lifeSceneId;
+      _selectedSelfStatementId = user.selfStatementId;
+      _selectedInteractionStyleId = user.interactionStyleId;
       _bioController.text = user.bio ?? '';
       _selectedGender = user.gender;
       _profileImageUrl = user.profileImageUrl;
@@ -133,31 +126,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
-  void _toggleInterest(String interest) {
-    setState(() {
-      if (_selectedInterests.contains(interest)) {
-        _selectedInterests.remove(interest);
-      } else {
-        if (_selectedInterests.length < 3) {
-          _selectedInterests.add(interest);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('관심사는 최대 3개까지 선택할 수 있습니다')),
-          );
-        }
-      }
-    });
-  }
 
   Future<void> _submitProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    if (_selectedInterests.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('최소 1개 이상의 관심사를 선택해주세요')));
+    if (_selectedLifeSceneId == null || _selectedInteractionStyleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아하는 시간과 같이 있으면을 선택해주세요')),
+      );
       return;
     }
 
@@ -166,8 +144,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
+      final apiService = context.read<ApiService>();
       final authProvider = context.read<AuthProvider<User>>();
-      await authProvider.updateProfile(
+
+      final result = await apiService.updateProfile(
         fullName: _nameController.text.trim(),
         gender: _selectedGender,
         bio: _bioController.text.trim().isNotEmpty
@@ -175,8 +155,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             : null,
         profileImageUrl: _profileImageUrl,
         backgroundImageUrl: _backgroundImageUrl,
-        interests: _selectedInterests,
+        lifeSceneId: _selectedLifeSceneId,
+        selfStatementId: _selectedSelfStatementId,
+        interactionStyleId: _selectedInteractionStyleId,
+        kakaoId: authProvider.kakaoId,
       );
+
+      if (!mounted) return;
+
+      if (result is Map && result['custom_token'] != null) {
+        await authProvider.signInWithCustomToken(
+          result['custom_token'] as String,
+        );
+      } else {
+        authProvider.setUser(result as User);
+      }
 
       if (!mounted) return;
 
@@ -425,95 +418,54 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                 const SizedBox(height: 32),
 
-                // 관심사 선택
-                Text(
-                  '관심사 (최대 3개)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimaryColor,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _availableInterests.map((interest) {
-                    final isSelected = _selectedInterests.contains(interest);
-                    return GestureDetector(
-                      onTap: () => _toggleInterest(interest),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
+                // 나를 설명하면 이런 편이에요 (스타일 섹션)
+                Consumer<SettingsProvider>(
+                  builder: (context, settingsProvider, _) {
+                    final opts = settingsProvider.profileStyleOptions;
+                    if (opts == null) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(),
                         ),
-                        decoration: BoxDecoration(
-                          gradient: isSelected
-                              ? LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryColor,
-                                    AppTheme.primaryColor.withOpacity(0.8),
-                                  ],
-                                )
-                              : null,
-                          color: isSelected ? null : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primaryColor
-                                : AppTheme.dividerColor.withOpacity(0.5),
-                            width: isSelected ? 0 : 1.5,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: AppTheme.primaryColor.withOpacity(
-                                      0.3,
-                                    ),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle,
-                                size: 18,
-                                color: Colors.white,
-                              )
-                            else
-                              Icon(
-                                Icons.circle_outlined,
-                                size: 18,
-                                color: AppTheme.textSecondaryColor,
-                              ),
-                            const SizedBox(width: 8),
-                            Text(
-                              interest,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppTheme.textPrimaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      );
+                    }
+                    String? _resolve(String? id, List<ProfileStyleOption> list) {
+                      if (id == null) return null;
+                      try {
+                        return list.firstWhere((e) => e.id == id).text;
+                      } catch (_) {
+                        return null;
+                      }
+                    }
+                    return ProfileStyleSection(
+                      sectionTitle: opts.description,
+                      lifeSceneText: _resolve(_selectedLifeSceneId, opts.lifeScenes),
+                      selfStatementText: _resolve(_selectedSelfStatementId, opts.selfStatements),
+                      interactionStyleText: _resolve(_selectedInteractionStyleId, opts.interactionStyles),
+                      showSettingsButton: true,
+                      onSettingsTap: () {
+                        ProfileStyleSection.showStylePickerSheet(
+                          context,
+                          lifeSceneId: _selectedLifeSceneId,
+                          selfStatementId: _selectedSelfStatementId,
+                          interactionStyleId: _selectedInteractionStyleId,
+                          opts: opts,
+                          onUpdate: ({
+                            lifeSceneId,
+                            selfStatementId,
+                            interactionStyleId,
+                          }) async {
+                            setState(() {
+                              if (lifeSceneId != null) _selectedLifeSceneId = lifeSceneId;
+                              if (selfStatementId != null) _selectedSelfStatementId = selfStatementId;
+                              if (interactionStyleId != null) _selectedInteractionStyleId = interactionStyleId;
+                            });
+                          },
+                        );
+                      },
                     );
-                  }).toList(),
+                  },
                 ),
 
                 const SizedBox(height: 48),
@@ -524,6 +476,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     OutlinedButton(
                       onPressed: () {
                         final user = context.read<AuthProvider<User>>().user;
+                        final opts = context.read<SettingsProvider>().profileStyleOptions;
+                        String? _findText(List<ProfileStyleOption>? list, String? id) {
+                          if (list == null || id == null) return null;
+                          try {
+                            return list.firstWhere((e) => e.id == id).text;
+                          } catch (_) {
+                            return null;
+                          }
+                        }
                         UserProfileView.showPreview(
                           context,
                           fullName: _nameController.text.trim().isEmpty
@@ -537,7 +498,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           gender: _selectedGender,
                           createdAt: user?.createdAt,
                           trustScore: user?.trustScore ?? 70,
-                          interests: List.from(_selectedInterests),
+                          lifeSceneText: _findText(opts?.lifeScenes, _selectedLifeSceneId),
+                          selfStatementText: _findText(opts?.selfStatements, _selectedSelfStatementId),
+                          interactionStyleText: _findText(opts?.interactionStyles, _selectedInteractionStyleId),
                         );
                       },
                       style: OutlinedButton.styleFrom(

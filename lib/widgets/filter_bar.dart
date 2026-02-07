@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/meeting.dart';
 import '../theme/app_theme.dart';
 import '../utils/region_hierarchy.dart';
+import '../utils/category_hierarchy.dart';
 import 'age_range_selector.dart';
+import 'category_picker_sheet.dart';
 
 const _formatClearSentinel = Object();
 const _locationClearSentinel = Object();
@@ -11,12 +13,11 @@ class FilterBar extends StatelessWidget {
   final int? selectedAgeMin;
   final int? selectedAgeMax;
   final String? selectedLocation;
-  final String? selectedInterest;
+  final String? selectedCategory;
   final MeetingFormat? selectedFormat;
-  final List<String> availableInterests;
   final Function(int?, int?) onAgeRangeChanged;
   final Function(String?) onLocationChanged;
-  final Function(String?) onInterestChanged;
+  final Function(String?) onCategoryChanged;
   final Function(MeetingFormat?) onFormatChanged;
   final VoidCallback onClear;
 
@@ -25,12 +26,11 @@ class FilterBar extends StatelessWidget {
     this.selectedAgeMin,
     this.selectedAgeMax,
     required this.selectedLocation,
-    required this.selectedInterest,
+    required this.selectedCategory,
     required this.selectedFormat,
-    required this.availableInterests,
     required this.onAgeRangeChanged,
     required this.onLocationChanged,
-    required this.onInterestChanged,
+    required this.onCategoryChanged,
     required this.onFormatChanged,
     required this.onClear,
   });
@@ -40,7 +40,7 @@ class FilterBar extends StatelessWidget {
     final hasActiveFilters = selectedAgeMin != null ||
         selectedAgeMax != null ||
         selectedLocation != null ||
-        selectedInterest != null ||
+        selectedCategory != null ||
         selectedFormat != null;
 
     return Container(
@@ -80,13 +80,10 @@ class FilterBar extends StatelessWidget {
                       onChanged: onLocationChanged,
                     ),
                     const SizedBox(width: 10),
-                    // 관심사 필터
-                    _FilterChip(
-                      label: '관심사',
-                      icon: Icons.label_outline,
-                      value: selectedInterest,
-                      options: availableInterests,
-                      onChanged: onInterestChanged,
+                    // 카테고리 필터
+                    _CategoryFilterChip(
+                      selectedCategory: selectedCategory,
+                      onChanged: onCategoryChanged,
                     ),
                     const SizedBox(width: 10),
                     // 온라인/오프라인 필터
@@ -563,88 +560,42 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final String? value;
-  final List<String> options;
+class _CategoryFilterChip extends StatelessWidget {
+  final String? selectedCategory;
   final Function(String?) onChanged;
 
-  const _FilterChip({
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.options,
+  const _CategoryFilterChip({
+    required this.selectedCategory,
     required this.onChanged,
   });
 
-  Future<void> _showPicker(BuildContext context) async {
-    final result = await showDialog<String?>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: Text(label),
-        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(ctx).size.width > 400 ? 80 : 24,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.clear_rounded, size: 20),
-              title: Text(label),
-              contentPadding: EdgeInsets.zero,
-              onTap: () => Navigator.pop(ctx, ''),
-            ),
-            const Divider(height: 1),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.4,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: options.map(
-                    (option) => ListTile(
-                      title: Text(option),
-                      contentPadding: EdgeInsets.zero,
-                      trailing: value == option
-                          ? Icon(
-                              Icons.check,
-                              color: AppTheme.primaryColor,
-                              size: 20,
-                            )
-                          : null,
-                      onTap: () => Navigator.pop(ctx, option),
-                    ),
-                  ).toList(),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('완료'),
-          ),
-        ],
-      ),
+  String _getDisplayText() {
+    if (selectedCategory == null) return '카테고리';
+    final parsed = CategoryHierarchy.parse(selectedCategory);
+    return parsed.sub ?? selectedCategory!;
+  }
+
+  Future<void> _showCategoryPicker(BuildContext context) async {
+    final result = await CategoryPickerSheet.show(
+      context,
+      initial: selectedCategory,
     );
-    if (context.mounted && result != null) {
-      onChanged(result.isEmpty ? null : result);
+    if (!context.mounted) return;
+    if (result != null) {
+      if (identical(result, CategoryPickerSheet.categoryClearSentinel)) {
+        onChanged(null);
+      } else {
+        onChanged(result as String);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = value != null;
+    final isSelected = selectedCategory != null;
 
     return GestureDetector(
-      onTap: () => _showPicker(context),
+      onTap: () => _showCategoryPicker(context),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -685,13 +636,13 @@ class _FilterChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
+              Icons.category_outlined,
               size: 16,
               color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
             ),
             const SizedBox(width: 8),
             Text(
-              value ?? label,
+              _getDisplayText(),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

@@ -8,7 +8,9 @@ class User {
   final String? backgroundImageUrl;
   final int trustScore;
   final TrustLevel trustLevel;
-  final List<String> interests;
+  final String? lifeSceneId;
+  final String? selfStatementId;
+  final String? interactionStyleId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isActive;
@@ -23,16 +25,20 @@ class User {
     this.backgroundImageUrl,
     required this.trustScore,
     required this.trustLevel,
-    required this.interests,
+    this.lifeSceneId,
+    this.selfStatementId,
+    this.interactionStyleId,
     required this.createdAt,
     required this.updatedAt,
     required this.isActive,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    final trustScore = json['trust_score'] as int;
+    final trustScore = (json['trust_score'] is int)
+        ? json['trust_score'] as int
+        : int.tryParse(json['trust_score']?.toString() ?? '70') ?? 70;
     return User(
-      id: json['id'] as String,
+      id: (json['id'] ?? json['user_id']) as String,
       phoneNumber: json['phone_number'] as String?,
       fullName: (json['full_name'] as String?) ?? '',
       profileImageUrl: json['profile_image_url'] as String?,
@@ -41,7 +47,9 @@ class User {
       backgroundImageUrl: json['background_image_url'] as String?,
       trustScore: trustScore,
       trustLevel: _calculateTrustLevel(trustScore),
-      interests: List<String>.from(json['interests'] ?? []),
+      lifeSceneId: json['life_scene_id'] as String?,
+      selfStatementId: json['self_statement_id'] as String?,
+      interactionStyleId: json['interaction_style_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       isActive: json['is_active'] as bool,
@@ -71,7 +79,9 @@ class User {
       'background_image_url': backgroundImageUrl,
       'trust_score': trustScore,
       'trust_level': trustLevel.toString(),
-      'interests': interests,
+      'life_scene_id': lifeSceneId,
+      'self_statement_id': selfStatementId,
+      'interaction_style_id': interactionStyleId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'is_active': isActive,
