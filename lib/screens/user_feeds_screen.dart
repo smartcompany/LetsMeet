@@ -6,37 +6,37 @@ import '../theme/app_theme.dart';
 import '../widgets/feed_card.dart';
 import 'feed_comments_sheet.dart';
 
-class FeedScreen extends StatefulWidget {
-  const FeedScreen({super.key});
+/// 특정 사용자가 작성한 피드 목록 화면 (프로필에서 "피드 보기" 선택 시)
+class UserFeedsScreen extends StatefulWidget {
+  final String userId;
+  final String displayName;
+
+  const UserFeedsScreen({
+    super.key,
+    required this.userId,
+    required this.displayName,
+  });
 
   @override
-  FeedScreenState createState() => FeedScreenState();
+  State<UserFeedsScreen> createState() => _UserFeedsScreenState();
 }
 
-class FeedScreenState extends State<FeedScreen> {
+class _UserFeedsScreenState extends State<UserFeedsScreen> {
   bool _isLoading = true;
   List<Feed> _feeds = [];
-  final Map<String, bool> _likingFeeds = {}; // 좋아요 처리 중인 피드 ID
+  final Map<String, bool> _likingFeeds = {};
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadFeeds();
-    });
-  }
-
-  // 외부에서 호출할 수 있는 새로고침 메서드
-  void refresh() {
     _loadFeeds();
   }
 
   Future<void> _toggleLike(Feed feed) async {
-    if (_likingFeeds[feed.id] == true) return; // 이미 처리 중이면 무시
+    if (_likingFeeds[feed.id] == true) return;
 
     setState(() {
       _likingFeeds[feed.id] = true;
-      // 낙관적 업데이트
       final index = _feeds.indexWhere((f) => f.id == feed.id);
       if (index != -1) {
         _feeds[index] = Feed(
@@ -66,15 +66,13 @@ class FeedScreenState extends State<FeedScreen> {
       }
 
       await apiService.toggleFeedLike(feed.id);
-      // 성공 시 피드 목록 새로고침
       await _loadFeeds();
     } catch (e) {
-      // 실패 시 원래 상태로 복구
       await _loadFeeds();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('좋아요 처리 실패: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('좋아요 처리 실패: $e')),
+        );
       }
     } finally {
       setState(() {
@@ -84,14 +82,13 @@ class FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _showComments(Feed feed) async {
-    final result = await showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => CommentsBottomSheet(feedId: feed.id),
     );
-    // 댓글 시트가 닫힌 후 피드 목록 새로고침 (댓글 개수 업데이트)
-    if (result == true || mounted) {
+    if (mounted) {
       _loadFeeds();
     }
   }
@@ -107,7 +104,7 @@ class FeedScreenState extends State<FeedScreen> {
           apiService.setToken(token);
         }
       }
-      final feeds = await apiService.getFeeds();
+      final feeds = await apiService.getFeedsByUser(widget.userId);
       setState(() {
         _feeds = feeds..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
@@ -115,15 +112,24 @@ class FeedScreenState extends State<FeedScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('피드를 불러오는데 실패했습니다: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('피드를 불러오는데 실패했습니다: $e')),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${widget.displayName}의 피드'),
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -139,9 +145,9 @@ class FeedScreenState extends State<FeedScreen> {
               color: AppTheme.textTertiaryColor,
             ),
             const SizedBox(height: 16),
-            const Text(
-              '아직 올라온 피드가 없습니다.',
-              style: TextStyle(color: AppTheme.textSecondaryColor),
+            Text(
+              '작성한 피드가 없습니다.',
+              style: const TextStyle(color: AppTheme.textSecondaryColor),
             ),
           ],
         ),

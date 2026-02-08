@@ -578,6 +578,18 @@ class ApiService implements AuthServiceInterface {
     return (data as List).map((e) => Feed.fromJson(e)).toList();
   }
 
+  Future<List<Feed>> getFeedsByUser(String userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/feeds/user/$userId'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to get user feeds');
+    }
+    final data = jsonDecode(response.body);
+    return (data as List).map((e) => Feed.fromJson(e)).toList();
+  }
+
   Future<Feed> createFeed({
     required String content,
     List<String>? imageUrls,

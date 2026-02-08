@@ -10,6 +10,7 @@ import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
 import 'profile_card.dart';
 import 'profile_style_section.dart';
+import '../screens/user_feeds_screen.dart';
 
 /// 다른 사용자의 프로필을 보여주는 공통 위젯
 class UserProfileView extends StatefulWidget {
@@ -411,16 +412,22 @@ class _UserProfileViewState extends State<UserProfileView> {
           const SizedBox(width: 12),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('팔로우 기능은 준비 중입니다'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.favorite_border, size: 18),
-              label: const Text('팔로우'),
+              onPressed: widget.userId == 'preview'
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserFeedsScreen(
+                            userId: widget.userId,
+                            displayName:
+                                widget.displayName ?? _user?.fullName ?? '사용자',
+                          ),
+                        ),
+                      );
+                    },
+              icon: const Icon(Icons.feed_outlined, size: 18),
+              label: const Text('피드 보기'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primaryColor,
                 side: BorderSide(color: AppTheme.dividerColor.withOpacity(0.8)),
