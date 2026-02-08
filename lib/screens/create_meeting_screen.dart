@@ -11,6 +11,7 @@ import '../widgets/kakao_map_location_picker.dart';
 import '../widgets/age_range_selector.dart';
 import '../widgets/category_picker_sheet.dart';
 import '../models/meeting.dart';
+import '../utils/region_hierarchy.dart';
 import 'meeting_detail_screen.dart';
 import 'package:share_lib/share_lib.dart';
 
@@ -173,7 +174,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           initialQuery: _locationController.text.trim(),
           onLocationSelected: (address, latitude, longitude) {
             setState(() {
-              _locationController.text = address;
+              _locationController.text = RegionHierarchy.normalizeForFilter(address);
               _locationError = null;
               _hasUnsavedChanges = true;
             });
@@ -842,14 +843,15 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         Expanded(
                           child: TextFormField(
                             controller: _locationController,
+                            readOnly: true,
                             decoration: InputDecoration(
-                              hintText: '예: 합정역 근처 카페, 강남 연습실',
+                              hintText: '지도에서 위치 선택',
                               border: const OutlineInputBorder(),
                               errorText: _locationError,
                               errorStyle: const TextStyle(color: Colors.red),
                             ),
                             validator: _validateLocation,
-                            textInputAction: TextInputAction.next,
+                            onTap: _showKakaoMapLocationPicker,
                             onChanged: (_) {
                               if (_locationError != null) {
                                 setState(() {

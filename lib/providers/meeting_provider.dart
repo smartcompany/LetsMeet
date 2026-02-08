@@ -5,6 +5,7 @@ import '../models/meeting.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
 import '../utils/category_hierarchy.dart';
+import '../utils/region_hierarchy.dart';
 
 class MeetingProvider with ChangeNotifier {
   List<Meeting> _meetings = [];
@@ -64,7 +65,7 @@ class MeetingProvider with ChangeNotifier {
 
     if (_selectedLocation != null) {
       filtered = filtered.where((m) {
-        return _locationMatches(m.location, _selectedLocation!);
+        return RegionHierarchy.locationMatches(m.location, _selectedLocation!);
       });
     }
 
@@ -170,14 +171,6 @@ class MeetingProvider with ChangeNotifier {
       return meeting.main == selected.main;
     }
     return meetingCategory == selectedCategory;
-  }
-
-  bool _locationMatches(String meetingLocation, String filterValue) {
-    if (filterValue.endsWith('전체') || filterValue.contains(' 전체')) {
-      final prefix = filterValue.replaceAll(' 전체', '').trim();
-      return meetingLocation.contains(prefix);
-    }
-    return meetingLocation.contains(filterValue);
   }
 
   void setLocationFilter(String? location) {

@@ -296,33 +296,34 @@ class RegionHierarchy {
     return '${_regionToLocationPrefix(region)} $subRegion'.trim();
   }
 
-  static String _regionToLocationPrefix(String region) {
-    const prefixMap = {
-      '서울': '서울특별시',
-      '부산': '부산광역시',
-      '대구': '대구광역시',
-      '인천': '인천광역시',
-      '광주': '광주광역시',
-      '대전': '대전광역시',
-      '울산': '울산광역시',
-      '세종': '세종특별자치시',
-      '경기': '경기도',
-      '강원': '강원특별자치도',
-      '충북': '충청북도',
-      '충남': '충청남도',
-      '전북': '전북특별자치도',
-      '전남': '전라남도',
-      '경북': '경상북도',
-      '경남': '경상남도',
-      '제주': '제주특별자치도',
-    };
-    return prefixMap[region] ?? region;
-  }
+  static const Map<String, String> _regionPrefixMap = {
+    '서울': '서울특별시',
+    '부산': '부산광역시',
+    '대구': '대구광역시',
+    '인천': '인천광역시',
+    '광주': '광주광역시',
+    '대전': '대전광역시',
+    '울산': '울산광역시',
+    '세종': '세종특별자치시',
+    '경기': '경기도',
+    '강원': '강원특별자치도',
+    '충북': '충청북도',
+    '충남': '충청남도',
+    '전북': '전북특별자치도',
+    '전남': '전라남도',
+    '경북': '경상북도',
+    '경남': '경상남도',
+    '제주': '제주특별자치도',
+  };
+
+  static String _regionToLocationPrefix(String region) =>
+      _regionPrefixMap[region] ?? region;
 
   /// meeting.location이 선택된 필터 값과 매칭되는지 확인
+  /// meetingLocation은 카카오맵 등 다양한 형식일 수 있으므로 정규화 후 비교
   static bool locationMatches(String? meetingLocation, String filterValue) {
     if (meetingLocation == null || meetingLocation.isEmpty) return false;
-    final loc = meetingLocation.trim();
+    final loc = normalizeForFilter(meetingLocation.trim());
     if (filterValue.endsWith('전체') || filterValue.contains(' 전체')) {
       final prefix = filterValue.replaceAll(' 전체', '').trim();
       return loc.contains(prefix) || loc.startsWith(prefix);
@@ -337,5 +338,26 @@ class RegionHierarchy {
       return prefix;
     }
     return '$prefix $subRegion'.trim();
+  }
+
+  /// 카카오맵 등에서 받은 주소를 필터 매칭용으로 정규화
+  /// "서울 강남구 압구정로 165" -> "서울특별시 강남구 압구정로 165"
+  /// "홍대보니따 (서울 마포구 동교로 191)" -> "홍대보니따 (서울특별시 마포구 동교로 191)"
+  static String normalizeForFilter(String address) {
+    if (address.isEmpty) return address;
+    String result = address;
+    for (final entry in _regionPrefixMap.entries) {
+      final short = entry.key;
+      final full = entry.value;
+      // 문자열 맨 앞이거나, 공백/괄호 뒤에 있는 지역 약칭을 정규화
+      final pattern = RegExp(
+        '(^|[\\s(])(${RegExp.escape(short)})(?=[\\s,]|\\d|\$)',
+      );
+      result = result.replaceAllMapped(
+        pattern,
+        (m) => '${m.group(1)!}$full',
+      );
+    }
+    return result;
   }
 }
