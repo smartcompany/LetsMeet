@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
@@ -38,8 +39,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   final _approvalSectionKey = GlobalKey();
 
   String? _selectedCategory;
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  DateTime? _selectedDateTime;
   int _minParticipants = 2;
   int _maxParticipants = 6;
   int? _ageRangeMin;
@@ -68,8 +68,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _participationFeeController.text =
           widget.meeting!.participationFee?.toString() ?? '0';
       _selectedCategory = widget.meeting!.category;
-      _selectedDate = widget.meeting!.meetingDate;
-      _selectedTime = TimeOfDay.fromDateTime(widget.meeting!.meetingDate);
+      _selectedDateTime = widget.meeting!.meetingDate;
       // _minParticipants 필드가 Meeting 모델에 없는 경우 기본값 사용
       _maxParticipants = widget.meeting!.maxParticipants;
       _ageRangeMin = widget.meeting!.ageRangeMin;
@@ -96,8 +95,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _titleError;
   String? _categoryError;
   String? _descriptionError;
-  String? _dateError;
-  String? _timeError;
+  String? _dateTimeError;
   String? _locationError;
   String? _approvalTypeError;
 
@@ -185,33 +183,149 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     );
   }
 
-  Future<void> _selectDate() async {
+  Future<void> _selectDateTime() async {
     final now = DateTime.now();
     final firstDate = DateTime(now.year, now.month, now.day);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? firstDate.add(const Duration(days: 1)),
-      firstDate: firstDate,
-      lastDate: DateTime(now.year + 1),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        _dateError = null;
-        _hasUnsavedChanges = true;
-      });
-    }
-  }
+    final lastDate = DateTime(now.year + 1);
+    DateTime tempDate = _selectedDateTime ?? firstDate.add(const Duration(days: 1));
+    TimeOfDay tempTime = _selectedDateTime != null
+        ? TimeOfDay.fromDateTime(_selectedDateTime!)
+        : const TimeOfDay(hour: 19, minute: 0);
 
-  Future<void> _selectTime() async {
-    final picked = await showTimePicker(
+    if (!context.mounted) return;
+    final result = await showModalBottomSheet<DateTime>(
       context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-    );
-    if (picked != null) {
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          '날짜와 시간 선택',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CalendarDatePicker2(
+                                config: CalendarDatePicker2Config(
+                                  calendarType: CalendarDatePicker2Type.single,
+                                  firstDate: firstDate,
+                                  lastDate: lastDate,
+                                  weekdayLabels: ['일', '월', '화', '수', '목', '금', '토'],
+                                  firstDayOfWeek: 1,
+                                  controlsHeight: 44,
+                                  dayTextStyle: const TextStyle(fontSize: 15),
+                                  selectedDayTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  selectedDayHighlightColor: Theme.of(context).primaryColor,
+                                  todayTextStyle: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                value: [tempDate],
+                                onValueChanged: (dates) {
+                                  final d = dates.isNotEmpty ? dates[0] : null;
+                                  if (d != null) {
+                                    setModalState(() => tempDate = d);
+                                  }
+                                },
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(Icons.access_time),
+                                title: const Text('시간'),
+                                subtitle: Text(
+                                  tempTime.format(context),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: tempTime,
+                                  );
+                                  if (picked != null && context.mounted) {
+                                    setModalState(() => tempTime = picked);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('취소'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  final dt = DateTime(
+                                    tempDate.year,
+                                    tempDate.month,
+                                    tempDate.day,
+                                    tempTime.hour,
+                                    tempTime.minute,
+                                  );
+                                  Navigator.pop(context, dt);
+                                },
+                                child: const Text('선택'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+    },
+  );
+
+    if (result != null && mounted) {
       setState(() {
-        _selectedTime = picked;
-        _timeError = null;
+        _selectedDateTime = result;
+        _dateTimeError = null;
         _hasUnsavedChanges = true;
       });
     }
@@ -262,8 +376,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _titleError = null;
       _categoryError = null;
       _descriptionError = null;
-      _dateError = null;
-      _timeError = null;
+      _dateTimeError = null;
       _locationError = null;
       _approvalTypeError = null;
 
@@ -288,18 +401,11 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         _descriptionError = '모임 소개는 최대 500자까지 입력 가능합니다';
       }
 
-      // 날짜 검증
-      if (_selectedDate == null) {
-        _dateError = '모임 날짜를 선택해주세요';
-      } else if (_selectedDate!.isBefore(
-        DateTime.now().subtract(const Duration(days: 1)),
-      )) {
-        _dateError = '과거 날짜는 선택할 수 없습니다';
-      }
-
-      // 시간 검증
-      if (_selectedTime == null) {
-        _timeError = '모임 시간을 선택해주세요';
+      // 날짜·시간 검증
+      if (_selectedDateTime == null) {
+        _dateTimeError = '모임 날짜와 시간을 선택해주세요';
+      } else if (_selectedDateTime!.isBefore(DateTime.now())) {
+        _dateTimeError = '과거 날짜·시간은 선택할 수 없습니다';
       }
 
       // 장소 검증
@@ -318,8 +424,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     return _titleError != null ||
         _categoryError != null ||
         _descriptionError != null ||
-        _dateError != null ||
-        _timeError != null ||
+        _dateTimeError != null ||
         _locationError != null ||
         _approvalTypeError != null;
   }
@@ -329,7 +434,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     if (_titleError != null) return _titleSectionKey;
     if (_categoryError != null) return _categorySectionKey;
     if (_descriptionError != null) return _descriptionSectionKey;
-    if (_dateError != null || _timeError != null) return _dateTimeSectionKey;
+    if (_dateTimeError != null) return _dateTimeSectionKey;
     if (_locationError != null) return _locationSectionKey;
     if (_approvalTypeError != null) return _approvalSectionKey;
     return null;
@@ -367,14 +472,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     });
 
     try {
-      // Combine date and time
-      final meetingDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
+      final meetingDateTime = _selectedDateTime!;
 
       // Parse participation fee
       final fee = int.tryParse(_participationFeeController.text) ?? 0;
@@ -653,14 +751,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         _buildSectionTitle('모임 소개 *'),
                         const Spacer(),
                         TextButton.icon(
-                          onPressed: _isRequestingAi
-                              ? null
-                              : _requestAiIntroduction,
+                          onPressed:
+                              _isRequestingAi ? null : _requestAiIntroduction,
                           icon: _isRequestingAi
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.auto_awesome, size: 18),
                           label: const Text('광고보고 AI에게 요청하기'),
@@ -699,68 +797,34 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSectionTitle('모임 날짜 *'),
-                    if (_dateError != null || _timeError != null) ...[
+                    if (_dateTimeError != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        _dateError ?? _timeError ?? '',
+                        _dateTimeError!,
                         style: const TextStyle(color: Colors.red, fontSize: 12),
                       ),
                     ],
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: InkWell(
-                            onTap: _selectDate,
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                hintText: '날짜 선택',
-                                border: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color: _dateError != null
-                                        ? Colors.red
-                                        : Colors.grey,
-                                  ),
-                                ),
-                                suffixIcon: const Icon(Icons.calendar_today),
-                              ),
-                              child: Text(
-                                _selectedDate != null
-                                    ? DateFormat(
-                                        'yyyy년 MM월 dd일',
-                                      ).format(_selectedDate!)
-                                    : '날짜 선택',
-                              ),
+                    InkWell(
+                      onTap: _selectDateTime,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          hintText: '날짜와 시간 선택',
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: _dateTimeError != null
+                                  ? Colors.red
+                                  : Colors.grey,
                             ),
                           ),
+                          suffixIcon: const Icon(Icons.calendar_month),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 1,
-                          child: InkWell(
-                            onTap: _selectTime,
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                hintText: '시간 선택',
-                                border: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color: _timeError != null
-                                        ? Colors.red
-                                        : Colors.grey,
-                                  ),
-                                ),
-                                suffixIcon: const Icon(Icons.access_time),
-                              ),
-                              child: Text(
-                                _selectedTime != null
-                                    ? _selectedTime!.format(context)
-                                    : '시간 선택',
-                              ),
-                            ),
-                          ),
+                        child: Text(
+                          _selectedDateTime != null
+                              ? '${DateFormat('yyyy년 MM월 dd일 (E)', 'ko_KR').format(_selectedDateTime!)} ${DateFormat('a h:mm', 'ko_KR').format(_selectedDateTime!)}'
+                              : '날짜와 시간',
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
