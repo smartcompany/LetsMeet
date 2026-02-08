@@ -710,6 +710,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     Row(
                       children: [
                         Expanded(
+                          flex: 2,
                           child: InkWell(
                             onTap: _selectDate,
                             child: InputDecorator(
@@ -736,6 +737,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
+                          flex: 1,
                           child: InkWell(
                             onTap: _selectTime,
                             child: InputDecorator(

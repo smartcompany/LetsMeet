@@ -12,7 +12,7 @@ class KakaoMapLocationPicker extends StatefulWidget {
 
   /// 위치 선택 콜백
   final Function(String address, double latitude, double longitude)
-  onLocationSelected;
+      onLocationSelected;
 
   const KakaoMapLocationPicker({
     super.key,
@@ -24,6 +24,22 @@ class KakaoMapLocationPicker extends StatefulWidget {
   State<KakaoMapLocationPicker> createState() => _KakaoMapLocationPickerState();
 }
 
+/// 검색 결과 항목
+class _SearchResultItem {
+  final String placeName;
+  final String address;
+  final LatLng position;
+
+  _SearchResultItem({
+    required this.placeName,
+    required this.address,
+    required this.position,
+  });
+
+  String get displayText =>
+      address.isNotEmpty ? '$placeName ($address)' : placeName;
+}
+
 class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
   KakaoMapController? _mapController;
   LatLng? _selectedLocation;
@@ -31,6 +47,10 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   bool _isGettingLocation = false;
+  List<_SearchResultItem> _searchResults = [];
+  LabelController? _searchMarkersLayer;
+  LabelController? _selectionPinLayer;
+  bool _isSheetExpanded = false;
 
   // 카카오맵 REST API 키 (카카오 개발자 콘솔에서 발급)
   // TODO: 환경 변수나 설정 파일로 이동 권장
@@ -55,6 +75,12 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
     setState(() {
       _mapController = controller;
     });
+    if (_searchResults.isNotEmpty) {
+      _updateSearchMarkersOnMap();
+    }
+    if (_selectedLocation != null) {
+      _updateSelectionPin();
+    }
   }
 
   /// 지도 클릭 이벤트 핸들러
@@ -62,8 +88,127 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
     setState(() {
       _selectedLocation = position;
       _selectedAddress = null; // 주소 로딩 중
+      _searchResults = []; // 지도 탭 시 검색 결과 리스트 닫기
     });
+    _mapController?.moveCamera(CameraUpdate.newCenterPosition(position));
+    _clearSearchMarkers();
+    _updateSelectionPin();
     _getAddressFromCoordinates(position);
+  }
+
+  /// 지도를 해당 위치 중심으로 이동 (바텀 시트 가림 고려해 시각적 중앙에 배치)
+  void _moveMapToCenter(LatLng position) {
+    if (_mapController == null) return;
+    // 계산: 바텀시트 1/3 가림 → 시각적 중앙 = 화면 상단 1/3 지점
+    // 현재 중심은 화면 1/2 → 1/6 화면 높이만큼 위로 올려야 함
+    // zoom 15, 서울 기준: 화면 높이 600px ≈ 0.02°(2km) → 1/6 = 100px ≈ 0.0033°
+    const latOffset = 0.0033;
+    final offsetPosition = LatLng(
+      position.latitude - latOffset,
+      position.longitude,
+    );
+    _mapController!.moveCamera(
+      CameraUpdate.newCenterPosition(offsetPosition),
+    );
+  }
+
+  /// 검색 결과 마커 제거
+  Future<void> _clearSearchMarkers() async {
+    if (_mapController == null || _searchMarkersLayer == null) return;
+    try {
+      await _mapController!.removeLabelLayer(_searchMarkersLayer!);
+      if (mounted) {
+        setState(() => _searchMarkersLayer = null);
+      }
+    } catch (e) {
+      debugPrint('🔵 [KakaoMapLocationPicker] 마커 제거 오류: $e');
+    }
+  }
+
+  /// 선택된 위치에 고정 핀 표시 (아이콘 사용, 줌과 무관하게 일정 크기)
+  Future<void> _updateSelectionPin() async {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+
+    try {
+      if (_selectionPinLayer != null) {
+        await controller.removeLabelLayer(_selectionPinLayer!);
+        if (mounted) setState(() => _selectionPinLayer = null);
+      }
+      if (_selectedLocation == null) return;
+
+      final layerId = 'selection_pin_${DateTime.now().millisecondsSinceEpoch}';
+      final layer = await controller.addLabelLayer(layerId);
+      if (!mounted) return;
+
+      // Material Icons로 선택: Icons.place | Icons.location_on | Icons.add_location | Icons.pin_drop
+      const pinIcon = Icons.place;
+      const pinSize = Size(32, 32);
+      final pinImage = await KImage.fromWidget(
+        Icon(pinIcon, color: Colors.red.shade600, size: 32),
+        pinSize,
+        context: context,
+      );
+      if (!mounted) return;
+
+      final pinStyle = PoiStyle(
+        icon: pinImage,
+        anchor: const KPoint(0.5, 1.0), // 핀 끝이 좌표를 가리킴
+      );
+      final poiId = 'selection_pin_${DateTime.now().millisecondsSinceEpoch}';
+      await layer.addPoi(
+        _selectedLocation!,
+        style: pinStyle,
+        id: poiId,
+      );
+      if (mounted) {
+        setState(() => _selectionPinLayer = layer);
+      }
+    } catch (e) {
+      debugPrint('🔵 [KakaoMapLocationPicker] 선택 핀 오류: $e');
+    }
+  }
+
+  /// 검색 결과를 지도에 마커로 표시 (Flutter Icon 사용)
+  Future<void> _updateSearchMarkersOnMap() async {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+
+    await _clearSearchMarkers();
+    if (_searchResults.isEmpty) return;
+
+    try {
+      final layerId = 'search_markers_${DateTime.now().millisecondsSinceEpoch}';
+      final layer = await controller.addLabelLayer(layerId);
+      if (!mounted) return;
+
+      const markerIcon = Icons.place_outlined;
+      const markerSize = Size(32, 32);
+      final markerImage = await KImage.fromWidget(
+        Icon(markerIcon, color: Colors.blue.shade600, size: 32),
+        markerSize,
+        context: context,
+      );
+      if (!mounted) return;
+
+      final markerStyle = PoiStyle(
+        icon: markerImage,
+        anchor: const KPoint(0.5, 1.0),
+      );
+
+      for (var i = 0; i < _searchResults.length; i++) {
+        await layer.addPoi(
+          _searchResults[i].position,
+          style: markerStyle,
+          id: 'search_poi_$i',
+        );
+      }
+      if (mounted) {
+        setState(() => _searchMarkersLayer = layer);
+      }
+    } catch (e) {
+      debugPrint('🔵 [KakaoMapLocationPicker] 마커 추가 오류: $e');
+    }
   }
 
   /// 좌표를 주소로 변환 (카카오맵 REST API)
@@ -142,18 +287,19 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
     }
   }
 
-  /// 검색 실행 (카카오맵 REST API)
+  /// 검색 실행 (카카오맵 REST API - POI 키워드 검색)
   Future<void> _performSearch() async {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
 
     setState(() {
       _isSearching = true;
+      _searchResults = [];
     });
 
     try {
       final url = Uri.parse(
-        'https://dapi.kakao.com/v2/local/search/keyword.json?query=${Uri.encodeComponent(query)}&size=1',
+        'https://dapi.kakao.com/v2/local/search/keyword.json?query=${Uri.encodeComponent(query)}&size=15',
       );
 
       debugPrint('🔵 [KakaoMapLocationPicker] 검색 URL: $url');
@@ -167,43 +313,46 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
       debugPrint(
         '🔵 [KakaoMapLocationPicker] 검색 응답 상태: ${response.statusCode}',
       );
-      debugPrint('🔵 [KakaoMapLocationPicker] 검색 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['documents'] != null && data['documents'].isNotEmpty) {
-          final place = data['documents'][0];
-          final lat = double.parse(place['y']);
-          final lng = double.parse(place['x']);
-          final position = LatLng(lat, lng);
-
-          // 장소명과 주소 정보 조합
-          final placeName = place['place_name'] ?? query;
-          final roadAddress = place['road_address_name'] ?? '';
-          final addressName = place['address_name'] ?? '';
-
-          // 주소 정보가 있으면 장소명과 함께 표시, 없으면 장소명만
-          String displayAddress = placeName;
-          if (roadAddress.isNotEmpty) {
-            displayAddress = '$placeName ($roadAddress)';
-          } else if (addressName.isNotEmpty) {
-            displayAddress = '$placeName ($addressName)';
+          final documents = data['documents'] as List;
+          final results = <_SearchResultItem>[];
+          for (final place in documents) {
+            final lat = double.parse(place['y'].toString());
+            final lng = double.parse(place['x'].toString());
+            final placeName = place['place_name'] ?? query;
+            final roadAddress = place['road_address_name']?.toString() ?? '';
+            final addressName = place['address_name']?.toString() ?? '';
+            final address = roadAddress.isNotEmpty ? roadAddress : addressName;
+            results.add(_SearchResultItem(
+              placeName: placeName,
+              address: address,
+              position: LatLng(lat, lng),
+            ));
           }
 
-          if (_mapController != null) {
-            _mapController!.moveCamera(
-              CameraUpdate.newCenterPosition(position),
-            );
-
-            // 선택된 위치 업데이트
+          if (mounted) {
             setState(() {
-              _selectedLocation = position;
-              _selectedAddress = displayAddress;
+              _searchResults = results;
+              // 첫 번째 결과로 지도 이동 및 선택
+              final first = results.first;
+              _selectedLocation = first.position;
+              _selectedAddress = first.displayText;
             });
+            _updateSearchMarkersOnMap();
+            _updateSelectionPin();
+          }
+
+          if (results.isNotEmpty) {
+            _moveMapToCenter(results.first.position);
           }
         } else {
           debugPrint('⚠️ [KakaoMapLocationPicker] 검색 결과가 없음');
           if (mounted) {
+            setState(() => _searchResults = []);
+            _clearSearchMarkers();
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(const SnackBar(content: Text('검색 결과가 없습니다')));
@@ -241,6 +390,16 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
         });
       }
     }
+  }
+
+  /// 검색 결과 항목 선택 (지도 이동만)
+  void _selectSearchResult(_SearchResultItem item) {
+    setState(() {
+      _selectedLocation = item.position;
+      _selectedAddress = item.displayText;
+    });
+    _moveMapToCenter(item.position);
+    _updateSelectionPin();
   }
 
   /// 현재 위치로 이동
@@ -288,6 +447,7 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
         setState(() {
           _selectedLocation = latLng;
         });
+        _updateSelectionPin();
 
         // 주소 가져오기
         await _getAddressFromCoordinates(latLng);
@@ -369,7 +529,7 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
                   child: TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(
-                      hintText: '장소 검색',
+                      hintText: '장소 검색 (예: 압구정 와인바)',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.search),
                     ),
@@ -390,130 +550,190 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
               ],
             ),
           ),
-          // 선택된 위치 정보
+          // 선택된 위치 정보 (간략히)
           if (_selectedAddress != null)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: Colors.blue.shade50,
               child: Row(
                 children: [
-                  const Icon(Icons.location_on, color: Colors.blue),
+                  const Icon(Icons.location_on, color: Colors.blue, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _selectedAddress!,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
+                  TextButton(
                     onPressed: _confirmSelection,
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('선택'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF4285F4),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
                     ),
+                    child: const Text('선택'),
                   ),
                 ],
               ),
             ),
-          // 카카오맵
+          // 카카오맵 + 바텀 시트
           Expanded(
-            child: Stack(
-              children: [
-                KakaoMap(
-                  onMapReady: onMapReady,
-                  onMapClick: _onMapClick,
-                  option: KakaoMapOption(
-                    position:
-                        _selectedLocation ??
-                        const LatLng(37.5665, 126.9780), // 서울시청 기본 위치
-                  ),
-                ),
-                // 현재 위치로 이동 버튼
-                Positioned(
-                  bottom: 20,
-                  right: 20,
-                  child: FloatingActionButton(
-                    mini: true,
-                    onPressed: _isGettingLocation
-                        ? null
-                        : _moveToCurrentLocation,
-                    backgroundColor: Colors.white,
-                    child: _isGettingLocation
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.my_location, color: Colors.blue),
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // 지도 영역 높이 기준으로 바텀 시트 높이 계산
+                final mapHeight = constraints.maxHeight;
+                final expandedHeight = mapHeight; // 펼침: 지도 전체 덮음
+                final collapsedHeight = mapHeight * 0.5; // 접힘: 지도의 40%
+                final sheetHeight =
+                    _isSheetExpanded ? expandedHeight : collapsedHeight;
+                return Stack(
+                  children: [
+                    KakaoMap(
+                      onMapReady: onMapReady,
+                      onMapClick: _onMapClick,
+                      option: KakaoMapOption(
+                        position: _selectedLocation ??
+                            const LatLng(37.5665, 126.9780),
+                      ),
+                    ),
+                    if (_searchResults.isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                          height: sheetHeight,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, -4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '검색 결과 (${_searchResults.length}개)',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    IconButton(
+                                      icon: Icon(
+                                        _isSheetExpanded
+                                            ? Icons.expand_more
+                                            : Icons.expand_less,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isSheetExpanded = !_isSheetExpanded;
+                                        });
+                                      },
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 40,
+                                        minHeight: 40,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView.separated(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                  itemCount: _searchResults.length,
+                                  separatorBuilder: (_, __) =>
+                                      const Divider(height: 1),
+                                  itemBuilder: (context, index) {
+                                    final item = _searchResults[index];
+                                    final isSelected =
+                                        _selectedAddress == item.displayText;
+                                    return ListTile(
+                                      leading: Icon(
+                                        Icons.place,
+                                        color: isSelected
+                                            ? Colors.blue
+                                            : Colors.grey,
+                                        size: 24,
+                                      ),
+                                      title: Text(
+                                        item.placeName,
+                                        style: TextStyle(
+                                          fontWeight: isSelected
+                                              ? FontWeight.bold
+                                              : FontWeight.w500,
+                                          color:
+                                              isSelected ? Colors.blue : null,
+                                        ),
+                                      ),
+                                      subtitle: item.address.isNotEmpty
+                                          ? Text(
+                                              item.address,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            )
+                                          : null,
+                                      dense: true,
+                                      onTap: () => _selectSearchResult(item),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      bottom: 20,
+                      right: 20,
+                      child: FloatingActionButton(
+                        mini: true,
+                        onPressed:
+                            _isGettingLocation ? null : _moveToCurrentLocation,
+                        backgroundColor: Colors.white,
+                        child: _isGettingLocation
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.my_location, color: Colors.blue),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
-          // 하단 선택 버튼
-          if (_selectedAddress != null)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _confirmSelection,
-                    icon: const Icon(Icons.check_circle, size: 24),
-                    label: const Text(
-                      '이 위치 선택',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else
-            // 안내 메시지
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.grey.shade100,
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '지도를 탭하여 위치를 선택하세요',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
