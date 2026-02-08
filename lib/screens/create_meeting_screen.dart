@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -335,37 +336,44 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   Future<void> _requestAiIntroduction() async {
     setState(() => _isRequestingAi = true);
     try {
-      await AdService.shared.showAd(
-        onAdDismissed: () async {
-          if (!mounted) return;
-          try {
-            final api = context.read<ApiService>();
-            final intro = await api.generateMeetingIntroduction(
-              content: _descriptionController.text.trim(),
-            );
-            if (mounted) {
-              setState(() {
-                _descriptionController.text = intro;
-                _descriptionError = null;
-                _hasUnsavedChanges = true;
-                _isRequestingAi = false;
-              });
-            }
-          } catch (e) {
-            if (mounted) {
-              setState(() => _isRequestingAi = false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$e')),
-              );
-            }
+      void doGenerateIntro() async {
+        if (!mounted) return;
+        try {
+          final api = context.read<ApiService>();
+          final intro = await api.generateMeetingIntroduction(
+            content: _descriptionController.text.trim(),
+          );
+          if (mounted) {
+            setState(() {
+              _descriptionController.text = intro;
+              _descriptionError = null;
+              _hasUnsavedChanges = true;
+              _isRequestingAi = false;
+            });
           }
-        },
-        onAdFailedToShow: () {
+        } catch (e) {
           if (mounted) {
             setState(() => _isRequestingAi = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$e')),
+            );
           }
-        },
-      );
+        }
+      }
+
+      if (kIsWeb) {
+        // 웹에서는 AdService(Platform) 미지원으로 광고 스킵 후 바로 AI 생성
+        doGenerateIntro();
+      } else {
+        await AdService.shared.showAd(
+          onAdDismissed: doGenerateIntro,
+          onAdFailedToShow: () {
+            if (mounted) {
+              setState(() => _isRequestingAi = false);
+            }
+          },
+        );
+      }
     } catch (_) {
       if (mounted) setState(() => _isRequestingAi = false);
     }

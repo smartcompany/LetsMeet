@@ -129,13 +129,14 @@ class SettingsProvider extends ChangeNotifier {
         );
       }
 
-      // AdService 설정 및 광고 로드
-      AdService.shared.setBaseUrl(_settingsBaseUrl);
-      await AdService.shared.loadSettings();
-
+      // 설정 로드 완료 (meetingCategory, profileStyleOptions) - 웹/모바일 공통
       _loaded = true;
       _loadError = null;
       notifyListeners();
+
+      // AdService 광고 로드 (웹에서는 loadSettings() 내부에서 스킵, 예외 없음)
+      AdService.shared.setBaseUrl(_settingsBaseUrl);
+      await AdService.shared.loadSettings();
     } catch (e, st) {
       debugPrint('❌ [SettingsProvider] load error: $e');
       debugPrint('$st');
