@@ -43,10 +43,9 @@ class _MainTabScreenState extends State<MainTabScreen> {
     super.dispose();
   }
 
-  // 탭 영역 패딩 및 간격 상수
+  // 탭 영역 패딩 상수
   static const double _tabBarHorizontalPadding = 8.0;
   static const double _tabBarVerticalPadding = 8.0;
-  static const double _tabSpacing = 0.0; // 탭 간 간격 (0이면 spaceEvenly로 자동 간격)
 
   // 피드 화면 새로고침을 위한 GlobalKey
   final GlobalKey<FeedScreenState> _feedScreenKey =
@@ -54,12 +53,10 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   // 탭 아이템 크기 상수
   static const double _tabItemHorizontalPadding = 12.0;
-  static const double _tabItemVerticalPadding = 4.0;
-  static const double _tabIconSize = 23.0;
-  static const double _tabIconContainerPadding = 6.0;
-  static const double _tabIconContainerRadius = 12.0;
-  static const double _tabLabelFontSize = 13.0;
-  static const double _tabIconLabelSpacing = 3.0;
+  static const double _tabItemVerticalPadding = 10.0;
+  static const double _tabIconSize = 26.0;
+  static const double _tabIconContainerPadding = 8.0;
+  static const double _tabIconContainerRadius = 14.0;
 
   int _currentIndex = 0;
 
@@ -292,13 +289,11 @@ class _MainTabScreenState extends State<MainTabScreen> {
                       children: [
                         _TabItem(
                           icon: Icons.group_rounded,
-                          label: '모임',
                           isSelected: _currentIndex == 0,
                           onTap: () => setState(() => _currentIndex = 0),
                         ),
                         _TabItem(
                           icon: Icons.dynamic_feed_rounded,
-                          label: '피드',
                           isSelected: _currentIndex == 1,
                           onTap: () {
                             setState(() => _currentIndex = 1);
@@ -312,7 +307,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
                           valueListenable: _chatUnreadNotifier,
                           builder: (_, count, __) => _TabItem(
                             icon: Icons.forum_rounded,
-                            label: '채팅',
                             isSelected: _currentIndex == 2,
                             onTap: () => setState(() => _currentIndex = 2),
                             badge: count > 0 ? count : null,
@@ -320,7 +314,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
                         ),
                         _TabItem(
                           icon: Icons.account_circle_rounded,
-                          label: '마이페이지',
                           isSelected: _currentIndex == 3,
                           onTap: () => setState(() => _currentIndex = 3),
                         ),
@@ -400,14 +393,12 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
 class _TabItem extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isSelected;
   final VoidCallback onTap;
   final int? badge;
 
   const _TabItem({
     required this.icon,
-    required this.label,
     required this.isSelected,
     required this.onTap,
     this.badge,
@@ -422,74 +413,54 @@ class _TabItem extends StatelessWidget {
           horizontal: _MainTabScreenState._tabItemHorizontalPadding,
           vertical: _MainTabScreenState._tabItemVerticalPadding,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(
-                    _MainTabScreenState._tabIconContainerPadding,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primaryColor.withOpacity(0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(
-                      _MainTabScreenState._tabIconContainerRadius,
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: _MainTabScreenState._tabIconSize,
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.textTertiaryColor,
-                  ),
+            Container(
+              padding: EdgeInsets.all(
+                _MainTabScreenState._tabIconContainerPadding,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.primaryColor.withOpacity(0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(
+                  _MainTabScreenState._tabIconContainerRadius,
                 ),
-                if (badge != null && badge! > 0)
-                  Positioned(
-                    right: -4,
-                    top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        badge! > 9 ? '9+' : badge.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: _MainTabScreenState._tabIconLabelSpacing),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: _MainTabScreenState._tabLabelFontSize,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+              child: Icon(
+                icon,
+                size: _MainTabScreenState._tabIconSize,
                 color: isSelected
                     ? AppTheme.primaryColor
-                    : AppTheme.textSecondaryColor,
-                height: 1.2,
+                    : AppTheme.textTertiaryColor,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
+            if (badge != null && badge! > 0)
+              Positioned(
+                right: -4,
+                top: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    badge! > 9 ? '9+' : badge.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
