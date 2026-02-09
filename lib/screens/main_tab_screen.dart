@@ -32,6 +32,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
       context.read<NotificationProvider>().loadUnreadCount();
     });
   }
+
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -62,120 +63,124 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     switch (_currentIndex) {
-      case 0: {
-        // 모임 탭 AppBar - 검색, 찜, 알림 아이콘
-        final meetingProvider = context.watch<MeetingProvider>();
-        final notificationProvider = context.watch<NotificationProvider>();
-        if (_showSearchBar) {
-          return AppBar(
-                elevation: 0,
-                backgroundColor: Colors.white,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    setState(() {
-                      _showSearchBar = false;
-                      _searchController.clear();
-                      meetingProvider.setSearchQuery('');
-                    });
-                  },
-                ),
-                title: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: '모임 검색',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: meetingProvider.setSearchQuery,
-                ),
-              );
-            }
+      case 0:
+        {
+          // 모임 탭 AppBar - 검색, 찜, 알림 아이콘
+          final meetingProvider = context.watch<MeetingProvider>();
+          final notificationProvider = context.watch<NotificationProvider>();
+          if (_showSearchBar) {
             return AppBar(
               elevation: 0,
               backgroundColor: Colors.white,
-              centerTitle: false,
-              title: Text(
-                AppLocalization.appName(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _showSearchBar = false;
+                    _searchController.clear();
+                    meetingProvider.setSearchQuery('');
+                  });
+                },
               ),
-              titleSpacing: 20,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () {
-                    setState(() {
-                      _showSearchBar = true;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _searchFocusNode.requestFocus();
-                      });
+              title: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: '모임 검색',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onChanged: meetingProvider.setSearchQuery,
+              ),
+            );
+          }
+          return AppBar(
+            elevation: 0,
+            backgroundColor: Colors.white,
+            centerTitle: false,
+            title: Text(
+              AppLocalization.appName(),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            titleSpacing: 20,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  setState(() {
+                    _showSearchBar = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _searchFocusNode.requestFocus();
                     });
-                  },
+                  });
+                },
+              ),
+              IconButton(
+                icon: Icon(
+                  meetingProvider.showFavoritesOnly
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: meetingProvider.showFavoritesOnly ? Colors.red : null,
                 ),
-                IconButton(
-                  icon: Icon(
-                    meetingProvider.showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
-                    color: meetingProvider.showFavoritesOnly ? Colors.red : null,
-                  ),
-                  onPressed: () {
-                    meetingProvider.setShowFavoritesOnly(!meetingProvider.showFavoritesOnly);
-                  },
-                ),
-                IconButton(
-                  icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(Icons.notifications_outlined),
-                      if (notificationProvider.unreadCount > 0)
-                        Positioned(
-                          right: -2,
-                          top: -2,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
+                onPressed: () {
+                  meetingProvider
+                      .setShowFavoritesOnly(!meetingProvider.showFavoritesOnly);
+                },
+              ),
+              IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined),
+                    if (notificationProvider.unreadCount > 0)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            notificationProvider.unreadCount > 99
+                                ? '99+'
+                                : '${notificationProvider.unreadCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
                             ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              notificationProvider.unreadCount > 99
-                                  ? '99+'
-                                  : '${notificationProvider.unreadCount}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                    ],
-                  ),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NotificationsScreen(),
                       ),
-                    );
-                    if (context.mounted) {
-                      context.read<NotificationProvider>().loadUnreadCount();
-                    }
-                  },
+                  ],
                 ),
-              ],
-            );
-      }
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
+                  if (context.mounted) {
+                    context.read<NotificationProvider>().loadUnreadCount();
+                  }
+                },
+              ),
+            ],
+          );
+        }
       case 1:
         // 피드 탭 AppBar
         return AppBar(
