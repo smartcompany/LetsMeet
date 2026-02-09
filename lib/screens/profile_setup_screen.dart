@@ -8,7 +8,7 @@ import '../models/user.dart';
 import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/profile_photo_preview.dart';
+import '../widgets/profile_photo_edit_view.dart';
 import '../widgets/profile_style_section.dart';
 import '../widgets/user_profile_view.dart';
 
@@ -125,7 +125,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       }
     }
   }
-
 
   Future<void> _submitProfile() async {
     if (!_formKey.currentState!.validate()) {
@@ -267,7 +266,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ProfilePhotoPreview(
+                ProfilePhotoEditView(
                   backgroundImageUrl: _backgroundImageUrl,
                   profileImageUrl: _profileImageUrl,
                   isUploadingBackground: _isUploadingBackgroundImage,
