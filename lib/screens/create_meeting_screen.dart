@@ -1132,12 +1132,13 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 // Submit Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       disabledBackgroundColor: Colors.grey[300],
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -1153,12 +1154,15 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                               ),
                             ),
                           )
-                        : Text(
-                            widget.meeting != null ? '모임 수정 완료' : '모임 만들기',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.meeting != null ? '모임 수정 완료' : '모임 만들기',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                   ),
