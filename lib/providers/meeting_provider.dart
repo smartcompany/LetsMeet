@@ -19,6 +19,7 @@ class MeetingProvider with ChangeNotifier {
   String? _selectedLocation;
   String? _selectedCategory;
   MeetingFormat? _selectedFormat;
+  bool _showMyMeetingsOnly = false;
 
   // 검색
   String _searchQuery = '';
@@ -37,6 +38,7 @@ class MeetingProvider with ChangeNotifier {
   String? get selectedLocation => _selectedLocation;
   String? get selectedCategory => _selectedCategory;
   MeetingFormat? get selectedFormat => _selectedFormat;
+  bool get showMyMeetingsOnly => _showMyMeetingsOnly;
   String get searchQuery => _searchQuery;
   bool get showFavoritesOnly => _showFavoritesOnly;
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
@@ -75,6 +77,20 @@ class MeetingProvider with ChangeNotifier {
 
     if (_selectedFormat != null) {
       filtered = filtered.where((m) => m.format == _selectedFormat);
+    }
+
+    if (_showMyMeetingsOnly) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return [];
+      filtered = filtered.where((m) {
+        if (m.hostId == uid) return true;
+        if (m.participants?.any((p) => p.userId == uid) == true) return true;
+        final app = m.userApplication;
+        if (app == null) return false;
+        final status = app['status']?.toString();
+        if (status == null || status.isEmpty) return true;
+        return status == 'pending' || status == 'approved';
+      });
     }
 
     if (_searchQuery.trim().isNotEmpty) {
@@ -188,12 +204,18 @@ class MeetingProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setShowMyMeetingsOnly(bool value) {
+    _showMyMeetingsOnly = value;
+    notifyListeners();
+  }
+
   void clearFilters() {
     _selectedAgeMin = null;
     _selectedAgeMax = null;
     _selectedLocation = null;
     _selectedCategory = null;
     _selectedFormat = null;
+    _showMyMeetingsOnly = false;
     notifyListeners();
   }
 

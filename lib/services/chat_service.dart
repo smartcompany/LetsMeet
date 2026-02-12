@@ -253,7 +253,7 @@ class ChatService {
           throw Exception('채팅방이 저장되지 않았습니다');
         }
 
-        final savedData = savedDoc.data() as Map<String, dynamic>?;
+        final savedData = savedDoc.data();
         print('✅ [ChatService] 저장 확인 완료');
         print('✅ [ChatService] 문서 ID: ${docRef.id}');
         print('✅ [ChatService] 문서 경로: ${savedDoc.reference.path}');
@@ -297,7 +297,7 @@ class ChatService {
         throw Exception('채팅방을 찾을 수 없습니다');
       }
 
-      final data = roomDoc.data() as Map<String, dynamic>?;
+      final data = roomDoc.data();
       final memberIds = List<String>.from(data?['memberIds'] ?? []);
       final memberNames = Map<String, String>.from(
         data?['memberNames'] ?? data?['memberNicknames'] ?? {},
@@ -642,6 +642,31 @@ class ChatService {
     };
 
     return controller.stream;
+  }
+
+  /// 채팅방 삭제 (메시지 포함)
+  Future<void> deleteChatRoom(String roomId) async {
+    final roomRef = _firestore.collection('chatRooms').doc(roomId);
+    try {
+      // messages 하위 컬렉션 삭제
+      while (true) {
+        final snapshot = await roomRef
+            .collection('messages')
+            .limit(200)
+            .get();
+        if (snapshot.docs.isEmpty) break;
+        final batch = _firestore.batch();
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+      await roomRef.delete();
+    } catch (e, stack) {
+      print('❌ [ChatService] 채팅방 삭제 실패: $e');
+      print('❌ [ChatService] 스택: $stack');
+      rethrow;
+    }
   }
 
   /// 채팅방의 마지막 메시지 스트림 (리스트 부제목용)

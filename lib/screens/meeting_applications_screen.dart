@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../models/application.dart';
@@ -26,6 +27,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
   Meeting? _meeting;
   bool _isLoading = true;
   bool _isCreatingChatRoom = false;
+  bool _isDeletingChatRoom = false;
   String? _errorMessage;
   String? _chatRoomId;
   final ApiService _apiService = ApiService();
@@ -428,8 +430,6 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         });
         print('✅ [MeetingApplicationsScreen] _chatRoomId 업데이트 완료: $roomId');
 
-        // 상태가 제대로 저장되었는지 다시 확인
-        await _checkChatRoom();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('채팅방이 생성되었습니다'),
@@ -471,6 +471,54 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteChatRoom() async {
+    if (_chatRoomId == null || _isDeletingChatRoom) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('채팅방 삭제'),
+        content: const Text('채팅방을 삭제하시겠습니까? (디버그 전용)'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() {
+      _isDeletingChatRoom = true;
+    });
+    try {
+      await _chatService.deleteChatRoom(_chatRoomId!);
+      if (!mounted) return;
+      setState(() {
+        _chatRoomId = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('채팅방이 삭제되었습니다')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('채팅방 삭제 실패: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeletingChatRoom = false;
+        });
+      }
+    }
   }
 
   Widget _buildChatButton() {
@@ -515,38 +563,98 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       child: SafeArea(
         child: SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _isCreatingChatRoom
-                ? null
-                : (_chatRoomId != null
-                      ? () => _navigateToChat(_chatRoomId!)
-                      : _createChatRoom),
-            icon: _isCreatingChatRoom
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          child: kDebugMode && _chatRoomId != null
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isCreatingChatRoom
+                            ? null
+                            : () => _navigateToChat(_chatRoomId!),
+                        icon: _isCreatingChatRoom
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.chat),
+                        label: Text(
+                          _isCreatingChatRoom ? '채팅방 생성 중...' : '채팅으로 이동',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isCreatingChatRoom
+                              ? AppTheme.primaryColor.withOpacity(0.6)
+                              : AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
-                  )
-                : Icon(_chatRoomId != null ? Icons.chat : Icons.add),
-            label: Text(
-              _isCreatingChatRoom
-                  ? '채팅방 생성 중...'
-                  : (_chatRoomId != null ? '채팅으로 이동' : '채팅방 만들기'),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isCreatingChatRoom
-                  ? AppTheme.primaryColor.withOpacity(0.6)
-                  : AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _isDeletingChatRoom ? null : _deleteChatRoom,
+                      icon: _isDeletingChatRoom
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.delete_outline),
+                      label: const Text('삭제'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ElevatedButton.icon(
+                  onPressed: _isCreatingChatRoom
+                      ? null
+                      : (_chatRoomId != null
+                            ? () => _navigateToChat(_chatRoomId!)
+                            : _createChatRoom),
+                  icon: _isCreatingChatRoom
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Icon(_chatRoomId != null ? Icons.chat : Icons.add),
+                  label: Text(
+                    _isCreatingChatRoom
+                        ? '채팅방 생성 중...'
+                        : (_chatRoomId != null ? '채팅으로 이동' : '채팅방 만들기'),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isCreatingChatRoom
+                        ? AppTheme.primaryColor.withOpacity(0.6)
+                        : AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
         ),
       ),
     );

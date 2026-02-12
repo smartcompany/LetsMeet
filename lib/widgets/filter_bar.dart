@@ -15,10 +15,12 @@ class FilterBar extends StatelessWidget {
   final String? selectedLocation;
   final String? selectedCategory;
   final MeetingFormat? selectedFormat;
+  final bool showMyMeetingsOnly;
   final Function(int?, int?) onAgeRangeChanged;
   final Function(String?) onLocationChanged;
   final Function(String?) onCategoryChanged;
   final Function(MeetingFormat?) onFormatChanged;
+  final Function(bool) onMyMeetingsChanged;
   final VoidCallback onClear;
 
   const FilterBar({
@@ -28,10 +30,12 @@ class FilterBar extends StatelessWidget {
     required this.selectedLocation,
     required this.selectedCategory,
     required this.selectedFormat,
+    required this.showMyMeetingsOnly,
     required this.onAgeRangeChanged,
     required this.onLocationChanged,
     required this.onCategoryChanged,
     required this.onFormatChanged,
+    required this.onMyMeetingsChanged,
     required this.onClear,
   });
 
@@ -41,7 +45,8 @@ class FilterBar extends StatelessWidget {
         selectedAgeMax != null ||
         selectedLocation != null ||
         selectedCategory != null ||
-        selectedFormat != null;
+        selectedFormat != null ||
+        showMyMeetingsOnly;
 
     return Container(
       decoration: BoxDecoration(
@@ -67,6 +72,12 @@ class FilterBar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // 내모임 토글
+                    _MyMeetingsFilterChip(
+                      isSelected: showMyMeetingsOnly,
+                      onChanged: onMyMeetingsChanged,
+                    ),
+                    const SizedBox(width: 10),
                     // 나이 필터
                     _AgeFilterChip(
                       minAge: selectedAgeMin,
@@ -137,6 +148,80 @@ class FilterBar extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _MyMeetingsFilterChip extends StatelessWidget {
+  final bool isSelected;
+  final Function(bool) onChanged;
+
+  const _MyMeetingsFilterChip({
+    required this.isSelected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!isSelected),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    AppTheme.primaryColor,
+                    AppTheme.primaryColor.withOpacity(0.8),
+                  ],
+                )
+              : null,
+          color: isSelected ? null : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primaryColor
+                : AppTheme.dividerColor.withOpacity(0.5),
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.star_rounded,
+              size: 16,
+              color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '내모임',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

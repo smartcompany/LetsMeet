@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 selectedLocation: meetingProvider.selectedLocation,
                 selectedCategory: meetingProvider.selectedCategory,
                 selectedFormat: meetingProvider.selectedFormat,
+                showMyMeetingsOnly: meetingProvider.showMyMeetingsOnly,
                 onAgeRangeChanged: (min, max) {
                   meetingProvider.setAgeRangeFilter(min, max);
                 },
@@ -62,6 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 onFormatChanged: (format) {
                   meetingProvider.setFormatFilter(format);
+                },
+                onMyMeetingsChanged: (value) {
+                  meetingProvider.setShowMyMeetingsOnly(value);
                 },
                 onClear: () {
                   meetingProvider.clearFilters();

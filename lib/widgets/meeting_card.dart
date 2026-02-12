@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../models/meeting.dart';
+import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 
 class MeetingCard extends StatelessWidget {
@@ -83,8 +86,57 @@ class MeetingCard extends StatelessWidget {
     return interestIcons[firstInterest] ?? Icons.topic_outlined;
   }
 
+  _MyMeetingStatus? _getMyMeetingStatus({
+    required bool showMyMeetingsOnly,
+    required String? currentUserId,
+  }) {
+    if (!showMyMeetingsOnly || currentUserId == null) return null;
+    if (meeting.hostId == currentUserId) {
+      return const _MyMeetingStatus(
+        label: '내가 만든 모임',
+        color: AppTheme.primaryColor,
+      );
+    }
+
+    final app = meeting.userApplication;
+    final status = app?['status']?.toString();
+    if (status == 'approved') {
+      return const _MyMeetingStatus(
+        label: '참가중',
+        color: Color(0xFF16A34A),
+      );
+    }
+    if (status == 'pending' || status == null || status.isEmpty) {
+      return const _MyMeetingStatus(
+        label: '신청중',
+        color: Color(0xFF0284C7),
+      );
+    }
+    if (status == 'rejected') {
+      return const _MyMeetingStatus(
+        label: '거절됨',
+        color: Color(0xFFEF4444),
+      );
+    }
+
+    if (meeting.participants?.any((p) => p.userId == currentUserId) == true) {
+      return const _MyMeetingStatus(
+        label: '참가중',
+        color: Color(0xFF16A34A),
+      );
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final meetingProvider = context.watch<MeetingProvider>();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final myStatus = _getMyMeetingStatus(
+      showMyMeetingsOnly: meetingProvider.showMyMeetingsOnly,
+      currentUserId: currentUserId,
+    );
     final interestColor = _getInterestColor();
     final interestIcon = _getInterestIcon();
     final hasImage = meeting.imageUrls != null && meeting.imageUrls!.isNotEmpty;
@@ -304,6 +356,13 @@ class MeetingCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (myStatus != null) ...[
+                            const Spacer(),
+                            _StatusBadge(
+                              label: myStatus.label,
+                              color: myStatus.color,
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -358,4 +417,44 @@ class _ImageOverlayBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusBadge({
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _MyMeetingStatus {
+  final String label;
+  final Color color;
+
+  const _MyMeetingStatus({
+    required this.label,
+    required this.color,
+  });
 }

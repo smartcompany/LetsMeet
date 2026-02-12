@@ -442,6 +442,19 @@ class _ChatRoomCard extends StatelessWidget {
         isDirectMessage && otherMembers.isNotEmpty
             ? otherMembers.join(', ')
             : room.meetingTitle;
+    final otherMemberId = isDirectMessage
+        ? room.memberIds.firstWhere(
+            (id) => id != currentUser?.uid,
+            orElse: () => '',
+          )
+        : '';
+    final otherProfileUrl = isDirectMessage
+        ? room.memberProfileUrls == null
+            ? null
+            : room.memberProfileUrls![otherMemberId]
+        : null;
+    final thumbnailUrl =
+        isDirectMessage ? otherProfileUrl : room.meetingImageUrl;
 
     // 부제목 = 마지막 대화 내용
     final displaySubtitle = lastMessage?.message ?? '';
@@ -459,10 +472,9 @@ class _ChatRoomCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child:
-                    room.meetingImageUrl != null &&
-                        room.meetingImageUrl!.isNotEmpty
+                    thumbnailUrl != null && thumbnailUrl.isNotEmpty
                     ? Image.network(
-                        room.meetingImageUrl!,
+                        thumbnailUrl,
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
