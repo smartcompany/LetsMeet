@@ -72,7 +72,8 @@ class MeetingProvider with ChangeNotifier {
     }
 
     if (_selectedCategory != null) {
-      filtered = filtered.where((m) => _categoryMatches(m.category, _selectedCategory!));
+      filtered = filtered
+          .where((m) => _categoryMatches(m.category, _selectedCategory!));
     }
 
     if (_selectedFormat != null) {
@@ -83,13 +84,44 @@ class MeetingProvider with ChangeNotifier {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return [];
       filtered = filtered.where((m) {
-        if (m.hostId == uid) return true;
-        if (m.participants?.any((p) => p.userId == uid) == true) return true;
+        final isHost = m.hostId == uid;
+        if (isHost) {
+          debugPrint(
+            '[MyMeetingsFilter] include(host): meetingId=${m.id}, uid=$uid',
+          );
+          return true;
+        }
+
+        final isParticipant =
+            m.participants?.any((p) => p.userId == uid) == true;
+        if (isParticipant) {
+          debugPrint(
+            '[MyMeetingsFilter] include(participant): meetingId=${m.id}, uid=$uid',
+          );
+          return true;
+        }
+
         final app = m.userApplication;
-        if (app == null) return false;
+        if (app == null) {
+          debugPrint(
+            '[MyMeetingsFilter] exclude(no-application): meetingId=${m.id}, uid=$uid',
+          );
+          return false;
+        }
+
         final status = app['status']?.toString();
-        if (status == null || status.isEmpty) return true;
-        return status == 'pending' || status == 'approved';
+        if (status == null || status.isEmpty) {
+          debugPrint(
+            '[MyMeetingsFilter] include(app-status-empty): meetingId=${m.id}, uid=$uid',
+          );
+          return true;
+        }
+
+        final isAllowed = status == 'pending' || status == 'approved';
+        debugPrint(
+          '[MyMeetingsFilter] ${isAllowed ? "include" : "exclude"}(app-status=$status): meetingId=${m.id}, uid=$uid',
+        );
+        return isAllowed;
       });
     }
 

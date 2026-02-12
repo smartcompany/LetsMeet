@@ -197,8 +197,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       debugPrint('🔵 [MeetingDetailScreen] MeetingProvider 가져오기');
       final meetingProvider = context.read<MeetingProvider>();
       debugPrint('🔵 [MeetingDetailScreen] AuthProvider 가져오기');
-      final authProvider = context
-          .read<share_lib.AuthProvider<app_models.User>>();
+      final authProvider =
+          context.read<share_lib.AuthProvider<app_models.User>>();
 
       if (authProvider.user == null) {
         debugPrint('❌ [MeetingDetailScreen] 사용자 정보 없음');
@@ -279,7 +279,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   itemBuilder: (context) {
                     final isCompletedOrCancelled =
                         _meeting!.status == MeetingStatus.completed ||
-                        _meeting!.status == MeetingStatus.cancelled;
+                            _meeting!.status == MeetingStatus.cancelled;
 
                     if (isCompletedOrCancelled) {
                       // 완료/취소된 모임은 삭제만 표시
@@ -329,33 +329,34 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    '모임을 불러올 수 없습니다',
-                    style: Theme.of(context).textTheme.titleLarge,
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        '모임을 불러올 수 없습니다',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _errorMessage!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _loadMeeting,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _errorMessage!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _loadMeeting,
-                    child: const Text('다시 시도'),
-                  ),
-                ],
-              ),
-            )
-          : _meeting == null
-          ? const Center(child: Text('모임을 찾을 수 없습니다'))
-          : _buildMeetingContent(_meeting!),
+                )
+              : _meeting == null
+                  ? const Center(child: Text('모임을 찾을 수 없습니다'))
+                  : _buildMeetingContent(_meeting!),
     );
   }
 
@@ -553,11 +554,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                             ),
                             backgroundImage:
                                 meeting.hostProfileImageUrl != null &&
-                                    meeting.hostProfileImageUrl!.isNotEmpty
-                                ? NetworkImage(meeting.hostProfileImageUrl!)
-                                : null,
-                            child:
-                                meeting.hostProfileImageUrl == null ||
+                                        meeting.hostProfileImageUrl!.isNotEmpty
+                                    ? NetworkImage(meeting.hostProfileImageUrl!)
+                                    : null,
+                            child: meeting.hostProfileImageUrl == null ||
                                     meeting.hostProfileImageUrl!.isEmpty
                                 ? Text(
                                     meeting.hostName.isNotEmpty
@@ -746,7 +746,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                 value: meeting.format == MeetingFormat.online
                                     ? (meeting.meetingLink ?? '온라인')
                                     : (meeting.locationDetail ??
-                                          meeting.location),
+                                        meeting.location),
                               ),
                             ),
                             if (meeting.format != MeetingFormat.online)
@@ -762,7 +762,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           const SizedBox(height: 8),
                           Text(
                             meeting.meetingLink!,
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(color: AppTheme.primaryColor),
                           ),
                         ],
@@ -782,7 +784,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         children: meeting.participants!.map((p) {
                           final bio = p.bio?.trim();
                           final bioLine = bio != null && bio.isNotEmpty
-                              ? (bio.length > 30 ? '${bio.substring(0, 30)}...' : bio)
+                              ? (bio.length > 30
+                                  ? '${bio.substring(0, 30)}...'
+                                  : bio)
                               : null;
                           return SizedBox(
                             width: 100,
@@ -799,10 +803,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                   },
                                   child: CircleAvatar(
                                     radius: 36,
-                                    backgroundImage: p.profileImageUrl != null &&
-                                            p.profileImageUrl!.isNotEmpty
-                                        ? NetworkImage(p.profileImageUrl!)
-                                        : null,
+                                    backgroundImage:
+                                        p.profileImageUrl != null &&
+                                                p.profileImageUrl!.isNotEmpty
+                                            ? NetworkImage(p.profileImageUrl!)
+                                            : null,
                                     child: p.profileImageUrl == null ||
                                             p.profileImageUrl!.isEmpty
                                         ? Icon(
@@ -967,7 +972,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                           meeting.applicationQuestions ?? [];
                                       final hasQuestion =
                                           questions.isNotEmpty &&
-                                          questions[0].isNotEmpty;
+                                              questions[0].isNotEmpty;
 
                                       if (hasQuestion) {
                                         // 질문이 있으면 폼 표시
@@ -994,8 +999,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                         strokeWidth: 2,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                       ),
                                     )
                                   : const Text('신청하기'),
@@ -1020,12 +1025,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      meeting
-                                                      .applicationQuestions
+                                      meeting.applicationQuestions
                                                       ?.isNotEmpty ==
                                                   true &&
-                                              meeting
-                                                  .applicationQuestions![0]
+                                              meeting.applicationQuestions![0]
                                                   .isNotEmpty
                                           ? meeting.applicationQuestions![0]
                                           : '이 주제에 관심을 갖게 된 이유는?',
@@ -1059,8 +1062,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                     counterStyle: TextStyle(
                                       color:
                                           _answerController.text.length >= 100
-                                          ? AppTheme.primaryColor
-                                          : AppTheme.textTertiaryColor,
+                                              ? AppTheme.primaryColor
+                                              : AppTheme.textTertiaryColor,
                                     ),
                                   ),
                                   onChanged: (value) {
@@ -1117,8 +1120,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: ElevatedButton(
-                                        onPressed:
-                                            _isSubmitting ||
+                                        onPressed: _isSubmitting ||
                                                 (_answerController.text
                                                         .trim()
                                                         .length <
@@ -1137,12 +1139,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                             ? const SizedBox(
                                                 height: 20,
                                                 width: 20,
-                                                child: CircularProgressIndicator(
+                                                child:
+                                                    CircularProgressIndicator(
                                                   strokeWidth: 2,
                                                   valueColor:
                                                       AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
+                                                          Color>(Colors.white),
                                                 ),
                                               )
                                             : const Text('신청하기'),
@@ -1296,8 +1298,8 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textSecondaryColor,
-            ),
+                  color: AppTheme.textSecondaryColor,
+                ),
           ),
         ),
         Expanded(
