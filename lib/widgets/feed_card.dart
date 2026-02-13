@@ -79,14 +79,17 @@ class FeedCard extends StatelessWidget {
             ),
           ),
           if (feed.imageUrls.isNotEmpty)
-            SizedBox(
-              height: 250,
+            Container(
+              width: double.infinity,
+              height: 280,
+              color: Colors.grey.shade100,
+              alignment: Alignment.center,
               child: PageView.builder(
                 itemCount: feed.imageUrls.length,
                 itemBuilder: (context, index) {
                   return Image.network(
                     feed.imageUrls[index],
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                   );
                 },
               ),

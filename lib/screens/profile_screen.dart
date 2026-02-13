@@ -239,13 +239,18 @@ class ProfileScreen extends StatelessWidget {
                   _MenuItem(
                     icon: Icons.feed_rounded,
                     title: '내 피드 보기',
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final created = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MyFeedsScreen(),
                         ),
                       );
+                      if (context.mounted && created == true) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('피드가 등록되었습니다.')),
+                        );
+                      }
                     },
                   ),
                   _MenuItem(

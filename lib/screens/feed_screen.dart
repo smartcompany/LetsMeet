@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/feed_card.dart';
 import 'feed_comments_sheet.dart';
+import 'my_feeds_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -122,45 +123,150 @@ class FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  void _navigateToMyFeeds() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MyFeedsScreen(),
+      ),
+    );
+    if (mounted && created == true) {
+      refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('피드가 등록되었습니다.')),
+      );
+    }
+  }
+
+  Widget _buildWriteFeedPrompt() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: _navigateToMyFeeds,
+        borderRadius: BorderRadius.circular(24),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+              backgroundImage: user.photoURL != null
+                  ? NetworkImage(user.photoURL!)
+                  : null,
+              child: user.photoURL == null
+                  ? Text(
+                      (user.displayName?.isNotEmpty == true
+                              ? user.displayName!.substring(0, 1)
+                              : '?')
+                          .toUpperCase(),
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '무슨 생각을 하고 계신가요?',
+                  style: TextStyle(
+                    color: AppTheme.textTertiaryColor,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final writePrompt = _buildWriteFeedPrompt();
+
     if (_feeds.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.feed_outlined,
-              size: 64,
-              color: AppTheme.textTertiaryColor,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '아직 올라온 피드가 없습니다.',
-              style: TextStyle(color: AppTheme.textSecondaryColor),
-            ),
-          ],
+      return RefreshIndicator(
+        onRefresh: _loadFeeds,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              writePrompt,
+              SizedBox(
+                height: MediaQuery.of(context).size.height - 220,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.feed_outlined,
+                        size: 64,
+                        color: AppTheme.textTertiaryColor,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '아직 올라온 피드가 없습니다.',
+                        style: TextStyle(color: AppTheme.textSecondaryColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadFeeds,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _feeds.length,
-        itemBuilder: (context, index) {
-          final feed = _feeds[index];
-          return FeedCard(
-            feed: feed,
-            onLike: () => _toggleLike(feed),
-            onComment: () => _showComments(feed),
-          );
-        },
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: writePrompt),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final feed = _feeds[index];
+                  return FeedCard(
+                    feed: feed,
+                    onLike: () => _toggleLike(feed),
+                    onComment: () => _showComments(feed),
+                  );
+                },
+                childCount: _feeds.length,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

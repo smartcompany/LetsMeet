@@ -200,7 +200,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
       final wasEditing = _editingFeedId != null;
 
-      // 작성/수정 후 폼 초기화 및 피드 목록 새로고침
+      // 작성/수정 후 폼 초기화
       setState(() {
         _contentController.clear();
         _selectedImages.clear();
@@ -209,12 +209,18 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
         _isSubmitting = false;
       });
 
-      await _loadMyFeeds();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(wasEditing ? '피드가 수정되었습니다.' : '피드가 등록되었습니다.')),
-        );
+      if (wasEditing) {
+        await _loadMyFeeds();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('피드가 수정되었습니다.')),
+          );
+        }
+      } else {
+        // 새 피드 등록 시 이전 페이지로 이동 (피드 탭에서 새로고침 + SnackBar는 호출자가 처리)
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       setState(() => _isSubmitting = false);
@@ -550,14 +556,17 @@ class _FeedCard extends StatelessWidget {
             ),
           ),
           if (feed.imageUrls.isNotEmpty)
-            SizedBox(
-              height: 250,
+            Container(
+              width: double.infinity,
+              height: 280,
+              color: Colors.grey.shade100,
+              alignment: Alignment.center,
               child: PageView.builder(
                 itemCount: feed.imageUrls.length,
                 itemBuilder: (context, index) {
                   return Image.network(
                     feed.imageUrls[index],
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                   );
                 },
               ),
