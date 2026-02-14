@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 
 class FeedCreateScreen extends StatefulWidget {
@@ -14,12 +14,11 @@ class FeedCreateScreen extends StatefulWidget {
 class _FeedCreateScreenState extends State<FeedCreateScreen> {
   final TextEditingController _contentController = TextEditingController();
   final List<XFile> _selectedImages = [];
-  final ImagePicker _picker = ImagePicker();
   bool _isSubmitting = false;
 
   Future<void> _pickImages() async {
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
+    final images = await MediaPickerService.pickImages(context, maxCount: 9);
+    if (images != null && images.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(images);
       });

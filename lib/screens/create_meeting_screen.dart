@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
@@ -1209,12 +1209,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       return;
     }
 
-    final ImagePicker picker = ImagePicker();
-    final List<XFile> images = await picker.pickMultiImage();
+    final remainingSlots =
+        10 - (_selectedImages.length + _existingImageUrls.length);
+    final images = await MediaPickerService.pickImages(
+      context,
+      maxCount: remainingSlots,
+    );
 
-    if (images.isNotEmpty) {
-      final remainingSlots =
-          10 - (_selectedImages.length + _existingImageUrls.length);
+    if (images != null && images.isNotEmpty) {
       final imagesToAdd = images.take(remainingSlots).toList();
 
       setState(() {

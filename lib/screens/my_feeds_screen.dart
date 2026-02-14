@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../models/feed.dart';
 import '../theme/app_theme.dart';
@@ -18,7 +18,6 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   final TextEditingController _contentController = TextEditingController();
   final List<XFile> _selectedImages = [];
   final List<String> _existingImageUrls = []; // 수정 모드에서 기존 이미지 URL
-  final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
   bool _isSubmitting = false;
   bool _isLoading = true;
@@ -65,10 +64,10 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   }
 
   Future<void> _pickImages() async {
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
+    final files = await MediaPickerService.pickImages(context, maxCount: 9);
+    if (files != null && files.isNotEmpty && mounted) {
       setState(() {
-        _selectedImages.addAll(images);
+        _selectedImages.addAll(files);
       });
     }
   }

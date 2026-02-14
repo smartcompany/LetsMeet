@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:share_lib/share_lib_image_picker.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../providers/settings_provider.dart';
@@ -31,7 +31,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String? _backgroundImageUrl;
   bool _isUploadingProfileImage = false;
   bool _isUploadingBackgroundImage = false;
-  final ImagePicker _picker = ImagePicker();
 
   String? _selectedLifeSceneId;
   String? _selectedSelfStatementId;
@@ -61,11 +60,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
+    final files = await MediaPickerService.pickImages(context, maxCount: 1);
+    final picked = files?.isNotEmpty == true ? files!.first : null;
     if (picked == null) return;
 
     setState(() {
@@ -94,11 +90,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _pickBackgroundImage() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      imageQuality: 80,
-    );
+    final files = await MediaPickerService.pickImages(context, maxCount: 1);
+    final picked = files?.isNotEmpty == true ? files!.first : null;
     if (picked == null) return;
 
     setState(() {
