@@ -52,3 +52,6 @@ app.*.map.json
 /android/key.properties
 /android/*.jks
 /android/*.keystore
+ios/Runner.app.dSYM.zip
+ios/Runner.ipa
+report.xml
