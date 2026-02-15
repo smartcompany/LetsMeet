@@ -90,28 +90,22 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         );
 
-                        // 로그인 성공 후 프로필이 없으면 프로필 설정 화면 표시
+                        // 로그인 성공 후 프로필 없거나 미완성이면 프로필 설정 화면 표시
                         if (result == true && context.mounted) {
-                          final currentAuthProvider = context
-                              .read<AuthProvider<User>>();
-
-                          // 사용자 정보를 가져올 때까지 대기 (최대 3초)
-                          int attempts = 0;
-                          while (currentAuthProvider.user == null &&
-                              !currentAuthProvider.isLoading &&
-                              attempts < 30 &&
-                              context.mounted) {
+                          final ap = context.read<AuthProvider<User>>();
+                          // 로딩 완료까지 대기
+                          for (var i = 0; i < 50 && context.mounted; i++) {
+                            if (!ap.isLoading) break;
                             await Future.delayed(
                               const Duration(milliseconds: 100),
                             );
-                            attempts++;
                           }
-
-                          // 사용자 정보가 없으면 프로필 설정 화면 표시
-                          // (카카오 로그인 후 프로필이 아직 설정되지 않은 경우)
-                          if (context.mounted &&
-                              currentAuthProvider.user == null &&
-                              !currentAuthProvider.isLoading) {
+                          if (!context.mounted) return;
+                          final u = context.read<AuthProvider<User>>().user;
+                          final needSetup = u == null ||
+                              (authConfig.shouldShowProfileSetup != null &&
+                                  authConfig.shouldShowProfileSetup!(u));
+                          if (needSetup) {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(

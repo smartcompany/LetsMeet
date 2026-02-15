@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
@@ -90,22 +92,46 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _pickBackgroundImage() async {
+    debugPrint('🟡 [ProfileSetup] 배경 사진 선택 시작');
     final files = await MediaPickerService.pickImages(context, maxCount: 1);
     final picked = files?.isNotEmpty == true ? files!.first : null;
-    if (picked == null) return;
+    if (picked == null) {
+      debugPrint('⚠️ [ProfileSetup] 배경 사진 선택 취소 또는 없음');
+      return;
+    }
 
     setState(() {
       _isUploadingBackgroundImage = true;
     });
 
     try {
+      final fileToUpload = File(picked.path);
+      final fileSize = await fileToUpload.length();
+      debugPrint('🟡 [ProfileSetup] 배경 업로드 시작: path=${fileToUpload.path}, size=$fileSize bytes');
+
       final api = ApiService();
-      final url = await api.uploadBackgroundImage(File(picked.path));
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final token = await firebaseUser.getIdToken();
+        if (token != null) {
+          api.setToken(token);
+          debugPrint('🟡 [ProfileSetup] 토큰 설정 완료');
+        } else {
+          debugPrint('⚠️ [ProfileSetup] Firebase 토큰 없음');
+        }
+      } else {
+        debugPrint('⚠️ [ProfileSetup] Firebase 로그인 없음');
+      }
+
+      final url = await api.uploadBackgroundImage(fileToUpload);
+      debugPrint('✅ [ProfileSetup] 배경 업로드 성공: $url');
       if (!mounted) return;
       setState(() {
         _backgroundImageUrl = url;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ [ProfileSetup] 배경 업로드 실패: $e');
+      debugPrint('❌ [ProfileSetup] 스택: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -422,7 +448,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         ),
                       );
                     }
-                    String? _resolve(String? id, List<ProfileStyleOption> list) {
+                    String? _resolve(
+                        String? id, List<ProfileStyleOption> list) {
                       if (id == null) return null;
                       try {
                         return list.firstWhere((e) => e.id == id).text;
@@ -430,11 +457,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         return null;
                       }
                     }
+
                     return ProfileStyleSection(
                       sectionTitle: opts.description,
-                      lifeSceneText: _resolve(_selectedLifeSceneId, opts.lifeScenes),
-                      selfStatementText: _resolve(_selectedSelfStatementId, opts.selfStatements),
-                      interactionStyleText: _resolve(_selectedInteractionStyleId, opts.interactionStyles),
+                      lifeSceneText:
+                          _resolve(_selectedLifeSceneId, opts.lifeScenes),
+                      selfStatementText: _resolve(
+                          _selectedSelfStatementId, opts.selfStatements),
+                      interactionStyleText: _resolve(
+                          _selectedInteractionStyleId, opts.interactionStyles),
                       showSettingsButton: true,
                       onSettingsTap: () {
                         ProfileStyleSection.showStylePickerSheet(
@@ -449,9 +480,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             interactionStyleId,
                           }) async {
                             setState(() {
-                              if (lifeSceneId != null) _selectedLifeSceneId = lifeSceneId;
-                              if (selfStatementId != null) _selectedSelfStatementId = selfStatementId;
-                              if (interactionStyleId != null) _selectedInteractionStyleId = interactionStyleId;
+                              if (lifeSceneId != null)
+                                _selectedLifeSceneId = lifeSceneId;
+                              if (selfStatementId != null)
+                                _selectedSelfStatementId = selfStatementId;
+                              if (interactionStyleId != null)
+                                _selectedInteractionStyleId =
+                                    interactionStyleId;
                             });
                           },
                         );
@@ -468,8 +503,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     OutlinedButton(
                       onPressed: () {
                         final user = context.read<AuthProvider<User>>().user;
-                        final opts = context.read<SettingsProvider>().profileStyleOptions;
-                        String? _findText(List<ProfileStyleOption>? list, String? id) {
+                        final opts = context
+                            .read<SettingsProvider>()
+                            .profileStyleOptions;
+                        String? _findText(
+                            List<ProfileStyleOption>? list, String? id) {
                           if (list == null || id == null) return null;
                           try {
                             return list.firstWhere((e) => e.id == id).text;
@@ -477,6 +515,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             return null;
                           }
                         }
+
                         UserProfileView.showPreview(
                           context,
                           fullName: _nameController.text.trim().isEmpty
@@ -490,9 +529,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           gender: _selectedGender,
                           createdAt: user?.createdAt,
                           trustScore: user?.trustScore ?? 70,
-                          lifeSceneText: _findText(opts?.lifeScenes, _selectedLifeSceneId),
-                          selfStatementText: _findText(opts?.selfStatements, _selectedSelfStatementId),
-                          interactionStyleText: _findText(opts?.interactionStyles, _selectedInteractionStyleId),
+                          lifeSceneText:
+                              _findText(opts?.lifeScenes, _selectedLifeSceneId),
+                          selfStatementText: _findText(
+                              opts?.selfStatements, _selectedSelfStatementId),
+                          interactionStyleText: _findText(
+                              opts?.interactionStyles,
+                              _selectedInteractionStyleId),
                         );
                       },
                       style: OutlinedButton.styleFrom(

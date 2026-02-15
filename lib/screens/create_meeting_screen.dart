@@ -49,6 +49,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   bool _enableGenderRatio = false;
   double _genderRatio = 0.5; // 0.0 = 여성만, 1.0 = 남성만, 0.5 = 5:5
   String? _approvalType;
+  bool _enableQuestion = false;
+  final TextEditingController _questionController = TextEditingController();
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
   bool _isRequestingAi = false;
@@ -90,6 +92,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           widget.meeting!.genderRestriction != GenderRestriction.all) {
         _enableGenderRatio = true;
       }
+
+      if (widget.meeting!.applicationQuestions != null &&
+          widget.meeting!.applicationQuestions!.isNotEmpty) {
+        _enableQuestion = true;
+        _questionController.text = widget.meeting!.applicationQuestions!.first;
+      }
     }
   }
 
@@ -118,6 +126,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _participationFeeController.dispose();
+    _questionController.dispose();
     super.dispose();
   }
 
@@ -541,6 +550,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           ageRangeMax: _ageRangeMax,
           approvalType: approvalType,
           imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+          applicationQuestions: _enableQuestion && _questionController.text.trim().isNotEmpty
+              ? [_questionController.text.trim()]
+              : [],
         );
       } else {
         final meeting = await apiService.createMeeting(
@@ -560,6 +572,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           ageRangeMax: _ageRangeMax,
           approvalType: approvalType,
           imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
+          applicationQuestions: _enableQuestion && _questionController.text.trim().isNotEmpty
+              ? [_questionController.text.trim()]
+              : null,
         );
 
         // Refresh meetings list
@@ -1127,6 +1142,55 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     }),
                   ],
                 ),
+                const SizedBox(height: 24),
+
+                // 참가 전 질문 (선택)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '참가 전 질문 (선택)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    Checkbox(
+                      value: _enableQuestion,
+                      onChanged: (value) {
+                        setState(() {
+                          _enableQuestion = value ?? false;
+                          if (!_enableQuestion) _questionController.clear();
+                          _hasUnsavedChanges = true;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (_enableQuestion) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _questionController,
+                    onChanged: (_) => _hasUnsavedChanges = true,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: '참가 신청 시 답변을 요청할 질문을 입력하세요',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '질문이 있으면 참가 신청 시 필수로 답변해야 합니다.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
 
                 // Submit Button

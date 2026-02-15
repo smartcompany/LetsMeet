@@ -47,9 +47,9 @@ dependencies:
   # Date/time formatting
   intl: ^0.20.2
   
-  # Image picker (share_lib에 포함)
+  # Image picker (share_lib에 포함, 압축 로직 내장)
   image_picker: ^1.0.7
-  
+
   # Date/time picker
   flutter_datetime_picker_plus: ^2.1.0
   calendar_date_picker2: ^2.0.1

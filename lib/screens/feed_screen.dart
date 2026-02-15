@@ -109,13 +109,14 @@ class FeedScreenState extends State<FeedScreen> {
         }
       }
       final feeds = await apiService.getFeeds();
+      if (!mounted) return;
       setState(() {
         _feeds = feeds..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('피드를 불러오는데 실패했습니다: $e')));

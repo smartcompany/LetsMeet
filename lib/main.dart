@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
@@ -11,7 +12,9 @@ import 'providers/meeting_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/main_tab_screen.dart';
+import 'screens/profile_setup_screen.dart';
 import 'theme/app_theme.dart';
+import 'config/auth_config.dart';
 import 'firebase_options.dart';
 import 'services/api_service.dart';
 import 'services/push_service.dart';
@@ -109,6 +112,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _pushInitialized = false;
+  bool _profileSetupShown = false;
 
   @override
   void initState() {
@@ -125,14 +129,55 @@ class _AuthWrapperState extends State<AuthWrapper> {
     PushService(apiService: api).initialize();
   }
 
+  void _showProfileSetupIfNeeded(AuthProvider<User> authProvider) {
+    if (_profileSetupShown || !context.mounted) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final user = authProvider.user;
+    final needSetup = user == null ||
+        (authConfig.shouldShowProfileSetup != null &&
+            authConfig.shouldShowProfileSetup!(user));
+    if (!needSetup) return;
+    _profileSetupShown = true;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ProfileSetupScreen(),
+        fullscreenDialog: true,
+      ),
+    ).then((_) {
+      if (mounted) _profileSetupShown = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider<User>>(
       builder: (context, authProvider, _) {
         // 로그인 시 푸시 알림 초기화 (한 번만)
         if (authProvider.user != null) {
+          _profileSetupShown = false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _initPushIfLoggedIn(authProvider);
+          });
+        }
+        // 프로필 로드 완료까지 로딩 뷰 표시
+        if (authProvider.isInitializing || authProvider.isLoading) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        // Firebase 로그인됐는데 프로필 없거나 미완성 → 프로필 설정 화면으로
+        final firebaseUser = FirebaseAuth.instance.currentUser;
+        final user = authProvider.user;
+        final needProfileSetup = firebaseUser != null &&
+            (user == null ||
+                (authConfig.shouldShowProfileSetup != null &&
+                    authConfig.shouldShowProfileSetup!(user)));
+        if (needProfileSetup) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showProfileSetupIfNeeded(authProvider);
           });
         }
         return const MainTabScreen();

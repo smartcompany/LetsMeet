@@ -263,6 +263,10 @@ class ApiService implements AuthServiceInterface {
   /// 배경 이미지 업로드 (Supabase Storage 경유)
   Future<String> uploadBackgroundImage(File file) async {
     final uri = Uri.parse('$baseUrl/users/me/background-image');
+    debugPrint('🟡 [ApiService] 배경 업로드 요청: $uri');
+    debugPrint('🟡 [ApiService] 파일: ${file.path}, size=${file.lengthSync()} bytes');
+    debugPrint('🟡 [ApiService] 토큰: ${_token != null ? "있음" : "없음"}');
+
     final request = http.MultipartRequest('POST', uri);
 
     if (_token != null) {
@@ -274,12 +278,22 @@ class ApiService implements AuthServiceInterface {
     final streamedResponse = await request.send();
     final responseBody = await streamedResponse.stream.bytesToString();
 
+    debugPrint('🟡 [ApiService] 배경 업로드 응답: status=${streamedResponse.statusCode}, body=$responseBody');
+
     if (streamedResponse.statusCode != 200) {
-      throw Exception('Failed to upload background image');
+      debugPrint('❌ [ApiService] 배경 업로드 실패: status=${streamedResponse.statusCode}');
+      throw Exception(
+        '배경 업로드 실패 (${streamedResponse.statusCode}): $responseBody',
+      );
     }
 
     final data = jsonDecode(responseBody);
-    return data['url'] as String;
+    final url = data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      debugPrint('❌ [ApiService] 응답에 url 없음: $data');
+      throw Exception('응답에 url이 없습니다: $data');
+    }
+    return url;
   }
 
   // Meeting APIs
@@ -367,6 +381,7 @@ class ApiService implements AuthServiceInterface {
     int? ageRangeMax,
     required String approvalType,
     List<String>? imageUrls,
+    List<String>? applicationQuestions,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/meetings'),
@@ -387,6 +402,8 @@ class ApiService implements AuthServiceInterface {
         if (ageRangeMax != null) 'age_range_max': ageRangeMax,
         'approval_type': approvalType,
         if (imageUrls != null && imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (applicationQuestions != null && applicationQuestions.isNotEmpty)
+          'application_questions': applicationQuestions,
       }),
     );
     if (response.statusCode != 201) {
@@ -424,6 +441,7 @@ class ApiService implements AuthServiceInterface {
     int? ageRangeMax,
     String? approvalType,
     List<String>? imageUrls,
+    List<String>? applicationQuestions,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/meetings/$id'),
@@ -444,6 +462,7 @@ class ApiService implements AuthServiceInterface {
         if (ageRangeMax != null) 'age_range_max': ageRangeMax,
         if (approvalType != null) 'approval_type': approvalType,
         if (imageUrls != null) 'image_urls': imageUrls,
+        if (applicationQuestions != null) 'application_questions': applicationQuestions,
       }),
     );
     if (response.statusCode != 200) {

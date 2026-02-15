@@ -255,26 +255,75 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
                       await _loadApplications();
                       await _checkChatRoom();
                     },
-                    child: ListView.builder(
+                    child: ListView(
                       padding: const EdgeInsets.all(16),
-                      itemCount: _applications.length,
-                      itemBuilder: (context, index) {
-                        final applicationData = _applications[index];
-                        final application = Application.fromJson(
-                          applicationData,
-                        );
-                        return _ApplicationCard(
-                          applicationData: applicationData,
-                          onApprove:
-                              application.status == ApplicationStatus.pending
-                              ? () => _approveApplication(application.id)
-                              : null,
-                          onReject:
-                              application.status == ApplicationStatus.pending
-                              ? () => _rejectApplication(application.id)
-                              : null,
-                        );
-                      },
+                      children: [
+                        // 모임 질문 상단 표시
+                        if (_meeting?.applicationQuestions != null &&
+                            _meeting!.applicationQuestions!.isNotEmpty) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryColor.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.help_outline,
+                                      size: 18,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '참가 전 질문',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _meeting!.applicationQuestions!.first,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        ...List.generate(_applications.length, (index) {
+                          final applicationData = _applications[index];
+                          final application = Application.fromJson(
+                            applicationData,
+                          );
+                          return _ApplicationCard(
+                            applicationData: applicationData,
+                            questionText: _meeting?.applicationQuestions != null &&
+                                _meeting!.applicationQuestions!.isNotEmpty
+                                ? _meeting!.applicationQuestions!.first
+                                : null,
+                            onApprove:
+                                application.status == ApplicationStatus.pending
+                                ? () => _approveApplication(application.id)
+                                : null,
+                            onReject:
+                                application.status == ApplicationStatus.pending
+                                ? () => _rejectApplication(application.id)
+                                : null,
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 ),
@@ -663,11 +712,13 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
 
 class _ApplicationCard extends StatelessWidget {
   final Map<String, dynamic> applicationData;
+  final String? questionText;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
 
   const _ApplicationCard({
     required this.applicationData,
+    this.questionText,
     this.onApprove,
     this.onReject,
   });
@@ -799,7 +850,7 @@ class _ApplicationCard extends StatelessWidget {
             if (application.answer1 != null) ...[
               const SizedBox(height: 16),
               Text(
-                '답변 1',
+                questionText ?? '답변',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: AppTheme.textSecondaryColor,
                 ),
