@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // 인증 없이도 모임 목록 로드 가능
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final meetingProvider = context.read<MeetingProvider>();
       if (meetingProvider.meetings.isEmpty && !meetingProvider.isLoading) {
         meetingProvider.loadMeetings();

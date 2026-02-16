@@ -152,10 +152,26 @@ class ProfilePhotoEditView extends StatelessWidget {
                               ),
                             ],
                           )
-                        : GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: onTapBackground,
-                            child: _buildPlaceholderBanner(),
+                        : Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: onTapBackground,
+                                child: _buildPlaceholderBanner(),
+                              ),
+                              if (isUploadingBackground)
+                                Container(
+                                  color: Colors.black26,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                   ),
                 ),

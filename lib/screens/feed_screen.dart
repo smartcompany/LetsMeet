@@ -98,6 +98,7 @@ class FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _loadFeeds() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final apiService = ApiService();
