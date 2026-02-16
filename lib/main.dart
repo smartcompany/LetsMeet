@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider, User;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -119,8 +120,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkHandler.init(navigatorKey);
+      if (mounted) {
+        context.read<AuthProvider<User>>().initialize();
+      }
     });
   }
+
+  bool _shouldShowLoading(AuthProvider<User> authProvider) =>
+      !authProvider.isInitialized ||
+      authProvider.isInitializing ||
+      authProvider.isLoading;
 
   void _initPushIfLoggedIn(AuthProvider<User> authProvider) {
     if (authProvider.user == null || _pushInitialized) return;
@@ -139,12 +148,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
             authConfig.shouldShowProfileSetup!(user));
     if (!needSetup) return;
     _profileSetupShown = true;
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (_) => const ProfileSetupScreen(),
         fullscreenDialog: true,
       ),
-    ).then((_) {
+    )
+        .then((_) {
       if (mounted) _profileSetupShown = false;
     });
   }
@@ -160,22 +171,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _initPushIfLoggedIn(authProvider);
           });
         }
-        // 프로필 로드 완료까지 로딩 뷰 표시
-        if (authProvider.isInitializing || authProvider.isLoading) {
+        // 초기화 전/중이면 initialize 호출 후 로딩 표시
+        if (_shouldShowLoading(authProvider)) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
-        // Firebase 로그인됐는데 프로필 없거나 미완성 → 프로필 설정 화면으로
+        
+        // 초기화 완료 후에만 판단: Firebase 로그인됐는데 프로필 없거나 미완성 → 프로필 설정 화면
         final firebaseUser = FirebaseAuth.instance.currentUser;
         final user = authProvider.user;
-        final needProfileSetup = firebaseUser != null &&
-            (user == null ||
-                (authConfig.shouldShowProfileSetup != null &&
-                    authConfig.shouldShowProfileSetup!(user)));
-        if (needProfileSetup) {
+        if (needProfileSetup(authProvider, firebaseUser, user)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _showProfileSetupIfNeeded(authProvider);
           });
@@ -183,5 +189,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return const MainTabScreen();
       },
     );
+  }
+
+  bool needProfileSetup(
+      AuthProvider<User> authProvider, Object? firebaseUser, User? user) {
+    if (!authProvider.isInitialized || firebaseUser == null) return false;
+
+    if (user == null) return true;
+
+    if (authConfig.shouldShowProfileSetup == null) return false;
+    return authConfig.shouldShowProfileSetup!(user);
   }
 }
