@@ -300,6 +300,7 @@ class ApiService implements AuthServiceInterface {
   Future<List<Meeting>> getMeetings({
     List<String>? interests,
     String? hostId,
+    String? applicantId,
     bool includeCompleted = false,
   }) async {
     final queryParams = <String>[];
@@ -308,6 +309,9 @@ class ApiService implements AuthServiceInterface {
     }
     if (hostId != null) {
       queryParams.add('host_id=$hostId');
+    }
+    if (applicantId != null) {
+      queryParams.add('applicant_id=$applicantId');
     }
     if (includeCompleted) {
       queryParams.add('include_completed=true');

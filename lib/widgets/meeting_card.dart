@@ -12,12 +12,16 @@ class MeetingCard extends StatelessWidget {
   final bool isFavorite;
   final VoidCallback? onToggleFavorite;
 
+  /// 내 모임 화면 등에서 신청 상태(대기중/승인됨/거절됨)를 항상 표시할 때 true
+  final bool showStatusBadge;
+
   const MeetingCard({
     super.key,
     required this.meeting,
     required this.onTap,
     this.isFavorite = false,
     this.onToggleFavorite,
+    this.showStatusBadge = false,
   });
 
   String _formatMeetingDate(DateTime date) {
@@ -59,9 +63,8 @@ class MeetingCard extends StatelessWidget {
       '지속가능성': const Color(0xFF22C55E),
     };
 
-    final firstInterest = meeting.interests.isNotEmpty
-        ? meeting.interests.first
-        : '';
+    final firstInterest =
+        meeting.interests.isNotEmpty ? meeting.interests.first : '';
     return interestColors[firstInterest] ?? const Color(0xFF6366F1);
   }
 
@@ -80,9 +83,8 @@ class MeetingCard extends StatelessWidget {
       '지속가능성': Icons.recycling_outlined,
     };
 
-    final firstInterest = meeting.interests.isNotEmpty
-        ? meeting.interests.first
-        : '';
+    final firstInterest =
+        meeting.interests.isNotEmpty ? meeting.interests.first : '';
     return interestIcons[firstInterest] ?? Icons.topic_outlined;
   }
 
@@ -90,7 +92,8 @@ class MeetingCard extends StatelessWidget {
     required bool showMyMeetingsOnly,
     required String? currentUserId,
   }) {
-    if (!showMyMeetingsOnly || currentUserId == null) return null;
+    final shouldShow = showStatusBadge || showMyMeetingsOnly;
+    if (!shouldShow || currentUserId == null) return null;
     if (meeting.hostId == currentUserId) {
       return const _MyMeetingStatus(
         label: '내가 만든 모임',
@@ -180,9 +183,9 @@ class MeetingCard extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               _buildImagePlaceholder(
-                                interestColor: interestColor,
-                                interestIcon: interestIcon,
-                              ),
+                            interestColor: interestColor,
+                            interestIcon: interestIcon,
+                          ),
                         )
                       else
                         _buildImagePlaceholder(
@@ -214,8 +217,8 @@ class MeetingCard extends StatelessWidget {
                               text: meeting.format == MeetingFormat.online
                                   ? '온라인'
                                   : '오프라인',
-                              backgroundColor:
-                                  meeting.format == MeetingFormat.online
+                              backgroundColor: meeting.format ==
+                                      MeetingFormat.online
                                   ? const Color(0xFF0284C7).withOpacity(0.9)
                                   : const Color(0xFF16A34A).withOpacity(0.9),
                             ),
@@ -236,7 +239,9 @@ class MeetingCard extends StatelessWidget {
                               child: Padding(
                                 padding: const EdgeInsets.all(8),
                                 child: Icon(
-                                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                                  isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
                                   color: isFavorite ? Colors.red : Colors.white,
                                   size: 24,
                                 ),

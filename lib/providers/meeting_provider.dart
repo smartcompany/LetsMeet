@@ -117,7 +117,9 @@ class MeetingProvider with ChangeNotifier {
           return true;
         }
 
-        final isAllowed = status == 'pending' || status == 'approved';
+        // 대기중·승인됨·거절됨 모두 표시 (신청에 대한 상태 노출)
+        final isAllowed =
+            status == 'pending' || status == 'approved' || status == 'rejected';
         debugPrint(
           '[MyMeetingsFilter] ${isAllowed ? "include" : "exclude"}(app-status=$status): meetingId=${m.id}, uid=$uid',
         );
@@ -294,6 +296,7 @@ class MeetingProvider with ChangeNotifier {
 
       debugPrint('✅ [MeetingProvider] 신청 성공: ${application.id}');
       _applications.add(application);
+      await loadMeetings(); // 내 모임 필터에 user_application 반영
       _isLoading = false;
       notifyListeners();
     } catch (e, stackTrace) {

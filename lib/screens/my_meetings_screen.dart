@@ -16,7 +16,8 @@ class MyMeetingsScreen extends StatefulWidget {
 
 class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
   bool _isLoading = true;
-  List<Meeting> _myMeetings = [];
+  List<Meeting> _myMeetings = []; // 내가 만든 모임
+  List<Meeting> _appliedMeetings = []; // 신청한 모임
   Map<String, int> _pendingCounts = {};
   final ApiService _apiService = ApiService();
 
@@ -55,10 +56,15 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
           hostId: currentUser.uid,
           includeCompleted: true,
         );
+        // 신청한 모임 조회
+        final appliedMeetings = await _apiService.getMeetings(
+          applicantId: currentUser.uid,
+        );
 
         if (mounted) {
           setState(() {
             _myMeetings = myMeetings;
+            _appliedMeetings = appliedMeetings;
             _isLoading = false;
           });
           _loadPendingCounts();
@@ -109,14 +115,14 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('내가 만든 모임'),
+        title: const Text('내 모임'),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: AppTheme.textPrimaryColor,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _myMeetings.isEmpty
+          : _myMeetings.isEmpty && _appliedMeetings.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -128,7 +134,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '아직 만든 모임이 없습니다.',
+                        '만든 모임이나 신청한 모임이 없습니다.',
                         style: TextStyle(
                           fontSize: 16,
                           color: AppTheme.textSecondaryColor,
@@ -142,12 +148,48 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      // 진행 중인 모임
+                      // 신청한 모임 (내가 호스트가 아닌 모임)
+                      if (_appliedMeetings.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            '신청한 모임',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                          ),
+                        ),
+                        ..._appliedMeetings.map(
+                          (meeting) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: MeetingCard(
+                              meeting: meeting,
+                              showStatusBadge: true,
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MeetingDetailScreen(
+                                        meetingId: meeting.id),
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadMyMeetings();
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      // 내가 만든 모임
                       if (activeMeetings.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
-                            '진행중',
+                            '내가 만든 모임 · 진행중',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -163,6 +205,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                               children: [
                                 MeetingCard(
                                   meeting: meeting,
+                                  showStatusBadge: true,
                                   onTap: () async {
                                     final result = await Navigator.push(
                                       context,
@@ -213,7 +256,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12, top: 8),
                           child: Text(
-                            '완료',
+                            '내가 만든 모임 · 완료',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -229,6 +272,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                               children: [
                                 MeetingCard(
                                   meeting: meeting,
+                                  showStatusBadge: true,
                                   onTap: () async {
                                     final result = await Navigator.push(
                                       context,

@@ -128,9 +128,9 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
     if (questions.isEmpty || questions[0].isEmpty) {
       return true;
     }
-    // 질문이 있으면 최소 50자 이상 입력 필요
+    // 질문이 있으면 5~100자 입력 필요
     final answer1 = _answer1Controller.text.trim();
-    return answer1.isNotEmpty && answer1.length >= 50;
+    return answer1.length >= 5 && answer1.length <= 100;
   }
 
   Future<void> _submitApplication() async {
@@ -141,7 +141,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
     if (!_isValid()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('필수 질문에 최소 50자 이상 작성해주세요.'),
+          content: Text('5자 이상 100자 이내로 작성해주세요.'),
         ),
       );
       return;
@@ -330,8 +330,8 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                         label: questions[0],
                         required: true,
                         controller: _answer1Controller,
-                        minLength: 50,
-                        recommendedLength: 100,
+                        minLength: 5,
+                        maxLength: 100,
                         isPasted: _isAnswer1Pasted,
                         onPasteWarningDismiss: () {
                           setState(() {
@@ -432,7 +432,7 @@ class _QuestionField extends StatefulWidget {
   final bool required;
   final TextEditingController controller;
   final int minLength;
-  final int recommendedLength;
+  final int maxLength;
   final bool isPasted;
   final VoidCallback onPasteWarningDismiss;
 
@@ -441,7 +441,7 @@ class _QuestionField extends StatefulWidget {
     required this.required,
     required this.controller,
     required this.minLength,
-    required this.recommendedLength,
+    required this.maxLength,
     required this.isPasted,
     required this.onPasteWarningDismiss,
   });
@@ -455,8 +455,10 @@ class _QuestionFieldState extends State<_QuestionField> {
   Widget build(BuildContext context) {
     final currentLength = widget.controller.text.length;
     final isValid = widget.required
-        ? currentLength >= widget.minLength
-        : currentLength == 0 || currentLength >= widget.minLength;
+        ? currentLength >= widget.minLength && currentLength <= widget.maxLength
+        : currentLength == 0 ||
+            (currentLength >= widget.minLength &&
+                currentLength <= widget.maxLength);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,16 +485,13 @@ class _QuestionFieldState extends State<_QuestionField> {
           controller: widget.controller,
           maxLines: 8,
           minLines: 5,
+          maxLength: widget.maxLength,
           decoration: InputDecoration(
             hintText: '답변을 작성해주세요.',
-            helperText: widget.required
-                ? '최소 ${widget.minLength}자, 권장 ${widget.recommendedLength}자 이상 작성해주세요.'
-                : '선택 사항입니다. (권장 ${widget.recommendedLength}자 이상)',
-            helperMaxLines: 2,
-            counterText:
-                '${currentLength}자 ${widget.recommendedLength > 0 ? '/ 권장 ${widget.recommendedLength}자' : ''}',
+            counterText: '${currentLength}자 / ${widget.maxLength}자',
             counterStyle: TextStyle(
-              color: currentLength >= widget.recommendedLength
+              color: currentLength >= widget.minLength &&
+                      currentLength <= widget.maxLength
                   ? AppTheme.primaryColor
                   : AppTheme.textTertiaryColor,
             ),
@@ -501,10 +500,14 @@ class _QuestionFieldState extends State<_QuestionField> {
             if (widget.required && (value == null || value.trim().isEmpty)) {
               return '필수 질문입니다. 답변을 작성해주세요.';
             }
-            if (widget.required &&
-                value != null &&
-                value.trim().length < widget.minLength) {
-              return '최소 ${widget.minLength}자 이상 작성해주세요.';
+            if (widget.required && value != null) {
+              final len = value.trim().length;
+              if (len < widget.minLength) {
+                return '최소 ${widget.minLength}자 이상 작성해주세요.';
+              }
+              if (len > widget.maxLength) {
+                return '최대 ${widget.maxLength}자 이내로 작성해주세요.';
+              }
             }
             return null;
           },
@@ -552,7 +555,7 @@ class _QuestionFieldState extends State<_QuestionField> {
         const SizedBox(height: 8),
         if (!isValid && currentLength > 0)
           Text(
-            '최소 ${widget.minLength}자 이상 작성해주세요.',
+            '${widget.minLength}자 이상 ${widget.maxLength}자 이내로 작성해주세요.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppTheme.primaryColor,
                 ),

@@ -180,10 +180,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     if (hasQuestion) {
       final answer = _answerController.text.trim();
       debugPrint('🔵 [MeetingDetailScreen] 답변 길이: ${answer.length}');
-      if (answer.isEmpty || answer.length < 50) {
-        debugPrint('❌ [MeetingDetailScreen] 답변 길이 부족');
+      if (answer.length < 5 || answer.length > 100) {
+        debugPrint('❌ [MeetingDetailScreen] 답변 길이 오류');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('필수 질문에 최소 50자 이상 작성해주세요.')),
+          const SnackBar(content: Text('5자 이상 100자 이내로 작성해주세요.')),
         );
         return;
       }
@@ -1053,15 +1053,16 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                   controller: _answerController,
                                   maxLines: 8,
                                   minLines: 5,
+                                  maxLength: 100,
                                   decoration: InputDecoration(
                                     hintText: '답변을 작성해주세요.',
-                                    helperText: '최소 50자, 권장 100자 이상 작성해주세요.',
-                                    helperMaxLines: 2,
                                     counterText:
-                                        '${_answerController.text.length}자 / 권장 100자',
+                                        '${_answerController.text.length}자 / 100자',
                                     counterStyle: TextStyle(
                                       color:
-                                          _answerController.text.length >= 100
+                                          _answerController.text.length >= 5 &&
+                                                  _answerController.text.length <=
+                                                      100
                                               ? AppTheme.primaryColor
                                               : AppTheme.textTertiaryColor,
                                     ),
@@ -1101,32 +1102,34 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: _isSubmitting
-                                            ? null
-                                            : () {
-                                                setState(() {
-                                                  _showApplicationForm = false;
-                                                  _answerController.clear();
-                                                });
-                                              },
-                                        child: const Text('취소'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      flex: 2,
-                                      child: ElevatedButton(
-                                        onPressed: _isSubmitting ||
-                                                (_answerController.text
-                                                        .trim()
-                                                        .length <
-                                                    50)
-                                            ? null
-                                            : _submitApplication,
+                                ValueListenableBuilder<TextEditingValue>(
+                                  valueListenable: _answerController,
+                                  builder: (context, value, _) {
+                                    final len = value.text.trim().length;
+                                    final canSubmit =
+                                        !_isSubmitting && len >= 5 && len <= 100;
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: _isSubmitting
+                                                ? null
+                                                : () {
+                                                    setState(() {
+                                                      _showApplicationForm = false;
+                                                      _answerController.clear();
+                                                    });
+                                                  },
+                                            child: const Text('취소'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          flex: 2,
+                                          child: ElevatedButton(
+                                            onPressed: canSubmit
+                                                ? _submitApplication
+                                                : null,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
                                               AppTheme.primaryColor,
@@ -1148,9 +1151,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                                 ),
                                               )
                                             : const Text('신청하기'),
-                                      ),
-                                    ),
-                                  ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ],
                             ),

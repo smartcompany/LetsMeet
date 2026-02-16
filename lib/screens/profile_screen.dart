@@ -220,7 +220,7 @@ class ProfileScreen extends StatelessWidget {
                 items: [
                   _MenuItem(
                     icon: Icons.event_note_rounded,
-                    title: '내가 만든 모임',
+                    title: '내 모임',
                     onTap: () {
                       Navigator.push(
                         context,
