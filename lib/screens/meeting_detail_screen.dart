@@ -8,10 +8,12 @@ import '../models/meeting.dart';
 import '../models/user.dart' as app_models;
 import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
+import '../services/chat_service.dart';
 import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import 'create_meeting_screen.dart';
+import 'meeting_chat_screen.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
   final String meetingId;
@@ -33,6 +35,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   bool _showApplicationForm = false;
   String? _errorMessage;
   int _currentImageIndex = 0;
+  String? _chatRoomId;
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
@@ -57,11 +61,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       }
 
       final meeting = await apiService.getMeeting(widget.meetingId);
+      final chatRoomId = await _resolveChatRoomId(meeting);
 
       if (!mounted) return;
 
       setState(() {
         _meeting = meeting;
+        _chatRoomId = chatRoomId;
         _isLoading = false;
         // 사용자가 이미 신청했는지 확인
         if (meeting.userApplication != null) {
@@ -75,6 +81,41 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  bool _canAccessMeetingChat(Meeting meeting) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    final isHost = currentUser.uid == meeting.hostId;
+    if (isHost) return true;
+
+    final applicationStatus = meeting.userApplication?['status']?.toString();
+    if (applicationStatus == 'approved') return true;
+
+    return meeting.participants?.any((p) => p.userId == currentUser.uid) == true;
+  }
+
+  Future<String?> _resolveChatRoomId(Meeting meeting) async {
+    if (!_canAccessMeetingChat(meeting)) {
+      return null;
+    }
+
+    return _chatService.getChatRoomId(meeting.id);
+  }
+
+  void _navigateToChatRoom() {
+    if (_meeting == null || _chatRoomId == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MeetingChatScreen(
+          roomId: _chatRoomId!,
+          meetingTitle: _meeting!.title,
+        ),
+      ),
+    );
   }
 
   Future<void> _editMeeting() async {
@@ -135,9 +176,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       await apiService.deleteMeeting(widget.meetingId);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('모임이 삭제되었습니다.')));
       Navigator.pop(context, true); // 삭제 성공 후 이전 화면으로 돌아감
     } catch (e) {
       if (!mounted) return;
@@ -228,13 +266,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _isSubmitting = false;
         _showApplicationForm = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신청이 완료되었습니다'),
-          backgroundColor: Colors.green,
-        ),
-      );
     } catch (e, stackTrace) {
       debugPrint('❌ [MeetingDetailScreen] 신청 에러 발생');
       debugPrint('❌ [MeetingDetailScreen] 에러 타입: ${e.runtimeType}');
@@ -514,8 +545,35 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // 모임 상태 표시
-                  _buildStatusBadge(meeting.status),
+                  // 모임 상태 + 채팅 이동
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _buildStatusBadge(meeting.status),
+                      if (_chatRoomId != null && _canAccessMeetingChat(meeting))
+                        OutlinedButton.icon(
+                          onPressed: _navigateToChatRoom,
+                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                          label: const Text('채팅방으로 이동'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryColor,
+                            side: const BorderSide(color: AppTheme.primaryColor),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: const VisualDensity(
+                              horizontal: -1,
+                              vertical: -1,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // 호스트 프로필 카드

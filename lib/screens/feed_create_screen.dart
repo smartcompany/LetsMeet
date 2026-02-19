@@ -68,9 +68,6 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
 
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('피드가 등록되었습니다.')));
       }
     } catch (e) {
       setState(() => _isSubmitting = false);

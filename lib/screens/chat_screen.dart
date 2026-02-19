@@ -378,7 +378,7 @@ class _ChatListTab extends StatelessWidget {
 }
 
 /// 리스트 전체가 아닌 해당 아이템만 리빌드되도록 StreamBuilder를 개별 위젯으로 분리
-class _ChatRoomCardWithUnread extends StatelessWidget {
+class _ChatRoomCardWithUnread extends StatefulWidget {
   final ChatRoom room;
   final ChatService chatService;
   final VoidCallback onTap;
@@ -392,21 +392,37 @@ class _ChatRoomCardWithUnread extends StatelessWidget {
   });
 
   @override
+  State<_ChatRoomCardWithUnread> createState() => _ChatRoomCardWithUnreadState();
+}
+
+class _ChatRoomCardWithUnreadState extends State<_ChatRoomCardWithUnread> {
+  int? _lastNotifiedUnread;
+
+  void _notifyUnreadChanged(int unread) {
+    if (_lastNotifiedUnread == unread) return;
+    _lastNotifiedUnread = unread;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onUnreadChanged(unread);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<int>(
-      stream: chatService.getRoomUnreadCountStream(room.id),
+      stream: widget.chatService.getRoomUnreadCountStream(widget.room.id),
       initialData: 0,
       builder: (context, unreadSnapshot) {
         final unread = unreadSnapshot.data ?? 0;
-        onUnreadChanged(unread);
+        _notifyUnreadChanged(unread);
         return StreamBuilder<ChatMessage?>(
-          stream: chatService.getLastMessageStream(room.id),
+          stream: widget.chatService.getLastMessageStream(widget.room.id),
           builder: (context, lastMsgSnapshot) {
             return _ChatRoomCard(
-              room: room,
+              room: widget.room,
               unreadCount: unread,
               lastMessage: lastMsgSnapshot.data,
-              onTap: onTap,
+              onTap: widget.onTap,
             );
           },
         );

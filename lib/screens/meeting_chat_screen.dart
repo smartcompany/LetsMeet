@@ -200,9 +200,6 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     try {
       await _chatService.leaveChatRoom(roomId: widget.roomId);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('채팅방을 나갔습니다')));
         Navigator.pop(context);
       }
     } catch (e) {

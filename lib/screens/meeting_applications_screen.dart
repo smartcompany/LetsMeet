@@ -26,6 +26,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
   List<Map<String, dynamic>> _applications = [];
   Meeting? _meeting;
   bool _isLoading = true;
+  String? _processingApplicationId; // 승인/거절 처리 중인 신청 ID
   bool _isCreatingChatRoom = false;
   bool _isDeletingChatRoom = false;
   String? _errorMessage;
@@ -134,15 +135,11 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
   }
 
   Future<void> _approveApplication(String applicationId) async {
+    if (_processingApplicationId != null) return;
+    setState(() => _processingApplicationId = applicationId);
     try {
       await _apiService.approveApplication(applicationId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신청이 승인되었습니다'),
-          backgroundColor: Colors.green,
-        ),
-      );
       _loadApplications();
     } catch (e) {
       if (!mounted) return;
@@ -152,6 +149,8 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _processingApplicationId = null);
     }
   }
 
@@ -177,15 +176,11 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
 
     if (confirmed != true) return;
 
+    if (_processingApplicationId != null) return;
+    setState(() => _processingApplicationId = applicationId);
     try {
       await _apiService.rejectApplication(applicationId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신청이 거절되었습니다'),
-          backgroundColor: Colors.orange,
-        ),
-      );
       _loadApplications();
     } catch (e) {
       if (!mounted) return;
@@ -195,6 +190,8 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _processingApplicationId = null);
     }
   }
 
@@ -247,10 +244,12 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
                 ],
               ),
             )
-          : Column(
+          : Stack(
               children: [
-                Expanded(
-                  child: RefreshIndicator(
+                Column(
+                  children: [
+                    Expanded(
+                      child: RefreshIndicator(
                     onRefresh: () async {
                       await _loadApplications();
                       await _checkChatRoom();
@@ -313,22 +312,36 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
                                 _meeting!.applicationQuestions!.isNotEmpty
                                 ? _meeting!.applicationQuestions!.first
                                 : null,
+                            isProcessing: _processingApplicationId != null,
                             onApprove:
                                 application.status == ApplicationStatus.pending
-                                ? () => _approveApplication(application.id)
-                                : null,
+                                    ? () => _approveApplication(application.id)
+                                    : null,
                             onReject:
                                 application.status == ApplicationStatus.pending
-                                ? () => _rejectApplication(application.id)
-                                : null,
+                                    ? () => _rejectApplication(application.id)
+                                    : null,
                           );
                         }),
                       ],
                     ),
                   ),
                 ),
-                // 채팅방 만들기/이동 버튼
-                if (_meeting != null) _buildChatButton(),
+                    // 채팅방 만들기/이동 버튼
+                    if (_meeting != null) _buildChatButton(),
+                  ],
+                ),
+                if (_processingApplicationId != null)
+                  Positioned.fill(
+                    child: AbsorbPointer(
+                      child: Container(
+                        color: Colors.black26,
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );
@@ -358,8 +371,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
     });
 
     try {
-      print('🔵 [MeetingApplicationsScreen] 승인된 사용자 목록 가져오기 시작');
-
+      debugPrint('🔵 [채팅방생성] 1. 승인된 사용자 목록 가져오기');
       // 승인된 사용자 목록 가져오기
       final approvedUsers = _applications
           .where(
@@ -381,25 +393,17 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
             };
           })
           .toList();
-
-      print(
-        '🔵 [MeetingApplicationsScreen] 승인된 사용자 수: ${approvedUsers.length}',
-      );
-      print(
-        '🔵 [MeetingApplicationsScreen] 승인된 사용자 목록: ${approvedUsers.map((u) => u['userId']).toList()}',
-      );
+      debugPrint('🔵 [채팅방생성] 2. 승인된 사용자 ${approvedUsers.length}명');
 
       // 호스트 추가
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
         print('⚠️ [MeetingApplicationsScreen] 로그인되지 않음');
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인이 필요합니다')),
+        );
         return;
       }
-
-      print('🔵 [MeetingApplicationsScreen] 호스트 UID: ${currentUser.uid}');
 
       final memberIds = [
         currentUser.uid,
@@ -410,12 +414,6 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         memberNames[user['userId'] as String] = user['name'] as String;
       }
 
-      print('🔵 [MeetingApplicationsScreen] 최종 멤버 ID 목록: $memberIds');
-      print('🔵 [MeetingApplicationsScreen] 최종 멤버 이름: $memberNames');
-      print(
-        '🔵 [MeetingApplicationsScreen] 채팅방 생성 시작 - 멤버 수: ${memberIds.length}',
-      );
-
       // 채팅방 생성
       final meetingImageUrl =
           (_meeting!.imageUrls != null && _meeting!.imageUrls!.isNotEmpty)
@@ -423,15 +421,17 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           : null;
 
       // 호스트: 마이 프로필 사진(profile_image_url) 사용 (로그인 계정 photoURL 아님)
+      debugPrint('🔵 [채팅방생성] 3. getCurrentUser() 호출 (API)');
       final memberProfileUrls = <String, String>{};
       try {
         final appUser = await _apiService.getCurrentUser();
+        debugPrint('🔵 [채팅방생성] 3. getCurrentUser() 완료');
         if (appUser.profileImageUrl != null &&
             appUser.profileImageUrl!.isNotEmpty) {
           memberProfileUrls[currentUser.uid] = appUser.profileImageUrl!;
         }
-      } catch (_) {
-        // 프로필 조회 실패 시 프로필 사진 없이 진행
+      } catch (e) {
+        debugPrint('🔵 [채팅방생성] 3. getCurrentUser() 실패(무시): $e');
       }
       for (final user in approvedUsers) {
         final profileUrl = user['profileImageUrl'] as String?;
@@ -440,6 +440,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         }
       }
 
+      debugPrint('🔵 [채팅방생성] 4. createChatRoom() 호출 (Firestore)');
       final roomId = await _chatService.createChatRoom(
         meetingId: widget.meetingId,
         meetingTitle: _meeting!.title,
@@ -448,10 +449,9 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         memberNames: memberNames,
         memberProfileUrls: memberProfileUrls.isNotEmpty
             ? memberProfileUrls
-            : null,
+            :         null,
       );
-
-      print('✅ [MeetingApplicationsScreen] 채팅방 생성 완료 - Room ID: $roomId');
+      debugPrint('🔵 [채팅방생성] 5. createChatRoom() 완료 roomId=$roomId');
 
       // 승인된 참가자들에게 채팅방 생성 알림 전송 (백그라운드, UI 블로킹 방지)
       final recipientIds = approvedUsers.map((u) => u['userId'] as String).toList();
@@ -478,20 +478,12 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
           _chatRoomId = roomId;
         });
         print('✅ [MeetingApplicationsScreen] _chatRoomId 업데이트 완료: $roomId');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('채팅방이 생성되었습니다'),
-            backgroundColor: Colors.green,
-          ),
-        );
         // 채팅 화면으로 이동
         _navigateToChat(roomId);
       }
     } catch (e, stackTrace) {
       print('❌ [MeetingApplicationsScreen] 채팅방 생성 오류: $e');
       print('❌ [MeetingApplicationsScreen] 스택 트레이스: $stackTrace');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -553,9 +545,6 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       setState(() {
         _chatRoomId = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('채팅방이 삭제되었습니다')),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -713,12 +702,14 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
 class _ApplicationCard extends StatelessWidget {
   final Map<String, dynamic> applicationData;
   final String? questionText;
+  final bool isProcessing;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
 
   const _ApplicationCard({
     required this.applicationData,
     this.questionText,
+    this.isProcessing = false,
     this.onApprove,
     this.onReject,
   });
@@ -889,19 +880,35 @@ class _ApplicationCard extends StatelessWidget {
                 children: [
                   if (onReject != null)
                     TextButton(
-                      onPressed: onReject,
+                      onPressed: isProcessing ? null : onReject,
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('거절'),
+                      child: isProcessing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('거절'),
                     ),
                   if (onApprove != null) ...[
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: onApprove,
+                      onPressed: isProcessing ? null : onApprove,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text('승인'),
+                      child: isProcessing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
+                              ),
+                            )
+                          : const Text('승인'),
                     ),
                   ],
                 ],

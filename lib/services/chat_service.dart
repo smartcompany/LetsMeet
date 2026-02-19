@@ -151,13 +151,13 @@ class ChatService {
       print('🔵 [ChatService] getChatRoomId - 현재 사용자 UID: ${currentUser.uid}');
 
       // meetingId와 memberIds를 함께 사용한 복합 쿼리
-      // 이렇게 하면 보안 규칙과 쿼리 조건이 일치하여 쿼리가 허용됩니다
       final querySnapshot = await firestore
           .collection('chatRooms')
           .where('meetingId', isEqualTo: meetingId)
           .where('memberIds', arrayContains: currentUser.uid)
           .limit(1)
           .get();
+      print('🔵 [ChatService] getChatRoomId 쿼리 완료');
 
       print(
         '🔵 [ChatService] getChatRoomId - 쿼리 결과: ${querySnapshot.docs.length}개 문서 발견',
@@ -205,7 +205,7 @@ class ChatService {
         throw Exception('로그인이 필요합니다');
       }
 
-      print('🔵 [ChatService] 기존 채팅방 확인 중...');
+      print('🔵 [ChatService] getChatRoomId 시작');
       // 이미 채팅방이 있는지 확인
       final existingRoomId = await getChatRoomId(meetingId);
       if (existingRoomId != null) {
@@ -227,7 +227,7 @@ class ChatService {
         updatedAt: DateTime.now(),
       );
 
-      print('🔵 [ChatService] Firestore에 데이터 추가 중...');
+      print('🔵 [ChatService] Firestore.add() 호출');
       final roomData = chatRoom.toMap();
       print('🔵 [ChatService] 저장할 데이터:');
       print('  - meetingId: ${roomData['meetingId']}');
@@ -243,26 +243,41 @@ class ChatService {
           '🔵 [ChatService] createChatRoom - Firestore 프로젝트 ID: ${firestore.app.options.projectId}',
         );
         print('🔵 [ChatService] 저장할 컬렉션: chatRooms');
-        final docRef = await firestore.collection('chatRooms').add(roomData);
+        // doc()으로 ID를 즉시 얻고 set() 사용 - add()의 서버 ACK 대기로 인한 멈춤 방지
+        final docRef = firestore.collection('chatRooms').doc();
+        print('🔵 [ChatService] 문서 ID (사전 할당): ${docRef.id}');
 
-        print('✅ [ChatService] Firestore에 추가 완료, 문서 ID: ${docRef.id}');
+        final writeFuture = docRef.set(roomData);
+        try {
+          await writeFuture.timeout(const Duration(seconds: 8));
+          print('✅ [ChatService] Firestore.set() 서버 ACK 완료 문서 ID: ${docRef.id}');
+        } on TimeoutException {
+          // 서버 ACK가 지연돼도 로컬 반영이 확인되면 진행 (무한 대기 방지)
+          print('⚠️ [ChatService] Firestore.set() ACK 지연 - 로컬 반영 확인으로 진행');
+          unawaited(
+            writeFuture
+                .then(
+                  (_) => print(
+                    '✅ [ChatService] Firestore.set() 지연 ACK 완료 문서 ID: ${docRef.id}',
+                  ),
+                )
+                .catchError(
+                  (e, stackTrace) => print(
+                    '⚠️ [ChatService] 지연 ACK 실패(백그라운드): $e\n$stackTrace',
+                  ),
+                ),
+          );
 
-        // 저장 확인: 실제로 저장되었는지 확인
-        final savedDoc = await docRef.get();
-        if (!savedDoc.exists) {
-          throw Exception('채팅방이 저장되지 않았습니다');
+          await docRef
+              .snapshots()
+              .firstWhere((snapshot) => snapshot.exists)
+              .timeout(const Duration(seconds: 3), onTimeout: () {
+            throw TimeoutException(
+              '채팅방 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
+            );
+          });
+          print('✅ [ChatService] 로컬 문서 반영 확인 문서 ID: ${docRef.id}');
         }
-
-        final savedData = savedDoc.data();
-        print('✅ [ChatService] 저장 확인 완료');
-        print('✅ [ChatService] 문서 ID: ${docRef.id}');
-        print('✅ [ChatService] 문서 경로: ${savedDoc.reference.path}');
-        print('✅ [ChatService] 저장된 memberIds: ${savedData?['memberIds']}');
-        print('✅ [ChatService] 저장된 meetingId: ${savedData?['meetingId']}');
-        print('✅ [ChatService] Firebase Console에서 확인:');
-        print('   프로젝트: ${Firebase.app().options.projectId}');
-        print('   컬렉션: chatRooms');
-        print('   문서 ID: ${docRef.id}');
 
         return docRef.id;
       } catch (firestoreError) {
@@ -633,8 +648,16 @@ class ChatService {
       if (!controller.isClosed) controller.add(count);
     }
 
-    sub1 = messagesStream.listen(onData);
-    sub2 = lastReadUpdates.listen(onData);
+    void onError(Object error, StackTrace stackTrace) {
+      // 권한/네트워크 오류가 발생해도 상위 UI를 크래시시키지 않음
+      print('⚠️ [ChatService] unread 스트림 오류(roomId=$roomId): $error');
+      if (!controller.isClosed) {
+        controller.add(0);
+      }
+    }
+
+    sub1 = messagesStream.listen(onData, onError: onError);
+    sub2 = lastReadUpdates.listen(onData, onError: onError);
 
     controller.onCancel = () {
       sub1?.cancel();

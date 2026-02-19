@@ -131,12 +131,6 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
       await apiService.deleteFeed(feedId);
       await _loadMyFeeds();
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('피드가 삭제되었습니다.')));
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -210,11 +204,6 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
       if (wasEditing) {
         await _loadMyFeeds();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('피드가 수정되었습니다.')),
-          );
-        }
       } else {
         // 새 피드 등록 시 이전 페이지로 이동 (피드 탭에서 새로고침 + SnackBar는 호출자가 처리)
         if (mounted) {

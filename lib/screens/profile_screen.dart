@@ -220,7 +220,7 @@ class ProfileScreen extends StatelessWidget {
                 items: [
                   _MenuItem(
                     icon: Icons.event_note_rounded,
-                    title: '내 모임',
+                    title: '내가 만든 모임',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -234,17 +234,12 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.feed_rounded,
                     title: '내 피드 보기',
                     onTap: () async {
-                      final created = await Navigator.push<bool>(
+                      await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MyFeedsScreen(),
                         ),
                       );
-                      if (context.mounted && created == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('피드가 등록되었습니다.')),
-                        );
-                      }
                     },
                   ),
                   _MenuItem(

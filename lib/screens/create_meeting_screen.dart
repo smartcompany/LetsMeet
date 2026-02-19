@@ -596,14 +596,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       }
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('모임이 수정되었습니다.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -1290,7 +1282,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
       if (images.length > remainingSlots) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${remainingSlots}개만 추가되었습니다. (최대 10개)')),
+          const SnackBar(content: Text('최대 10개까지 선택할 수 있습니다.')),
         );
       }
     }

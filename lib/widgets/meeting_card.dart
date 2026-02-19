@@ -14,6 +14,8 @@ class MeetingCard extends StatelessWidget {
 
   /// 내 모임 화면 등에서 신청 상태(대기중/승인됨/거절됨)를 항상 표시할 때 true
   final bool showStatusBadge;
+  final bool showHostCreatedBadge;
+  final Widget? trailingAction;
 
   const MeetingCard({
     super.key,
@@ -22,6 +24,8 @@ class MeetingCard extends StatelessWidget {
     this.isFavorite = false,
     this.onToggleFavorite,
     this.showStatusBadge = false,
+    this.showHostCreatedBadge = true,
+    this.trailingAction,
   });
 
   String _formatMeetingDate(DateTime date) {
@@ -95,6 +99,7 @@ class MeetingCard extends StatelessWidget {
     final shouldShow = showStatusBadge || showMyMeetingsOnly;
     if (!shouldShow || currentUserId == null) return null;
     if (meeting.hostId == currentUserId) {
+      if (!showHostCreatedBadge) return null;
       return const _MyMeetingStatus(
         label: '내가 만든 모임',
         color: AppTheme.primaryColor,
@@ -361,7 +366,10 @@ class MeetingCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          if (myStatus != null) ...[
+                          if (trailingAction != null) ...[
+                            const Spacer(),
+                            trailingAction!,
+                          ] else if (myStatus != null) ...[
                             const Spacer(),
                             _StatusBadge(
                               label: myStatus.label,

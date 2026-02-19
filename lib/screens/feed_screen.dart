@@ -134,9 +134,6 @@ class FeedScreenState extends State<FeedScreen> {
     );
     if (mounted && created == true) {
       refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('피드가 등록되었습니다.')),
-      );
     }
   }
 
