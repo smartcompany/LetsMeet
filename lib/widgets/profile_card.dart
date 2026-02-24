@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/user.dart' as app_models;
 import '../theme/app_theme.dart';
+import '../utils/trust_score_utils.dart';
 
 /// 프로필 카드 공통 위젯
 /// 배경 사진, 프로필 사진, 이름, 가입일, 자기소개, 신뢰도 배지, 관심사 표시
@@ -41,6 +42,61 @@ class ProfileCard extends StatelessWidget {
 
   String _formatJoinDate(DateTime date) {
     return DateFormat('yyyy년 M월', 'ko_KR').format(date) + ' 가입';
+  }
+
+  static void _showTrustScoreInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.verified_rounded, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('평점(신뢰도)'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '평점은 5점 만점으로 표시됩니다. 모임 참가 후 다른 참가자들이 1~5점으로 평가한 점수가 반영돼요.',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '• 새 가입 시 3.5점(중간)으로 시작해요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              Text(
+                '• 높은 점수를 받을수록 평점이 올라가고, 낮은 점수는 평점이 내려가요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              Text(
+                '• 4.5점 이상: 신뢰, 3.5점 이상: 안정, 2.5점 이상: 주의, 그 미만: 제한 단계예요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '평점에 따라 모임 개설 가능 여부 등이 달라질 수 있어요.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   static Color _getTrustLevelColor(app_models.TrustLevel level) {
@@ -188,41 +244,51 @@ class ProfileCard extends StatelessWidget {
           if (showTrustBadge && trustLevel != null && trustScore != null) ...[
             const SizedBox(height: 16),
             Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _getTrustLevelColor(trustLevel!).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.verified_rounded,
-                      size: 16,
-                      color: _getTrustLevelColor(trustLevel!),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      trustLevel!.displayName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+              child: InkWell(
+                onTap: () => _showTrustScoreInfo(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getTrustLevelColor(trustLevel!).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified_rounded,
+                        size: 16,
                         color: _getTrustLevelColor(trustLevel!),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '• ${trustScore}점',
-                      style: TextStyle(
-                        fontSize: 14,
+                      const SizedBox(width: 6),
+                      Text(
+                        trustLevel!.displayName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _getTrustLevelColor(trustLevel!),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '• ${TrustScoreUtils.toDisplayString(trustScore ?? 70)}점',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
                         color: AppTheme.textSecondaryColor,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -9,6 +9,7 @@ import '../screens/meeting_chat_screen.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/trust_score_utils.dart';
 import 'profile_card.dart';
 import 'profile_style_section.dart';
 import '../screens/user_feeds_screen.dart';
@@ -213,7 +214,8 @@ class _UserProfileViewState extends State<UserProfileView> {
     return app_models.TrustLevel.restricted;
   }
 
-  double get _rating => (_user?.trustScore ?? 0) / 20.0; // 0-100 -> 0-5
+  double get _rating =>
+      TrustScoreUtils.toDisplayRating(_user?.trustScore ?? 70);
 
   @override
   Widget build(BuildContext context) {
@@ -499,6 +501,7 @@ class _UserProfileViewState extends State<UserProfileView> {
                     '평점',
                     icon: Icons.star,
                     iconColor: Colors.amber,
+                    onTap: () => _showTrustScoreInfo(context),
                   ),
                 ),
               ],
@@ -509,13 +512,69 @@ class _UserProfileViewState extends State<UserProfileView> {
     );
   }
 
+  static void _showTrustScoreInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.verified_rounded, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('평점(신뢰도)'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '평점은 5점 만점으로 표시됩니다. 모임 참가 후 다른 참가자들이 1~5점으로 평가한 점수가 반영돼요.',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '• 새 가입 시 3.5점(중간)으로 시작해요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              Text(
+                '• 높은 점수를 받을수록 평점이 올라가고, 낮은 점수는 평점이 내려가요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              Text(
+                '• 4.5점 이상: 신뢰, 3.5점 이상: 안정, 2.5점 이상: 주의, 그 미만: 제한 단계예요',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '평점에 따라 모임 개설 가능 여부 등이 달라질 수 있어요.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatCard(
     String value,
     String label, {
     IconData? icon,
     Color? iconColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final content = Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
@@ -560,6 +619,14 @@ class _UserProfileViewState extends State<UserProfileView> {
         ],
       ),
     );
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: content,
+      );
+    }
+    return content;
   }
 
 }

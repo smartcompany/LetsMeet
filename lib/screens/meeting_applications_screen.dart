@@ -9,6 +9,7 @@ import '../models/meeting.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/trust_score_utils.dart';
 import '../widgets/user_profile_view.dart';
 import 'meeting_chat_screen.dart';
 
@@ -799,7 +800,7 @@ class _ApplicationCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '신뢰도: $userTrustScore',
+                                    '신뢰도: ${TrustScoreUtils.toDisplayString(TrustScoreUtils.parse(userTrustScore))}점',
                                     style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
                                           color: AppTheme.textSecondaryColor,
