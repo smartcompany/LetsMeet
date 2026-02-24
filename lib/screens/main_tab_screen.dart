@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_localization.dart';
 import '../utils/auth_helper.dart';
 import '../providers/meeting_provider.dart';
 import '../providers/notification_provider.dart';
+import '../services/api_service.dart';
 import 'home_screen.dart';
 import 'notifications_screen.dart';
 import 'feed_screen.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'create_meeting_screen.dart';
+import 'meeting_evaluation_screen.dart';
 
 class MainTabScreen extends StatefulWidget {
   const MainTabScreen({super.key});
@@ -21,16 +24,20 @@ class MainTabScreen extends StatefulWidget {
   State<MainTabScreen> createState() => _MainTabScreenState();
 }
 
-class _MainTabScreenState extends State<MainTabScreen> {
+class _MainTabScreenState extends State<MainTabScreen>
+    with WidgetsBindingObserver {
   final ValueNotifier<int> _chatUnreadNotifier = ValueNotifier<int>(0);
   bool _showSearchBar = false;
+  bool _isCheckingEvaluations = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<NotificationProvider>().loadUnreadCount();
+      _checkPendingEvaluations();
     });
   }
 
@@ -39,10 +46,95 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _chatUnreadNotifier.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingEvaluations();
+    }
+  }
+
+  Future<void> _checkPendingEvaluations() async {
+    if (_isCheckingEvaluations || !mounted) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _isCheckingEvaluations = true);
+    try {
+      final api = context.read<ApiService>();
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token != null) api.setToken(token);
+
+      final pending = await api.getPendingEvaluations();
+      if (!mounted || pending.isEmpty) return;
+
+      final first = pending.first;
+      final meetingId = first['id'] as String?;
+      final title = first['title'] as String? ?? '모임';
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('모임 평가'),
+          content: Text(
+            '참여한 모임 "$title"에 대한 평가가 있습니다.\n평가를 작성하시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _submitEmptyAndCheckNext(meetingId!, api);
+              },
+              child: const Text('평가 안함'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openEvaluationScreen(meetingId!, api);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('평가하기'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      // ignore
+    } finally {
+      if (mounted) setState(() => _isCheckingEvaluations = false);
+    }
+  }
+
+  Future<void> _submitEmptyAndCheckNext(String meetingId, ApiService api) async {
+    try {
+      await api.submitMeetingEvaluation(meetingId);
+    } catch (_) {}
+    if (mounted) _checkPendingEvaluations();
+  }
+
+  Future<void> _openEvaluationScreen(String meetingId, ApiService api) async {
+    final navigator = Navigator.of(context);
+    try {
+      final meeting = await api.getMeeting(meetingId);
+      if (!mounted) return;
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (ctx) => MeetingEvaluationScreen(meeting: meeting),
+        ),
+      );
+    } catch (_) {}
+    if (mounted) _checkPendingEvaluations();
   }
 
   // 탭 영역 패딩 상수
@@ -363,15 +455,13 @@ class _MainTabScreenState extends State<MainTabScreen> {
                   child: InkWell(
                     onTap: () async {
                       // 인증이 필요한지 확인
+                      final navigator = Navigator.of(context);
                       final isAuthenticated = await AuthHelper.requireAuth(
                         context,
                       );
                       if (!isAuthenticated || !mounted) return;
 
-                      // 인증 완료 후 모임 만들기 화면으로 이동
-                      if (!mounted) return;
-                      Navigator.push(
-                        context,
+                      navigator.push(
                         MaterialPageRoute(
                           builder: (context) => const CreateMeetingScreen(),
                         ),

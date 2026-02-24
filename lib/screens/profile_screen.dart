@@ -8,6 +8,7 @@ import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
+import 'participated_meetings_screen.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_style_section.dart';
 
@@ -226,6 +227,19 @@ class ProfileScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MyMeetingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.event_available_rounded,
+                    title: '참여한 모임',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const ParticipatedMeetingsScreen(),
                         ),
                       );
                     },

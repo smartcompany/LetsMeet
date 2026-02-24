@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_chat_screen.dart';
+import 'meeting_evaluation_screen.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
   final String meetingId;
@@ -37,6 +38,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   int _currentImageIndex = 0;
   String? _chatRoomId;
   final ChatService _chatService = ChatService();
+  bool? _evaluationSubmitted;
 
   @override
   void initState() {
@@ -63,11 +65,22 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       final meeting = await apiService.getMeeting(widget.meetingId);
       final chatRoomId = await _resolveChatRoomId(meeting);
 
+      bool? evalSubmitted;
+      if (meeting.status == MeetingStatus.completed &&
+          _canAccessMeetingChat(meeting)) {
+        try {
+          evalSubmitted = await apiService.getMeetingEvaluationStatus(widget.meetingId);
+        } catch (_) {
+          evalSubmitted = true; // 오류 시 이미 제출된 것으로 처리
+        }
+      }
+
       if (!mounted) return;
 
       setState(() {
         _meeting = meeting;
         _chatRoomId = chatRoomId;
+        _evaluationSubmitted = evalSubmitted;
         _isLoading = false;
         // 사용자가 이미 신청했는지 확인
         if (meeting.userApplication != null) {
@@ -102,6 +115,24 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
 
     return _chatService.getChatRoomId(meeting.id);
+  }
+
+  void _openEvaluationScreen(Meeting meeting) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MeetingEvaluationScreen(
+          meeting: meeting,
+          onSubmitted: () {
+            setState(() => _evaluationSubmitted = true);
+          },
+        ),
+      ),
+    ).then((submitted) {
+      if (submitted == true && mounted) {
+        setState(() => _evaluationSubmitted = true);
+      }
+    });
   }
 
   void _navigateToChatRoom() {
@@ -290,6 +321,15 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       appBar: AppBar(
         title: const Text('모임 상세'),
         actions: [
+          if (_meeting != null &&
+              _meeting!.status == MeetingStatus.completed &&
+              _evaluationSubmitted == false &&
+              _canAccessMeetingChat(_meeting!))
+            IconButton(
+              icon: const Icon(Icons.star_outline),
+              onPressed: () => _openEvaluationScreen(_meeting!),
+              tooltip: '평가하기',
+            ),
           if (_meeting != null)
             Builder(
               builder: (context) {
@@ -313,7 +353,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                             _meeting!.status == MeetingStatus.cancelled;
 
                     if (isCompletedOrCancelled) {
-                      // 완료/취소된 모임은 삭제만 표시
                       return [
                         const PopupMenuItem(
                           value: 'delete',
@@ -327,7 +366,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         ),
                       ];
                     } else {
-                      // 진행 중인 모임은 수정/삭제 표시
                       return [
                         const PopupMenuItem(
                           value: 'edit',
@@ -544,6 +582,69 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // 평가 미완료 배너 (완료된 모임 + 참가자 + 미평가)
+                  if (meeting.status == MeetingStatus.completed &&
+                      _evaluationSubmitted == false &&
+                      _canAccessMeetingChat(meeting)) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.star_outline,
+                            color: AppTheme.primaryColor,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '이 모임에 대해 평가해 주세요',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '참여한 모임에 대한 평가는 선택 사항입니다.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => _openEvaluationScreen(meeting),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                            child: const Text('평가하기'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // 모임 상태 + 채팅 이동
                   Wrap(

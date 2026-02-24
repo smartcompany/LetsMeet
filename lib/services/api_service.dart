@@ -485,17 +485,49 @@ class ApiService implements AuthServiceInterface {
     return Meeting.fromJson(jsonDecode(response.body));
   }
 
-  /// 모임 종료 처리
-  Future<Meeting> completeMeeting(String id) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/meetings/$id/complete'),
+  /// 모임 평가 완료 여부
+  Future<bool> getMeetingEvaluationStatus(String meetingId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/meetings/$meetingId/evaluation-status'),
       headers: _headers,
     );
-    if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to complete meeting');
+    if (response.statusCode != 200) return true;
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return (data['submitted'] as bool?) ?? true;
+  }
+
+  /// 평가 대기 목록 (참가했고 완료되었으나 미평가 모임)
+  Future<List<Map<String, dynamic>>> getPendingEvaluations() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/pending-evaluations'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) return [];
+    final data = jsonDecode(response.body);
+    if (data is! List) return [];
+    return (data as List).map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  /// 모임 평가 제출
+  Future<void> submitMeetingEvaluation(
+    String meetingId, {
+    int? meetingRating,
+    Map<String, int>? participantScores,
+  }) async {
+    final body = <String, dynamic>{};
+    if (meetingRating != null) body['meeting_rating'] = meetingRating;
+    if (participantScores != null && participantScores.isNotEmpty) {
+      body['participant_scores'] = participantScores;
     }
-    return Meeting.fromJson(jsonDecode(response.body));
+    final response = await http.post(
+      Uri.parse('$baseUrl/meetings/$meetingId/evaluations'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode != 200) {
+      final err = (jsonDecode(response.body) as Map<String, dynamic>?)?['error'];
+      throw Exception(err ?? 'Failed to submit evaluation');
+    }
   }
 
   // Application APIs
