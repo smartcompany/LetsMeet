@@ -40,8 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final meetings = meetingProvider.filteredMeetings;
 
-        return SingleChildScrollView(
-          child: Column(
+        return RefreshIndicator(
+          onRefresh: () => meetingProvider.loadMeetings(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               
@@ -145,8 +148,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     }).toList(),
                   ),
           ),
-        ],
-      ),
+            ],
+          ),
+          ),
         );
         },
     );

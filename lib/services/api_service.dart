@@ -144,7 +144,16 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to get user profile');
+      final body = response.body;
+      Object? err;
+      if (body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(body) as Map<String, dynamic>?;
+          err = decoded?['error'];
+        } catch (_) {}
+      }
+      final suffix = err != null ? ': $err' : '';
+      throw Exception('HTTP ${response.statusCode}$suffix (userId=$userId)');
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
