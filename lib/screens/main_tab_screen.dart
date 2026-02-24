@@ -98,7 +98,7 @@ class _MainTabScreenState extends State<MainTabScreen>
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                _openEvaluationScreen(meetingId!, api);
+                _openEvaluationScreenWithLoading(meetingId!, api);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
@@ -123,17 +123,48 @@ class _MainTabScreenState extends State<MainTabScreen>
     if (mounted) _checkPendingEvaluations();
   }
 
-  Future<void> _openEvaluationScreen(String meetingId, ApiService api) async {
+  Future<void> _openEvaluationScreenWithLoading(
+      String meetingId, ApiService api) async {
     final navigator = Navigator.of(context);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Expanded(child: Text('평가 화면 불러오는 중...')),
+            ],
+          ),
+        ),
+      ),
+    );
     try {
       final meeting = await api.getMeeting(meetingId);
+      if (!mounted) return;
+      navigator.pop();
       if (!mounted) return;
       await navigator.push(
         MaterialPageRoute(
           builder: (ctx) => MeetingEvaluationScreen(meeting: meeting),
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) navigator.pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('불러오기 실패: $e')),
+        );
+      }
+    }
     if (mounted) _checkPendingEvaluations();
   }
 

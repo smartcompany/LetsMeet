@@ -58,6 +58,7 @@ class _MeetingEvaluationScreenState extends State<MeetingEvaluationScreen> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
+    debugPrint('🔵 [MeetingEvaluationScreen] 제출: meetingId=${widget.meeting.id}, status=${widget.meeting.status}');
     try {
       await _apiService.submitMeetingEvaluation(
         widget.meeting.id,
@@ -71,7 +72,9 @@ class _MeetingEvaluationScreenState extends State<MeetingEvaluationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('평가가 저장되었습니다.')),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('❌ [MeetingEvaluationScreen] 저장 실패: $e');
+      debugPrint('❌ [MeetingEvaluationScreen] stack: $stack');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('저장 실패: $e')),

@@ -519,11 +519,14 @@ class ApiService implements AuthServiceInterface {
     if (participantScores != null && participantScores.isNotEmpty) {
       body['participant_scores'] = participantScores;
     }
+    final url = '$baseUrl/meetings/$meetingId/evaluations';
+    debugPrint('🔵 [ApiService] 평가 제출: meetingId=$meetingId, url=$url, body=$body');
     final response = await http.post(
-      Uri.parse('$baseUrl/meetings/$meetingId/evaluations'),
+      Uri.parse(url),
       headers: _headers,
       body: jsonEncode(body),
     );
+    debugPrint('🔵 [ApiService] 평가 제출 응답: status=${response.statusCode}, body=${response.body}');
     if (response.statusCode != 200) {
       final err = (jsonDecode(response.body) as Map<String, dynamic>?)?['error'];
       throw Exception(err ?? 'Failed to submit evaluation');
