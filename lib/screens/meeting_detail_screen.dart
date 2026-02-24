@@ -885,7 +885,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       children: [
                         _InfoRow(
                           label: '인원',
-                          value: '${meeting.maxParticipants}명',
+                          value: '${meeting.currentParticipantCount}/${meeting.maxParticipants}명',
                         ),
                         const SizedBox(height: 8),
                         _InfoRow(

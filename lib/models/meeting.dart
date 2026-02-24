@@ -30,6 +30,7 @@ class Meeting {
   final DateTime updatedAt;
   final Map<String, dynamic>? userApplication; // 현재 사용자의 신청 정보
   final List<MeetingParticipant>? participants; // 참가자 목록 (호스트 + 승인된 신청자)
+  final int? participantCount; // 현재 참가자 수 (목록 API에서 사용, 상세는 participants.length)
 
   Meeting({
     required this.id,
@@ -63,7 +64,11 @@ class Meeting {
     required this.updatedAt,
     this.userApplication,
     this.participants,
+    this.participantCount,
   });
+
+  int get currentParticipantCount =>
+      participantCount ?? participants?.length ?? 0;
 
   factory Meeting.fromJson(Map<String, dynamic> json) {
     return Meeting(
@@ -117,6 +122,7 @@ class Meeting {
                   Map<String, dynamic>.from(e as Map)))
               .toList()
           : null,
+      participantCount: json['participant_count'] as int?,
     );
   }
 

@@ -359,7 +359,7 @@ class MeetingCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${meeting.maxParticipants}명',
+                            '${meeting.currentParticipantCount}/${meeting.maxParticipants}명',
                             style: TextStyle(
                               fontSize: 14,
                               color: AppTheme.textPrimaryColor,
