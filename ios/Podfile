@@ -39,5 +39,10 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # 시뮬레이터에서 objective_c 등 네이티브 프레임워크 호환성 (device 전용 빌드 방지)
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+    end
   end
 end
