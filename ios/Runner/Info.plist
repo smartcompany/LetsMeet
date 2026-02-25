@@ -21,7 +21,7 @@
 		<key>CFBundleSignature</key>
 		<string>????</string>
 		<key>CFBundleVersion</key>
-		<string>12</string>
+		<string>13</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
@@ -48,6 +48,8 @@
 		<key>UIStatusBarStyle</key>
 		<string>UIStatusBarStyleDarkContent</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>위치 선택을 위해 현재 위치 정보가 필요합니다</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>위치 선택을 위해 현재 위치 정보가 필요합니다</string>
 		<key>NSLocationAlwaysUsageDescription</key>
 		<string>위치 선택을 위해 현재 위치 정보가 필요합니다</string>
