@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Gather</string>
+		<string>이음터</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -63,7 +63,7 @@
 		<key>KAKAO_APP_KEY</key>
 		<string>e3221d057fe64e623f672e3e2b8b12a5</string>
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<string>ca-app-pub-5520596727761259~1234567890</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

@@ -1,2 +1,2 @@
-/* App display name - English */
-CFBundleDisplayName = "Gather";
+/* App display name (한국어만 지원) */
+CFBundleDisplayName = "이음터";

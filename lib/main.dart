@@ -177,7 +177,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        
+
         // 초기화 완료 후에만 판단: Firebase 로그인됐는데 프로필 없거나 미완성 → 프로필 설정 화면
         final firebaseUser = FirebaseAuth.instance.currentUser;
         final user = authProvider.user;

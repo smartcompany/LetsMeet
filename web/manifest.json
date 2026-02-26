@@ -1,6 +1,6 @@
 {
-    "name": "Gather",
-    "short_name": "Gather",
+    "name": "이음터",
+    "short_name": "이음터",
     "gcm_sender_id": "225419812075",
     "start_url": ".",
     "display": "standalone",
