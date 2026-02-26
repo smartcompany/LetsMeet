@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../models/feed.dart';
+import '../utils/photo_permission_helper.dart';
 import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
@@ -64,6 +65,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   }
 
   Future<void> _pickImages() async {
+    if (!await requestPhotoPermission(context)) return;
     final files = await MediaPickerService.pickImages(context, maxCount: 9);
     if (files != null && files.isNotEmpty && mounted) {
       setState(() {

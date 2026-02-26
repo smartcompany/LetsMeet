@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
+import '../utils/photo_permission_helper.dart';
 
 class FeedCreateScreen extends StatefulWidget {
   const FeedCreateScreen({super.key});
@@ -17,6 +18,7 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
   bool _isSubmitting = false;
 
   Future<void> _pickImages() async {
+    if (!await requestPhotoPermission(context)) return;
     final images = await MediaPickerService.pickImages(context, maxCount: 9);
     if (images != null && images.isNotEmpty) {
       setState(() {

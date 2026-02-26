@@ -13,6 +13,7 @@ import '../widgets/age_range_selector.dart';
 import '../widgets/category_picker_sheet.dart';
 import '../models/meeting.dart';
 import '../utils/region_hierarchy.dart';
+import '../utils/photo_permission_helper.dart';
 import 'meeting_detail_screen.dart';
 import 'package:share_lib/share_lib.dart';
 
@@ -1264,6 +1265,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       ).showSnackBar(const SnackBar(content: Text('최대 10개까지 선택할 수 있습니다.')));
       return;
     }
+
+    if (!await requestPhotoPermission(context)) return;
 
     final remainingSlots =
         10 - (_selectedImages.length + _existingImageUrls.length);

@@ -79,7 +79,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthProvider<User>(
             authService: apiService,
-            googleServerClientId: authConfig.googleServerClientId,
+            googleServerClientId: kGoogleServerClientId,
           ),
         ),
         ChangeNotifierProvider(create: (_) => MeetingProvider()),

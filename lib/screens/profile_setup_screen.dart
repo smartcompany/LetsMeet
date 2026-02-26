@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/profile_photo_edit_view.dart';
+import '../utils/photo_permission_helper.dart';
 import '../widgets/profile_style_section.dart';
 import '../widgets/user_profile_view.dart';
 
@@ -62,6 +63,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   Future<void> _pickProfileImage() async {
+    if (!await requestPhotoPermission(context)) return;
     final files = await MediaPickerService.pickImages(context, maxCount: 1);
     final picked = files?.isNotEmpty == true ? files!.first : null;
     if (picked == null) return;
@@ -93,6 +95,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _pickBackgroundImage() async {
     debugPrint('🟡 [ProfileSetup] 배경 사진 선택 시작');
+    if (!await requestPhotoPermission(context)) return;
     final files = await MediaPickerService.pickImages(context, maxCount: 1);
     final picked = files?.isNotEmpty == true ? files!.first : null;
     if (picked == null) {
