@@ -77,7 +77,10 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider(
-          create: (_) => AuthProvider<User>(authService: apiService),
+          create: (_) => AuthProvider<User>(
+            authService: apiService,
+            googleServerClientId: authConfig.googleServerClientId,
+          ),
         ),
         ChangeNotifierProvider(create: (_) => MeetingProvider()),
         ChangeNotifierProvider(

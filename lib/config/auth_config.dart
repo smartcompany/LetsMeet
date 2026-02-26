@@ -17,6 +17,8 @@ final authConfig = AuthConfig(
   enableAppleLogin: true,
   enableGoogleLogin: true,
   enableKakaoLogin: true,
+  // Android에서 Google 로그인 idToken 수신용 Web OAuth 클라이언트 ID (google-services.json의 oauth_client client_type 3)
+  googleServerClientId: '225419812075-n7imgrhem59uo9bdtpfkr9v92jb0ro3o.apps.googleusercontent.com',
 
   // 프로필 설정 확인 함수
   shouldShowProfileSetup: (user) {
