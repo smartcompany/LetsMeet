@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/feed_card.dart';
 import 'feed_comments_sheet.dart';
 import 'my_feeds_screen.dart';
+import '../utils/ugc_moderation.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -110,9 +111,12 @@ class FeedScreenState extends State<FeedScreen> {
         }
       }
       final feeds = await apiService.getFeeds();
+      final blocked = await UGCModeration.getBlockedUserIds();
       if (!mounted) return;
       setState(() {
-        _feeds = feeds..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _feeds = feeds
+          ..removeWhere((f) => blocked.contains(f.authorId))
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
       });
     } catch (e) {
@@ -259,6 +263,20 @@ class FeedScreenState extends State<FeedScreen> {
                     feed: feed,
                     onLike: () => _toggleLike(feed),
                     onComment: () => _showComments(feed),
+                    onReport: () => UGCModeration.reportFeed(context, feed),
+                    onBlockUser: () async {
+                      await UGCModeration.blockUser(
+                        context,
+                        userId: feed.authorId,
+                        userName: feed.authorName,
+                      );
+                      if (!context.mounted) return;
+                      setState(() {
+                        _feeds.removeWhere(
+                          (f) => f.authorId == feed.authorId,
+                        );
+                      });
+                    },
                   );
                 },
                 childCount: _feeds.length,

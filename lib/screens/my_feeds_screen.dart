@@ -7,6 +7,7 @@ import '../models/feed.dart';
 import '../utils/photo_permission_helper.dart';
 import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import '../utils/ugc_moderation.dart';
 
 class MyFeedsScreen extends StatefulWidget {
   const MyFeedsScreen({super.key});
@@ -143,10 +144,12 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   }
 
   Future<void> _submitFeed() async {
-    if (_contentController.text.trim().isEmpty) {
+    final text = _contentController.text.trim();
+    final validationError = UGCModeration.validateText(text);
+    if (validationError != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
+      ).showSnackBar(SnackBar(content: Text(validationError)));
       return;
     }
 
@@ -182,13 +185,13 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
         // 수정 모드
         await apiService.updateFeed(
           _editingFeedId!,
-          content: _contentController.text.trim(),
+          content: text,
           imageUrls: imageUrls,
         );
       } else {
         // 생성 모드
         await apiService.createFeed(
-          content: _contentController.text.trim(),
+          content: text,
           imageUrls: imageUrls,
         );
       }

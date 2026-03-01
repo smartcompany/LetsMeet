@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
+
+import 'package:url_launcher/url_launcher.dart';
+
+import '../utils/in_app_browser.dart';
 
 /// 지도 앱 선택 위젯
 /// 사용 가능한 지도 앱(카카오맵, 네이버 지도, 구글 지도, 애플 지도)을 선택할 수 있는 다이얼로그를 제공합니다.
@@ -152,16 +155,16 @@ class MapAppSelector {
       final fallbackUrl = selectedApp['fallbackUrl'] as String?;
 
       try {
-        // 먼저 앱으로 열기 시도
+        // 먼저 앱으로 열기 시도 (앱 스킴은 externalApplication 유지)
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
           return appName;
         } else {
-          // 앱이 없으면 웹 버전으로 fallback
+          // 앱이 없으면 웹 버전을 앱 내 브라우저로 열기 (Guideline 4.0 - SFSafariViewController)
           if (fallbackUrl != null) {
             final webUrl = Uri.parse(fallbackUrl);
             if (await canLaunchUrl(webUrl)) {
-              await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+              await openUriInApp(webUrl);
               return appName;
             }
           }
@@ -176,17 +179,15 @@ class MapAppSelector {
           return null;
         }
       } catch (e) {
-        // 에러 발생 시 웹 버전으로 fallback 시도
+        // 에러 발생 시 웹 버전을 앱 내 브라우저로 fallback
         if (fallbackUrl != null) {
           try {
             final webUrl = Uri.parse(fallbackUrl);
             if (await canLaunchUrl(webUrl)) {
-              await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+              await openUriInApp(webUrl);
               return appName;
             }
-          } catch (_) {
-            // 웹 버전도 실패하면 에러 표시
-          }
+          } catch (_) {}
         }
 
         if (context.mounted) {

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../utils/photo_permission_helper.dart';
+import '../utils/ugc_moderation.dart';
 
 class FeedCreateScreen extends StatefulWidget {
   const FeedCreateScreen({super.key});
@@ -28,10 +29,12 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
   }
 
   Future<void> _submitFeed() async {
-    if (_contentController.text.trim().isEmpty) {
+    final text = _contentController.text.trim();
+    final validationError = UGCModeration.validateText(text);
+    if (validationError != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
+      ).showSnackBar(SnackBar(content: Text(validationError)));
       return;
     }
 
@@ -64,7 +67,7 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
       }
 
       await apiService.createFeed(
-        content: _contentController.text.trim(),
+        content: text,
         imageUrls: imageUrls,
       );
 

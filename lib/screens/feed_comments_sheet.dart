@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import 'package:intl/intl.dart';
+import '../utils/ugc_moderation.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
   final String feedId;
@@ -46,8 +47,11 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         }
       }
       final comments = await apiService.getFeedComments(widget.feedId);
+      final blocked = await UGCModeration.getBlockedUserIds();
       setState(() {
-        _comments = comments;
+        _comments = comments
+            .where((c) => !blocked.contains(c.userId))
+            .toList(growable: true);
         _isLoading = false;
       });
     } catch (e) {
@@ -61,10 +65,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   Future<void> _submitComment() async {
-    if (_commentController.text.trim().isEmpty) {
+    final text = _commentController.text.trim();
+    final validationError = UGCModeration.validateText(text);
+    if (validationError != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('댓글을 입력해주세요.')));
+      ).showSnackBar(SnackBar(content: Text(validationError)));
       return;
     }
 
@@ -82,7 +88,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       final comment = await apiService.createFeedComment(
         widget.feedId,
-        _commentController.text.trim(),
+        text,
       );
 
       setState(() {
@@ -219,6 +225,43 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                               color:
                                                   AppTheme.textSecondaryColor,
                                             ),
+                                          ),
+                                          const Spacer(),
+                                          PopupMenuButton<String>(
+                                            onSelected: (value) async {
+                                              if (value == 'report') {
+                                                await UGCModeration
+                                                    .reportComment(
+                                                  context,
+                                                  comment,
+                                                  widget.feedId,
+                                                );
+                                              } else if (value == 'block') {
+                                                await UGCModeration.blockUser(
+                                                  context,
+                                                  userId: comment.userId,
+                                                  userName: comment.userName,
+                                                );
+                                                if (!context.mounted) return;
+                                                setState(() {
+                                                  _comments.removeWhere(
+                                                    (c) =>
+                                                        c.userId ==
+                                                        comment.userId,
+                                                  );
+                                                });
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              const PopupMenuItem(
+                                                value: 'report',
+                                                child: Text('신고'),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'block',
+                                                child: Text('사용자 차단'),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

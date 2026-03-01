@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
@@ -9,6 +10,8 @@ import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
 import 'participated_meetings_screen.dart';
+import 'delete_account_screen.dart';
+import 'community_guidelines_screen.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_style_section.dart';
 
@@ -263,6 +266,44 @@ class ProfileScreen extends StatelessWidget {
                       // 설정 화면으로 이동 (추후 구현)
                     },
                   ),
+                  _MenuItem(
+                    icon: Icons.delete_forever_rounded,
+                    title: '계정 삭제',
+                    titleColor: const Color(0xFFDC2626),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DeleteAccountScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (kDebugMode)
+                    _MenuItem(
+                      icon: Icons.assignment_outlined,
+                      title: '약관 동의 초기화 (테스트용)',
+                      onTap: () async {
+                        await resetCommunityGuidelinesAcceptedForTesting();
+                        if (!context.mounted) return;
+                        await showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('초기화 완료'),
+                            content: const Text(
+                              '약관 동의 상태를 초기화했습니다.\n'
+                              '로그아웃 후 다시 로그인하면 약관 화면이 표시됩니다.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('확인'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   _MenuItem(
                     icon: Icons.logout_rounded,
                     title: '로그아웃',

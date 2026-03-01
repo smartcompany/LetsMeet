@@ -9,12 +9,16 @@ class FeedCard extends StatelessWidget {
   final Feed feed;
   final VoidCallback onLike;
   final VoidCallback onComment;
+  final VoidCallback? onReport;
+  final VoidCallback? onBlockUser;
 
   const FeedCard({
     super.key,
     required this.feed,
     required this.onLike,
     required this.onComment,
+    this.onReport,
+    this.onBlockUser,
   });
 
   @override
@@ -73,6 +77,25 @@ class FeedCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'report' && onReport != null) {
+                        onReport!();
+                      } else if (value == 'block' && onBlockUser != null) {
+                        onBlockUser!();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Text('신고'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'block',
+                        child: Text('사용자 차단'),
+                      ),
+                    ],
                   ),
                 ],
               ),

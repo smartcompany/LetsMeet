@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
-import 'package:kakao_map_sdk/kakao_map_sdk.dart';
+import 'package:kakao_map_sdk/kakao_map_sdk.dart' hide Route;
 import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/meeting_provider.dart';
@@ -22,6 +22,8 @@ import 'services/push_service.dart';
 import 'models/user.dart';
 import 'utils/deep_link_handler.dart';
 import 'utils/app_localization.dart';
+import 'utils/screen_stack_observer.dart';
+import 'screens/community_guidelines_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,6 +93,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
+        navigatorObservers: [ScreenStackObserver.instance],
         title: AppLocalization.appName(),
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
@@ -116,7 +119,6 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _pushInitialized = false;
-  bool _profileSetupShown = false;
 
   @override
   void initState() {
@@ -142,7 +144,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _showProfileSetupIfNeeded(AuthProvider<User> authProvider) {
-    if (_profileSetupShown || !context.mounted) return;
+    if (!context.mounted) return;
+    if (ScreenStackObserver.instance.isOnStack(profileSetupRouteName)) return;
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return;
     final user = authProvider.user;
@@ -150,17 +153,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
         (authConfig.shouldShowProfileSetup != null &&
             authConfig.shouldShowProfileSetup!(user));
     if (!needSetup) return;
-    _profileSetupShown = true;
-    Navigator.of(context)
-        .push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const ProfileSetupScreen(),
         fullscreenDialog: true,
+        settings: const RouteSettings(name: profileSetupRouteName),
       ),
-    )
-        .then((_) {
-      if (mounted) _profileSetupShown = false;
-    });
+    );
   }
 
   @override
@@ -169,11 +168,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, authProvider, _) {
         // 로그인 시 푸시 알림 초기화 (한 번만)
         if (authProvider.user != null) {
-          _profileSetupShown = false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _initPushIfLoggedIn(authProvider);
           });
+        } else {
+          ScreenStackObserver.instance.clearWhenLoggedOut();
         }
+
         // 초기화 전/중이면 initialize 호출 후 로딩 표시
         if (_shouldShowLoading(authProvider)) {
           return const Scaffold(
@@ -181,17 +182,38 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
-        // 초기화 완료 후에만 판단: Firebase 로그인됐는데 프로필 없거나 미완성 → 프로필 설정 화면
-        final firebaseUser = FirebaseAuth.instance.currentUser;
-        final user = authProvider.user;
-        if (needProfileSetup(authProvider, firebaseUser, user)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showProfileSetupIfNeeded(authProvider);
-          });
-        }
+        postProcessAfterLogin(authProvider, context);
+
         return const MainTabScreen();
       },
     );
+  }
+
+  void postProcessAfterLogin(
+      AuthProvider<User> authProvider, BuildContext context) {
+    if (authProvider.user == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final user = authProvider.user;
+      final shouldShowProfileSetup =
+          needProfileSetup(authProvider, firebaseUser, user);
+      final guidelinesAccepted = await isCommunityGuidelinesAccepted();
+
+      if (guidelinesAccepted == false) {
+        final ok = await ensureCommunityGuidelinesAccepted(context);
+        if (!ok && mounted) {
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
+      }
+
+      if (mounted && shouldShowProfileSetup) {
+        _showProfileSetupIfNeeded(authProvider);
+      }
+    });
   }
 
   bool needProfileSetup(

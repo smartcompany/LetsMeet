@@ -94,6 +94,23 @@ class ApiService implements AuthServiceInterface {
     return User.fromJson(jsonDecode(response.body));
   }
 
+  /// 계정 삭제 (App Store Guideline 5.1.1(v) - 계정 생성 시 계정 삭제 제공)
+  Future<void> deleteAccount() async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/users/me'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      try {
+        final data = jsonDecode(response.body) as Map<String, dynamic>?;
+        throw Exception(data?['error'] ?? '계정 삭제에 실패했습니다.');
+      } catch (e) {
+        if (e is Exception) rethrow;
+        throw Exception('계정 삭제에 실패했습니다.');
+      }
+    }
+  }
+
   /// 프로필 업데이트 (앱 전용 - AuthServiceInterface에는 없음)
   Future<dynamic> updateProfile({
     String? fullName,
@@ -764,5 +781,45 @@ class ApiService implements AuthServiceInterface {
     }
     final data = jsonDecode(responseBody);
     return data['url'] as String;
+  }
+
+  /// 유저 생성 콘텐츠 신고
+  Future<void> reportContent({
+    required String targetType, // 'feed', 'comment' 등
+    required String targetId,
+    required String targetUserId,
+    required String reason,
+    String? detail,
+    Map<String, dynamic>? extra,
+  }) async {
+    final body = <String, dynamic>{
+      'target_type': targetType,
+      'target_id': targetId,
+      'target_user_id': targetUserId,
+      'reason': reason,
+      if (detail != null) 'detail': detail,
+      if (extra != null) 'extra': extra,
+    };
+    final response = await http.post(
+      Uri.parse('$baseUrl/reports'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to report content');
+    }
+  }
+
+  /// 사용자 차단 (서버 통지용)
+  Future<void> blockUser(String userId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/$userId/block'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['error'] ?? 'Failed to block user');
+    }
   }
 }
