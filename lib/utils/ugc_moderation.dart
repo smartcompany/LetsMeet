@@ -10,26 +10,24 @@ import '../services/api_service.dart';
 class UGCModeration {
   static const _blockedUsersKey = 'blocked_user_ids_v1';
 
-  /// very simple 금지어 필터 (예시용).
-  /// 실제 서비스 운영 시 서버측 필터와 함께 강화하는 것이 좋습니다.
-  static String? validateText(String text) {
+  /// 텍스트 검증 (빈 값/길이 + 금지어). 금지어는 [bannedWords]로 전달 (보통 settings API에서 내려준 목록).
+  static String? validateText(String text, {List<String>? bannedWords}) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       return '내용을 입력해주세요.';
     }
-    // 너무 짧은 글은 허용하지 않음 (스팸/도배 방지용 예시)
     if (trimmed.length < 2) {
       return '조금 더 구체적으로 작성해주세요.';
     }
-    // 간단한 금지어 패턴 (서비스 운영 중 확장 가능)
-    const bannedWords = [
-      '욕설', // 예시: 실제 서비스에서는 구체적인 단어 리스트 사용
-      '비방',
-      '혐오',
-    ];
-    for (final word in bannedWords) {
-      if (trimmed.contains(word)) {
-        return '커뮤니티 가이드라인에 따라 부적절한 표현이 포함되어 있습니다.';
+    final words = bannedWords ?? [];
+    if (words.isNotEmpty) {
+      final lower = trimmed.toLowerCase();
+      for (final word in words) {
+        final w = word.trim();
+        if (w.isEmpty) continue;
+        if (lower.contains(w.toLowerCase())) {
+          return '커뮤니티 가이드라인에 따라 부적절한 표현이 포함되어 있습니다.';
+        }
       }
     }
     return null;

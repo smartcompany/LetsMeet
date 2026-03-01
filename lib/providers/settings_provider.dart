@@ -68,6 +68,9 @@ class SettingsProvider extends ChangeNotifier {
   ProfileStyleOptions? _profileStyleOptions;
   ProfileStyleOptions? get profileStyleOptions => _profileStyleOptions;
 
+  /// 금지어 목록 (현재는 사용 안 함. 피드/댓글 금지어는 서버 API에서 검사)
+  List<String> get bannedWords => [];
+
   bool _loaded = false;
   bool get loaded => _loaded;
 

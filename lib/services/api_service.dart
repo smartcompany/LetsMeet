@@ -10,6 +10,15 @@ import '../models/application.dart';
 import '../models/feed.dart';
 import '../models/feed_comment.dart';
 
+/// API 검증 에러 (금지어 등). 필드별 에러 표시용.
+class ApiValidationException implements Exception {
+  final String message;
+  final String? field;
+  ApiValidationException(this.message, {this.field});
+  @override
+  String toString() => message;
+}
+
 class ApiService implements AuthServiceInterface {
   // Production server URL
   static String get baseUrl {
@@ -437,8 +446,13 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to create meeting');
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final msg = errorBody?['error']?.toString() ?? 'Failed to create meeting';
+      final field = errorBody?['field']?.toString();
+      if (response.statusCode == 400 && field != null) {
+        throw ApiValidationException(msg, field: field);
+      }
+      throw Exception(msg);
     }
     return Meeting.fromJson(jsonDecode(response.body));
   }
@@ -496,8 +510,13 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to update meeting');
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final msg = errorBody?['error']?.toString() ?? 'Failed to update meeting';
+      final field = errorBody?['field']?.toString();
+      if (response.statusCode == 400 && field != null) {
+        throw ApiValidationException(msg, field: field);
+      }
+      throw Exception(msg);
     }
     return Meeting.fromJson(jsonDecode(response.body));
   }
@@ -522,7 +541,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) return [];
     final data = jsonDecode(response.body);
     if (data is! List) return [];
-    return (data as List).map((e) => Map<String, dynamic>.from(e)).toList();
+    return data.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   /// 모임 평가 제출
@@ -687,8 +706,13 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to create feed');
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final msg = errorBody?['error']?.toString() ?? 'Failed to create feed';
+      final field = errorBody?['field']?.toString();
+      if (response.statusCode == 400 && field != null) {
+        throw ApiValidationException(msg, field: field);
+      }
+      throw Exception(msg);
     }
     return Feed.fromJson(jsonDecode(response.body));
   }
@@ -707,8 +731,13 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to update feed');
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final msg = errorBody?['error']?.toString() ?? 'Failed to update feed';
+      final field = errorBody?['field']?.toString();
+      if (response.statusCode == 400 && field != null) {
+        throw ApiValidationException(msg, field: field);
+      }
+      throw Exception(msg);
     }
     return Feed.fromJson(jsonDecode(response.body));
   }
@@ -754,8 +783,13 @@ class ApiService implements AuthServiceInterface {
       body: jsonEncode({'content': content}),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['error'] ?? 'Failed to create comment');
+      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final msg = errorBody?['error']?.toString() ?? 'Failed to create comment';
+      final field = errorBody?['field']?.toString();
+      if (response.statusCode == 400 && field != null) {
+        throw ApiValidationException(msg, field: field);
+      }
+      throw Exception(msg);
     }
     return FeedComment.fromJson(jsonDecode(response.body));
   }

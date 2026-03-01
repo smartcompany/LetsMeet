@@ -21,6 +21,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   List<FeedComment> _comments = [];
   bool _isLoading = true;
   bool _isSubmitting = false;
+  String? _commentError;
 
   @override
   void initState() {
@@ -66,11 +67,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
   Future<void> _submitComment() async {
     final text = _commentController.text.trim();
+    setState(() => _commentError = null);
     final validationError = UGCModeration.validateText(text);
     if (validationError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(validationError)));
+      setState(() => _commentError = validationError);
       return;
     }
 
@@ -110,9 +110,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
+        if (e is ApiValidationException && e.field == 'content') {
+          setState(() => _commentError = e.message);
+          return;
+        }
+        final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : '댓글 작성 실패: $e';
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('댓글 작성 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -296,13 +301,18 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       Expanded(
                         child: TextField(
                           controller: _commentController,
-                          decoration: const InputDecoration(
+                          onChanged: (_) {
+                            if (_commentError != null) setState(() => _commentError = null);
+                          },
+                          decoration: InputDecoration(
                             hintText: '댓글을 입력하세요...',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
+                            border: const OutlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 8,
                             ),
+                            errorText: _commentError,
+                            errorStyle: const TextStyle(color: Colors.red),
                           ),
                           maxLines: null,
                         ),

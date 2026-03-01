@@ -5,7 +5,6 @@ import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../utils/photo_permission_helper.dart';
 import '../utils/ugc_moderation.dart';
-
 class FeedCreateScreen extends StatefulWidget {
   const FeedCreateScreen({super.key});
 
@@ -17,6 +16,7 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
   final TextEditingController _contentController = TextEditingController();
   final List<XFile> _selectedImages = [];
   bool _isSubmitting = false;
+  String? _contentError;
 
   Future<void> _pickImages() async {
     if (!await requestPhotoPermission(context)) return;
@@ -30,11 +30,10 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
 
   Future<void> _submitFeed() async {
     final text = _contentController.text.trim();
+    setState(() => _contentError = null);
     final validationError = UGCModeration.validateText(text);
     if (validationError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(validationError)));
+      setState(() => _contentError = validationError);
       return;
     }
 
@@ -77,9 +76,14 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
+        if (e is ApiValidationException && e.field == 'content') {
+          setState(() => _contentError = e.message);
+          return;
+        }
+        final msg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : '피드 등록 실패: $e';
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('피드 등록 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -113,9 +117,14 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
             TextField(
               controller: _contentController,
               maxLines: 10,
-              decoration: const InputDecoration(
+              onChanged: (_) {
+                if (_contentError != null) setState(() => _contentError = null);
+              },
+              decoration: InputDecoration(
                 hintText: '오늘의 이야기를 들려주세요...',
                 border: InputBorder.none,
+                errorText: _contentError,
+                errorStyle: const TextStyle(color: Colors.red),
               ),
             ),
             const SizedBox(height: 20),

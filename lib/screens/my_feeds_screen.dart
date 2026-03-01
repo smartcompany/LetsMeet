@@ -25,6 +25,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   bool _isLoading = true;
   List<Feed> _myFeeds = [];
   String? _editingFeedId; // 수정 중인 피드 ID
+  String? _contentError;
 
   @override
   void initState() {
@@ -145,11 +146,10 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
   Future<void> _submitFeed() async {
     final text = _contentController.text.trim();
+    setState(() => _contentError = null);
     final validationError = UGCModeration.validateText(text);
     if (validationError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(validationError)));
+      setState(() => _contentError = validationError);
       return;
     }
 
@@ -218,12 +218,15 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
+        if (e is ApiValidationException && e.field == 'content') {
+          setState(() => _contentError = e.message);
+          return;
+        }
+        final msg = e is Exception
+            ? e.toString().replaceFirst('Exception: ', '')
+            : (_editingFeedId != null ? '피드 수정 실패: $e' : '피드 등록 실패: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _editingFeedId != null ? '피드 수정 실패: $e' : '피드 등록 실패: $e',
-            ),
-          ),
+          SnackBar(content: Text(msg)),
         );
       }
     }
@@ -274,9 +277,14 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
                     TextField(
                       controller: _contentController,
                       maxLines: 4,
-                      decoration: const InputDecoration(
+                      onChanged: (_) {
+                        if (_contentError != null) setState(() => _contentError = null);
+                      },
+                      decoration: InputDecoration(
                         hintText: '오늘의 이야기를 들려주세요...',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        errorText: _contentError,
+                        errorStyle: const TextStyle(color: Colors.red),
                       ),
                     ),
                     const SizedBox(height: 12),

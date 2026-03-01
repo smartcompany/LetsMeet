@@ -109,6 +109,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   String? _dateTimeError;
   String? _locationError;
   String? _approvalTypeError;
+  String? _applicationQuestionsError;
 
   final List<String> _approvalOptions = ['즉시 참여', '승인 필요 (호스트 승인)'];
 
@@ -398,6 +399,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _dateTimeError = null;
       _locationError = null;
       _approvalTypeError = null;
+      _applicationQuestionsError = null;
 
       // 제목 검증
       if (_titleController.text.trim().isEmpty) {
@@ -445,7 +447,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         _descriptionError != null ||
         _dateTimeError != null ||
         _locationError != null ||
-        _approvalTypeError != null;
+        _approvalTypeError != null ||
+        _applicationQuestionsError != null;
   }
 
   /// 첫 번째 에러가 있는 섹션의 키 반환 (위에서부터 순서대로)
@@ -456,6 +459,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     if (_dateTimeError != null) return _dateTimeSectionKey;
     if (_locationError != null) return _locationSectionKey;
     if (_approvalTypeError != null) return _approvalSectionKey;
+    if (_applicationQuestionsError != null) return _approvalSectionKey;
     return null;
   }
 
@@ -600,12 +604,69 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+      // 금지어 등 검증 에러: 필드별로 표시 (스넥바 사용 안 함)
+      if (e is ApiValidationException && e.field != null) {
+        setState(() {
+          switch (e.field!) {
+            case 'title':
+              _titleError = e.message;
+              break;
+            case 'description':
+              _descriptionError = e.message;
+              break;
+            case 'location':
+              _locationError = e.message;
+              break;
+            case 'location_detail':
+              _locationError = e.message;
+              break;
+            case 'application_questions':
+              _applicationQuestionsError = e.message;
+              break;
+            default:
+              _descriptionError = e.message;
+              break;
+          }
+        });
+        final targetKey = _getFirstErrorSectionKey();
+        if (targetKey != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final ctx = targetKey.currentContext;
+            if (ctx != null) {
+              Scrollable.ensureVisible(
+                ctx,
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeInOut,
+                alignment: 0.1,
+              );
+            }
+          });
+        }
+        return;
+      }
+      // 서버가 field 없이 금지어 메시지만 보낸 경우: 본문 아래에 표시
+      final errMsg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+      if (errMsg.contains('허용되지 않는 표현')) {
+        setState(() => _descriptionError = errMsg);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _descriptionSectionKey.currentContext;
+          if (ctx != null) {
+            Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+              alignment: 0.1,
+            );
+          }
+        });
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             widget.meeting != null
-                ? '모임 수정에 실패했습니다: ${e.toString()}'
-                : '모임 생성에 실패했습니다: ${e.toString()}',
+                ? '모임 수정에 실패했습니다: $errMsg'
+                : '모임 생성에 실패했습니다: $errMsg',
           ),
           duration: const Duration(seconds: 3),
         ),
@@ -1165,7 +1226,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _questionController,
-                    onChanged: (_) => _hasUnsavedChanges = true,
+                    onChanged: (_) {
+                      _hasUnsavedChanges = true;
+                      if (_applicationQuestionsError != null) {
+                        setState(() => _applicationQuestionsError = null);
+                      }
+                    },
                     maxLines: 2,
                     decoration: InputDecoration(
                       hintText: '참가 신청 시 답변을 요청할 질문을 입력하세요',
@@ -1173,6 +1239,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       contentPadding: const EdgeInsets.all(12),
+                      errorText: _applicationQuestionsError,
+                      errorStyle: const TextStyle(color: Colors.red),
                     ),
                   ),
                   const SizedBox(height: 4),
