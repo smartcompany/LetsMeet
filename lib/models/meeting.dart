@@ -206,7 +206,9 @@ enum MeetingStatus {
   open,
   closed,
   completed,
-  cancelled;
+  cancelled,
+  suspended,
+  underReview;
 
   static MeetingStatus fromString(String value) {
     switch (value) {
@@ -218,8 +220,30 @@ enum MeetingStatus {
         return MeetingStatus.completed;
       case 'cancelled':
         return MeetingStatus.cancelled;
+      case 'suspended':
+        return MeetingStatus.suspended;
+      case 'under_review':
+        return MeetingStatus.underReview;
       default:
         return MeetingStatus.open;
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case MeetingStatus.open:
+        return 'open';
+      case MeetingStatus.closed:
+        return 'closed';
+      case MeetingStatus.completed:
+        return 'completed';
+      case MeetingStatus.cancelled:
+        return 'cancelled';
+      case MeetingStatus.suspended:
+        return 'suspended';
+      case MeetingStatus.underReview:
+        return 'under_review';
     }
   }
 }

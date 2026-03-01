@@ -12,6 +12,7 @@ import '../services/chat_service.dart';
 import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
+import '../utils/ugc_moderation.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_chat_screen.dart';
 import 'meeting_evaluation_screen.dart';
@@ -336,36 +337,39 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                 final currentUser = FirebaseAuth.instance.currentUser;
                 final isHost =
                     currentUser != null && currentUser.uid == _meeting!.hostId;
-                if (!isHost) return const SizedBox.shrink();
-
                 return PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     if (value == 'edit') {
                       _editMeeting();
                     } else if (value == 'delete') {
                       _confirmDelete();
+                    } else if (value == 'report') {
+                      await UGCModeration.reportMeeting(context, _meeting!);
                     }
                   },
                   itemBuilder: (context) {
-                    final isCompletedOrCancelled =
-                        _meeting!.status == MeetingStatus.completed ||
-                            _meeting!.status == MeetingStatus.cancelled;
-
-                    if (isCompletedOrCancelled) {
-                      return [
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('삭제하기', style: TextStyle(color: Colors.red)),
-                            ],
+                    if (isHost) {
+                      final isCompletedOrCancelled =
+                          _meeting!.status == MeetingStatus.completed ||
+                              _meeting!.status == MeetingStatus.cancelled;
+                      final isSuspendedOrUnderReview =
+                          _meeting!.status == MeetingStatus.suspended ||
+                              _meeting!.status == MeetingStatus.underReview;
+                      if (isCompletedOrCancelled || isSuspendedOrUnderReview) {
+                        return [
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('삭제하기', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
                           ),
-                        ),
-                      ];
-                    } else {
+                        ];
+                      }
                       return [
                         const PopupMenuItem(
                           value: 'edit',
@@ -389,6 +393,18 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         ),
                       ];
                     }
+                    return [
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 20),
+                            SizedBox(width: 8),
+                            Text('모임 신고하기'),
+                          ],
+                        ),
+                      ),
+                    ];
                   },
                 );
               },
@@ -433,6 +449,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     // 현재 사용자가 호스트인지 확인
     final currentUser = FirebaseAuth.instance.currentUser;
     final isHost = currentUser != null && currentUser.uid == meeting.hostId;
+    final isSuspended = meeting.status == MeetingStatus.suspended;
+    final isUnderReview = meeting.status == MeetingStatus.underReview;
 
     return Consumer<MeetingProvider>(
       builder: (context, meetingProvider, child) {
@@ -445,6 +463,54 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 정지/검토 안내 배너 (작성자에게만 노출되는 화면이므로 호스트가 보는 상태)
+                  if (isSuspended || isUnderReview) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isSuspended
+                            ? Colors.red.shade50
+                            : Colors.orange.shade50,
+                        border: Border.all(
+                          color: isSuspended
+                              ? Colors.red.shade200
+                              : Colors.orange.shade200,
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSuspended
+                                ? Icons.block
+                                : Icons.hourglass_empty,
+                            size: 24,
+                            color: isSuspended
+                                ? Colors.red.shade700
+                                : Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              isSuspended
+                                  ? '이 모임은 커뮤니티 가이드라인 위반으로 정지되었습니다. 다른 사용자에게는 노출되지 않습니다.'
+                                  : '이 모임은 검토 중입니다. 운영 정책 확인 후 안내드리겠습니다.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isSuspended
+                                    ? Colors.red.shade900
+                                    : Colors.orange.shade900,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // 0. 모임 사진
                   if (meeting.imageUrls != null &&
                       meeting.imageUrls!.isNotEmpty) ...[
@@ -1378,6 +1444,18 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         textColor = Colors.red;
         statusText = '모임 취소';
         icon = Icons.cancel;
+        break;
+      case MeetingStatus.suspended:
+        backgroundColor = Colors.red.withOpacity(0.1);
+        textColor = Colors.red;
+        statusText = '정지됨';
+        icon = Icons.block;
+        break;
+      case MeetingStatus.underReview:
+        backgroundColor = Colors.orange.withOpacity(0.1);
+        textColor = Colors.orange;
+        statusText = '검토 중';
+        icon = Icons.hourglass_empty;
         break;
     }
 

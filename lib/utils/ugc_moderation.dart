@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/feed.dart';
 import '../models/feed_comment.dart';
+import '../models/meeting.dart';
 import '../services/api_service.dart';
-
 /// 유저 생성 콘텐츠(피드/댓글)에 대한 간단한 필터·신고·차단 유틸리티.
 class UGCModeration {
   static const _blockedUsersKey = 'blocked_user_ids_v1';
@@ -69,6 +69,16 @@ class UGCModeration {
       targetId: comment.id,
       targetUserId: comment.userId,
       extra: {'feed_id': feedId},
+    );
+  }
+
+  /// 모임 신고 UI + API 호출.
+  static Future<void> reportMeeting(BuildContext context, Meeting meeting) async {
+    await _showReportSheet(
+      context: context,
+      targetType: 'meeting',
+      targetId: meeting.id,
+      targetUserId: meeting.hostId,
     );
   }
 

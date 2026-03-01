@@ -92,6 +92,16 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
         .toList();
   }
 
+  List<Meeting> _getSuspendedOrUnderReviewMeetings() {
+    return _myMeetings
+        .where(
+          (meeting) =>
+              meeting.status == MeetingStatus.suspended ||
+              meeting.status == MeetingStatus.underReview,
+        )
+        .toList();
+  }
+
   List<Meeting> _getCompletedMeetings() {
     return _myMeetings
         .where(
@@ -135,6 +145,7 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
   @override
   Widget build(BuildContext context) {
     final activeMeetings = _getActiveMeetings();
+    final suspendedOrUnderReview = _getSuspendedOrUnderReviewMeetings();
     final completedMeetings = _getCompletedMeetings();
 
     return Scaffold(
@@ -198,6 +209,49 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
                                   trailingAction: _buildManageApplicationsButton(
                                     meeting.id,
                                   ),
+                                  onTap: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            MeetingDetailScreen(
+                                                meetingId: meeting.id),
+                                      ),
+                                    );
+                                    if (result == true) {
+                                      _loadMyMeetings();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      // 정지/검토 중
+                      if (suspendedOrUnderReview.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12, top: 8),
+                          child: Text(
+                            '정지/검토 중',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ),
+                        ...suspendedOrUnderReview.map(
+                          (meeting) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                MeetingCard(
+                                  meeting: meeting,
+                                  showStatusBadge: true,
+                                  showHostCreatedBadge: false,
                                   onTap: () async {
                                     final result = await Navigator.push(
                                       context,
