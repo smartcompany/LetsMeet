@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/feed.dart';
 import '../models/feed_comment.dart';
 import '../models/meeting.dart';
 import '../services/api_service.dart';
+
 /// 유저 생성 콘텐츠(피드/댓글)에 대한 간단한 필터·신고·차단 유틸리티.
+/// 차단 목록은 서버(DB)에 저장되며, GET /users/me/blocked-ids 로 조회합니다.
 class UGCModeration {
-  static const _blockedUsersKey = 'blocked_user_ids_v1';
 
   /// 텍스트 검증 (빈 값/길이 + 금지어). 금지어는 [bannedWords]로 전달 (보통 settings API에서 내려준 목록).
   static String? validateText(String text, {List<String>? bannedWords}) {
@@ -33,18 +33,20 @@ class UGCModeration {
     return null;
   }
 
-  /// 로컬에 차단 사용자 ID 집합을 저장/로드.
+  /// 서버(DB)에서 차단한 사용자 ID 목록 조회. 비로그인 시 빈 집합.
   static Future<Set<String>> getBlockedUserIds() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_blockedUsersKey) ?? const [];
-    return list.toSet();
-  }
-
-  static Future<void> addBlockedUser(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getStringList(_blockedUsersKey) ?? const [];
-    if (current.contains(userId)) return;
-    await prefs.setStringList(_blockedUsersKey, [...current, userId]);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return {};
+    try {
+      final api = ApiService();
+      final token = await firebaseUser.getIdToken();
+      if (token != null) api.setToken(token);
+      final list = await api.getBlockedUserIds();
+      return list.toSet();
+    } catch (e) {
+      debugPrint('getBlockedUserIds: $e');
+      return {};
+    }
   }
 
   /// 피드 신고 UI + API 호출.
@@ -82,7 +84,7 @@ class UGCModeration {
     );
   }
 
-  /// 사용자 차단: 서버에 통지하고, 로컬에서도 즉시 차단 처리.
+  /// 사용자 차단: 서버(DB)에 저장. 이후 피드/댓글/모임 목록 API에서 해당 사용자 제외됨.
   static Future<void> blockUser(
     BuildContext context, {
     required String userId,
@@ -120,14 +122,15 @@ class UGCModeration {
           api.setToken(token);
         }
       }
-      // 서버에도 차단 요청 (없으면 404가 날 수 있으므로 예외는 무시 가능)
       await api.blockUser(userId);
     } catch (e) {
-      // 네트워크 에러가 나더라도 로컬 차단은 진행
-      debugPrint('⚠️ blockUser API 실패: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('차단 처리에 실패했습니다: $e')),
+        );
+      }
+      return;
     }
-
-    await addBlockedUser(userId);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

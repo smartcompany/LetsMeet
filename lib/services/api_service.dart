@@ -845,7 +845,7 @@ class ApiService implements AuthServiceInterface {
     }
   }
 
-  /// 사용자 차단 (서버 통지용)
+  /// 사용자 차단 (DB에 저장)
   Future<void> blockUser(String userId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/users/$userId/block'),
@@ -855,5 +855,22 @@ class ApiService implements AuthServiceInterface {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['error'] ?? 'Failed to block user');
     }
+  }
+
+  /// 차단한 사용자 ID 목록 (DB 기준)
+  Future<List<String>> getBlockedUserIds() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/blocked-ids'),
+      headers: _headers,
+    );
+    if (response.statusCode != 200) {
+      return [];
+    }
+    final body = jsonDecode(response.body);
+    final list = body['blocked_user_ids'];
+    if (list is List) {
+      return list.map((e) => e.toString()).toList();
+    }
+    return [];
   }
 }
