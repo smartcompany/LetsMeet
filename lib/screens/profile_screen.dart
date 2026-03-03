@@ -5,159 +5,39 @@ import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
-import '../config/auth_config.dart';
 import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
-import 'participated_meetings_screen.dart';
 import 'delete_account_screen.dart';
 import 'community_guidelines_screen.dart';
+import 'blocked_list_screen.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_style_section.dart';
+import '../widgets/auth_required_content.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider<User>>(
-      builder: (context, authProvider, child) {
-        if (!authProvider.isInitialized && !authProvider.isInitializing) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            context.read<AuthProvider<User>>().initialize();
-          });
-        }
-
-        final user = authProvider.user;
-
-        // 로그인 안 되어 있으면 로그인 안내 화면
-        if (user == null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        authConfig.primaryColor.withOpacity(0.1),
-                        authConfig.primaryColor.withOpacity(0.05),
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.lock_outline_rounded,
-                    size: 64,
-                    color: authConfig.primaryColor.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  authConfig.getLocalizations(context).loginRequiredTitle,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: authConfig.textSecondaryColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    authConfig
-                        .getLocalizations(context)
-                        .loginRequiredDescription,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: authConfig.textTertiaryColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // 로그인 화면으로 이동
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                AuthScreen<User>(config: authConfig),
-                            fullscreenDialog: true,
-                          ),
-                        );
-
-                        // 로그인 성공 후 프로필 없거나 미완성이면 프로필 설정 화면 표시
-                        if (result == true && context.mounted) {
-                          final ap = context.read<AuthProvider<User>>();
-                          // 로딩 완료까지 대기
-                          for (var i = 0; i < 50 && context.mounted; i++) {
-                            if (!ap.isLoading) break;
-                            await Future.delayed(
-                              const Duration(milliseconds: 100),
-                            );
-                          }
-                          if (!context.mounted) return;
-                          final u = context.read<AuthProvider<User>>().user;
-                          final needSetup = u == null ||
-                              (authConfig.shouldShowProfileSetup != null &&
-                                  authConfig.shouldShowProfileSetup!(u));
-                          if (needSetup) {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const ProfileSetupScreen(),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: authConfig.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ).copyWith(elevation: MaterialStateProperty.all(0)),
-                      child: Text(
-                        authConfig.getLocalizations(context).loginButtonText,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return SingleChildScrollView(
+    return AuthRequiredContent(
+      child: Consumer<AuthProvider<User>>(
+        builder: (context, authProvider, _) {
+          final userProfile = authProvider.userProfile!;
+          return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
               // 프로필 카드 (스타일 제외)
               ProfileCard(
-                fullName: user.fullName,
-                profileImageUrl: user.profileImageUrl,
-                backgroundImageUrl: user.backgroundImageUrl,
-                createdAt: user.createdAt,
-                bio: user.bio,
-                gender: user.gender,
-                trustScore: user.trustScore,
-                trustLevel: user.trustLevel,
+                fullName: userProfile.fullName,
+                profileImageUrl: userProfile.profileImageUrl,
+                backgroundImageUrl: userProfile.backgroundImageUrl,
+                createdAt: userProfile.createdAt,
+                bio: userProfile.bio,
+                gender: userProfile.gender,
+                trustScore: userProfile.trustScore,
+                trustLevel: userProfile.trustLevel,
                 showTrustBadge: true,
                 showStyleSentences: false,
                 margin: EdgeInsets.zero,
@@ -178,11 +58,15 @@ class ProfileScreen extends StatelessWidget {
                       return null;
                     }
                   }
+
                   return ProfileStyleSection(
                     sectionTitle: opts.description,
-                    lifeSceneText: _resolve(user.lifeSceneId, opts.lifeScenes),
-                    selfStatementText: _resolve(user.selfStatementId, opts.selfStatements),
-                    interactionStyleText: _resolve(user.interactionStyleId, opts.interactionStyles),
+                    lifeSceneText:
+                        _resolve(userProfile.lifeSceneId, opts.lifeScenes),
+                    selfStatementText: _resolve(
+                        userProfile.selfStatementId, opts.selfStatements),
+                    interactionStyleText: _resolve(
+                        userProfile.interactionStyleId, opts.interactionStyles),
                     showSettingsButton: false,
                   );
                 },
@@ -235,19 +119,6 @@ class ProfileScreen extends StatelessWidget {
                     },
                   ),
                   _MenuItem(
-                    icon: Icons.event_available_rounded,
-                    title: '참여한 모임',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const ParticipatedMeetingsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _MenuItem(
                     icon: Icons.feed_rounded,
                     title: '내 피드 보기',
                     onTap: () async {
@@ -255,6 +126,18 @@ class ProfileScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const MyFeedsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.block_rounded,
+                    title: '차단 목록',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BlockedListScreen(),
                         ),
                       );
                     },
@@ -331,6 +214,7 @@ class ProfileScreen extends StatelessWidget {
                       );
 
                       if (confirm == true && context.mounted) {
+                        await clearCommunityGuidelinesAccepted();
                         await authProvider.logout();
                       }
                     },
@@ -340,7 +224,8 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

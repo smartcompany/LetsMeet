@@ -14,11 +14,19 @@ import '../widgets/profile_photo_edit_view.dart';
 import '../utils/photo_permission_helper.dart';
 import '../widgets/profile_style_section.dart';
 import '../widgets/user_profile_view.dart';
+import 'community_guidelines_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final Future<void> Function()? onComplete;
 
-  const ProfileSetupScreen({super.key, this.onComplete});
+  /// 마이페이지 탭 안에서 보일 때 true. 앱바·뒤로가기 버튼 숨김 (뒤로가기 시 스택 꼬임 방지)
+  final bool embeddedInProfile;
+
+  const ProfileSetupScreen({
+    super.key,
+    this.onComplete,
+    this.embeddedInProfile = false,
+  });
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -42,16 +50,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider<User>>().user;
-    if (user != null) {
-      _nameController.text = user.fullName.isNotEmpty ? user.fullName : '';
-      _selectedLifeSceneId = user.lifeSceneId;
-      _selectedSelfStatementId = user.selfStatementId;
-      _selectedInteractionStyleId = user.interactionStyleId;
-      _bioController.text = user.bio ?? '';
-      _selectedGender = user.gender;
-      _profileImageUrl = user.profileImageUrl;
-      _backgroundImageUrl = user.backgroundImageUrl;
+    final userProfile = context.read<AuthProvider<User>>().userProfile;
+    if (userProfile != null) {
+      _nameController.text =
+          userProfile.fullName.isNotEmpty ? userProfile.fullName : '';
+      _selectedLifeSceneId = userProfile.lifeSceneId;
+      _selectedSelfStatementId = userProfile.selfStatementId;
+      _selectedInteractionStyleId = userProfile.interactionStyleId;
+      _bioController.text = userProfile.bio ?? '';
+      _selectedGender = userProfile.gender;
+      _profileImageUrl = userProfile.profileImageUrl;
+      _backgroundImageUrl = userProfile.backgroundImageUrl;
+    }
+    // 프로필 설정 진입 시 약관 미동의면 약관 먼저 표시. 거절 시 로그아웃 + (push된 경우) pop
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _ensureGuidelinesThenContinue());
+  }
+
+  Future<void> _ensureGuidelinesThenContinue() async {
+    final accepted = await isCommunityGuidelinesAccepted();
+    if (accepted) return;
+    if (!mounted) return;
+    final ok = await ensureCommunityGuidelinesAccepted(context);
+    if (!mounted) return;
+    if (!ok) {
+      final authProvider = context.read<AuthProvider<User>>();
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      await authProvider.logout();
     }
   }
 
@@ -110,7 +137,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       final fileToUpload = File(picked.path);
       final fileSize = await fileToUpload.length();
-      debugPrint('🟡 [ProfileSetup] 배경 업로드 시작: path=${fileToUpload.path}, size=$fileSize bytes');
+      debugPrint(
+          '🟡 [ProfileSetup] 배경 업로드 시작: path=${fileToUpload.path}, size=$fileSize bytes');
 
       final api = ApiService();
       final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -189,7 +217,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           result['custom_token'] as String,
         );
       } else {
-        authProvider.setUser(result as User);
+        authProvider.setUserProfile(result as User);
       }
 
       if (!mounted) return;
@@ -219,34 +247,36 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        automaticallyImplyLeading: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: AppTheme.textPrimaryColor,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          '프로필 설정',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimaryColor,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: AppTheme.dividerColor.withOpacity(0.3),
-          ),
-        ),
-      ),
+      appBar: widget.embeddedInProfile
+          ? null
+          : AppBar(
+              elevation: 0,
+              backgroundColor: Colors.white,
+              centerTitle: true,
+              automaticallyImplyLeading: true,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: AppTheme.textPrimaryColor,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              title: const Text(
+                '프로필 설정',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimaryColor,
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(
+                  height: 1,
+                  color: AppTheme.dividerColor.withOpacity(0.3),
+                ),
+              ),
+            ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -505,7 +535,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   children: [
                     OutlinedButton(
                       onPressed: () {
-                        final user = context.read<AuthProvider<User>>().user;
+                        final userProfile =
+                            context.read<AuthProvider<User>>().userProfile;
                         final opts = context
                             .read<SettingsProvider>()
                             .profileStyleOptions;
@@ -530,8 +561,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                               ? null
                               : _bioController.text.trim(),
                           gender: _selectedGender,
-                          createdAt: user?.createdAt,
-                          trustScore: user?.trustScore ?? 70,
+                          createdAt: userProfile?.createdAt,
+                          trustScore: userProfile?.trustScore ?? 70,
                           lifeSceneText:
                               _findText(opts?.lifeScenes, _selectedLifeSceneId),
                           selfStatementText: _findText(

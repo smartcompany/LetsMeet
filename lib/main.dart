@@ -1,8 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider, User;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
@@ -23,7 +21,6 @@ import 'models/user.dart';
 import 'utils/deep_link_handler.dart';
 import 'utils/app_localization.dart';
 import 'utils/screen_stack_observer.dart';
-import 'screens/community_guidelines_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,7 +134,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       authProvider.isLoading;
 
   void _initPushIfLoggedIn(AuthProvider<User> authProvider) {
-    if (authProvider.user == null || _pushInitialized) return;
+    if (!authProvider.isLoggedIn() || _pushInitialized) return;
+
     _pushInitialized = true;
     final api = context.read<ApiService>();
     PushService(apiService: api).initialize();
@@ -146,14 +144,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _showProfileSetupIfNeeded(AuthProvider<User> authProvider) {
     if (!context.mounted) return;
     if (ScreenStackObserver.instance.isOnStack(profileSetupRouteName)) return;
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null) return;
-    final user = authProvider.user;
-    final needSetup = user == null ||
-        (authConfig.shouldShowProfileSetup != null &&
-            authConfig.shouldShowProfileSetup!(user));
-    if (!needSetup) return;
-    Navigator.of(context).push(
+    if (!authProvider.needProfileSetup()) return;
+
+    final navigator = Navigator.of(context);
+    navigator.push(
       MaterialPageRoute(
         builder: (_) => const ProfileSetupScreen(),
         fullscreenDialog: true,
@@ -167,14 +161,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return Consumer<AuthProvider<User>>(
       builder: (context, authProvider, _) {
         // 로그인 시 푸시 알림 초기화 (한 번만)
-        if (authProvider.user != null) {
+        if (authProvider.isLoggedIn()) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _initPushIfLoggedIn(authProvider);
           });
         } else {
           ScreenStackObserver.instance.clearWhenLoggedOut();
         }
-
         // 초기화 전/중이면 initialize 호출 후 로딩 표시
         if (_shouldShowLoading(authProvider)) {
           return const Scaffold(
@@ -191,38 +184,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   void postProcessAfterLogin(
       AuthProvider<User> authProvider, BuildContext context) {
-    if (authProvider.user == null) return;
+    if (!authProvider.isLoggedIn()) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      final user = authProvider.user;
-      final shouldShowProfileSetup =
-          needProfileSetup(authProvider, firebaseUser, user);
-      final guidelinesAccepted = await isCommunityGuidelinesAccepted();
-
-      if (guidelinesAccepted == false) {
-        final ok = await ensureCommunityGuidelinesAccepted(context);
-        if (!ok && mounted) {
-          await FirebaseAuth.instance.signOut();
-          return;
-        }
-      }
-
-      if (mounted && shouldShowProfileSetup) {
-        _showProfileSetupIfNeeded(authProvider);
-      }
+      // 약관 동의는 프로필 설정 화면 진입 시 처리 (프로필 설정 내에서 먼저 약관 → 거절 시 로그아웃+pop)
+      if (mounted) _showProfileSetupIfNeeded(authProvider);
     });
-  }
-
-  bool needProfileSetup(
-      AuthProvider<User> authProvider, Object? firebaseUser, User? user) {
-    if (!authProvider.isInitialized || firebaseUser == null) return false;
-
-    if (user == null) return true;
-
-    if (authConfig.shouldShowProfileSetup == null) return false;
-    return authConfig.shouldShowProfileSetup!(user);
   }
 }

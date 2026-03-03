@@ -20,8 +20,11 @@ class UserProfileView extends StatefulWidget {
   final String? displayName;
   final String? profileImageUrl;
   final app_models.User? previewUser;
-  final ({String? lifeScene, String? selfStatement, String? interactionStyle})?
-      previewStyleTexts;
+  final ({
+    String? lifeScene,
+    String? selfStatement,
+    String? interactionStyle
+  })? previewStyleTexts;
 
   const UserProfileView({
     super.key,
@@ -95,8 +98,7 @@ class UserProfileView extends StatefulWidget {
     String? displayName,
     String? profileImageUrl,
   }) {
-    if (userId != 'preview' &&
-        FirebaseAuth.instance.currentUser == null) {
+    if (userId != 'preview' && FirebaseAuth.instance.currentUser == null) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -162,8 +164,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
       setState(() {
         _user = app_models.User(
-          id:
-              data['id'] as String? ??
+          id: data['id'] as String? ??
               data['user_id'] as String? ??
               widget.userId,
           phoneNumber: null,
@@ -239,26 +240,26 @@ class _UserProfileViewState extends State<UserProfileView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? _buildErrorState()
-          : _user == null
-          ? const Center(child: Text('사용자를 찾을 수 없습니다'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildProfileCard(),
-                  if (widget.previewUser == null) ...[
-                    const SizedBox(height: 16),
-                    _buildActionButtons(),
-                  ],
-                  const SizedBox(height: 16),
-                  _buildStatisticsGrid(),
-                  const SizedBox(height: 16),
-                  _buildProfileStyleSection(),
-                ],
-              ),
-            ),
+              ? _buildErrorState()
+              : _user == null
+                  ? const Center(child: Text('사용자를 찾을 수 없습니다'))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildProfileCard(),
+                          if (widget.previewUser == null) ...[
+                            const SizedBox(height: 16),
+                            _buildActionButtons(),
+                          ],
+                          const SizedBox(height: 16),
+                          _buildStatisticsGrid(),
+                          const SizedBox(height: 16),
+                          _buildProfileStyleSection(),
+                        ],
+                      ),
+                    ),
     );
   }
 
@@ -313,7 +314,9 @@ class _UserProfileViewState extends State<UserProfileView> {
         _resolveStyleText(_user!.selfStatementId, optsKey: 1);
     final interactionStyle = widget.previewStyleTexts?.interactionStyle ??
         _resolveStyleText(_user!.interactionStyleId, optsKey: 2);
-    if (lifeScene == null && selfStatement == null && interactionStyle == null) {
+    if (lifeScene == null &&
+        selfStatement == null &&
+        interactionStyle == null) {
       return const SizedBox.shrink();
     }
     return Padding(
@@ -346,9 +349,8 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   Future<void> _openDirectChat() async {
     if (_isOpeningChat || _user == null) return;
-    final authUser = context
-        .read<share_lib.AuthProvider<app_models.User>>()
-        .user;
+    final authUser =
+        context.read<share_lib.AuthProvider<app_models.User>>().userProfile;
     if (authUser == null) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -628,5 +630,4 @@ class _UserProfileViewState extends State<UserProfileView> {
     }
     return content;
   }
-
 }

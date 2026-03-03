@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'community_guidelines_screen.dart';
 
 /// 계정 삭제 화면 (App Store Guideline 5.1.1(v))
 class DeleteAccountScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       }
 
       await api.deleteAccount();
+      await clearCommunityGuidelinesAccepted();
       await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;

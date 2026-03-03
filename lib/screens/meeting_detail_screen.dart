@@ -70,7 +70,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       if (meeting.status == MeetingStatus.completed &&
           _canAccessMeetingChat(meeting)) {
         try {
-          evalSubmitted = await apiService.getMeetingEvaluationStatus(widget.meetingId);
+          evalSubmitted =
+              await apiService.getMeetingEvaluationStatus(widget.meetingId);
         } catch (_) {
           evalSubmitted = true; // 오류 시 이미 제출된 것으로 처리
         }
@@ -107,7 +108,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final applicationStatus = meeting.userApplication?['status']?.toString();
     if (applicationStatus == 'approved') return true;
 
-    return meeting.participants?.any((p) => p.userId == currentUser.uid) == true;
+    return meeting.participants?.any((p) => p.userId == currentUser.uid) ==
+        true;
   }
 
   Future<String?> _resolveChatRoomId(Meeting meeting) async {
@@ -270,12 +272,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       final authProvider =
           context.read<share_lib.AuthProvider<app_models.User>>();
 
-      if (authProvider.user == null) {
+      final userProfile = authProvider.userProfile;
+      if (userProfile == null) {
         debugPrint('❌ [MeetingDetailScreen] 사용자 정보 없음');
         throw Exception('로그인이 필요합니다');
       }
 
-      debugPrint('✅ [MeetingDetailScreen] 사용자 ID: ${authProvider.user!.id}');
+      debugPrint('✅ [MeetingDetailScreen] 사용자 ID: ${userProfile.id}');
       final answer1 = hasQuestion ? _answerController.text.trim() : null;
       debugPrint('🔵 [MeetingDetailScreen] 모임 ID: ${widget.meetingId}');
       debugPrint(
@@ -285,7 +288,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       debugPrint('🔵 [MeetingDetailScreen] applyToMeeting 호출');
       await meetingProvider.applyToMeeting(
         widget.meetingId,
-        authProvider.user!.id,
+        userProfile.id,
         answer1 ?? '',
         null,
       );
@@ -364,7 +367,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                               children: [
                                 Icon(Icons.delete, size: 20, color: Colors.red),
                                 SizedBox(width: 8),
-                                Text('삭제하기', style: TextStyle(color: Colors.red)),
+                                Text('삭제하기',
+                                    style: TextStyle(color: Colors.red)),
                               ],
                             ),
                           ),
@@ -483,9 +487,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            isSuspended
-                                ? Icons.block
-                                : Icons.hourglass_empty,
+                            isSuspended ? Icons.block : Icons.hourglass_empty,
                             size: 24,
                             color: isSuspended
                                 ? Colors.red.shade700
@@ -726,7 +728,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           label: const Text('채팅방으로 이동'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.primaryColor,
-                            side: const BorderSide(color: AppTheme.primaryColor),
+                            side:
+                                const BorderSide(color: AppTheme.primaryColor),
                             minimumSize: const Size(0, 34),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -951,7 +954,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       children: [
                         _InfoRow(
                           label: '인원',
-                          value: '${meeting.currentParticipantCount}/${meeting.maxParticipants}명',
+                          value:
+                              '${meeting.currentParticipantCount}/${meeting.maxParticipants}명',
                         ),
                         const SizedBox(height: 8),
                         _InfoRow(
@@ -1284,12 +1288,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                     counterText:
                                         '${_answerController.text.length}자 / 100자',
                                     counterStyle: TextStyle(
-                                      color:
-                                          _answerController.text.length >= 5 &&
-                                                  _answerController.text.length <=
-                                                      100
-                                              ? AppTheme.primaryColor
-                                              : AppTheme.textTertiaryColor,
+                                      color: _answerController.text.length >=
+                                                  5 &&
+                                              _answerController.text.length <=
+                                                  100
+                                          ? AppTheme.primaryColor
+                                          : AppTheme.textTertiaryColor,
                                     ),
                                   ),
                                   onChanged: (value) {
@@ -1331,8 +1335,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                   valueListenable: _answerController,
                                   builder: (context, value, _) {
                                     final len = value.text.trim().length;
-                                    final canSubmit =
-                                        !_isSubmitting && len >= 5 && len <= 100;
+                                    final canSubmit = !_isSubmitting &&
+                                        len >= 5 &&
+                                        len <= 100;
                                     return Row(
                                       children: [
                                         Expanded(
@@ -1341,7 +1346,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                                 ? null
                                                 : () {
                                                     setState(() {
-                                                      _showApplicationForm = false;
+                                                      _showApplicationForm =
+                                                          false;
                                                       _answerController.clear();
                                                     });
                                                   },
@@ -1355,27 +1361,29 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                             onPressed: canSubmit
                                                 ? _submitApplication
                                                 : null,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              AppTheme.primaryColor,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 16,
-                                          ),
-                                        ),
-                                        child: _isSubmitting
-                                            ? const SizedBox(
-                                                height: 20,
-                                                width: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                          Color>(Colors.white),
-                                                ),
-                                              )
-                                            : const Text('신청하기'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  AppTheme.primaryColor,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                vertical: 16,
+                                              ),
+                                            ),
+                                            child: _isSubmitting
+                                                ? const SizedBox(
+                                                    height: 20,
+                                                    width: 20,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              Colors.white),
+                                                    ),
+                                                  )
+                                                : const Text('신청하기'),
                                           ),
                                         ),
                                       ],

@@ -87,7 +87,7 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _Bullet('신고된 콘텐츠는 24시간 이내에 검토됩니다.'),
+                      _Bullet('신고 접수 후 24시간 내 검토·조치합니다.'),
                       _Bullet(
                           '가이드라인을 심각하게 위반하는 경우 콘텐츠 삭제 및 계정 이용 제한이 이루어질 수 있습니다.'),
                     ],
@@ -118,6 +118,14 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('동의하고 계속하기'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('동의하지 않음'),
                 ),
               ),
             ],
@@ -151,6 +159,12 @@ class _Bullet extends StatelessWidget {
 Future<bool> isCommunityGuidelinesAccepted() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getBool(_guidelinesAcceptedKey) ?? false;
+}
+
+/// 로그아웃 시 호출. 다음 로그인 때 가이드라인 동의 화면이 다시 표시되도록 초기화한다.
+Future<void> clearCommunityGuidelinesAccepted() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(_guidelinesAcceptedKey);
 }
 
 /// 커뮤니티 가이드라인에 동의했는지 확인하고, 필요 시 동의 화면을 보여준다.

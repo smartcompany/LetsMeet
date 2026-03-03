@@ -80,8 +80,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
       body: Consumer<auth_lib.AuthProvider<app_user.User>>(
         builder: (context, authProvider, _) {
-          final user = authProvider.user;
-          if (user == null) {
+          if (authProvider.needProfileSetup()) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

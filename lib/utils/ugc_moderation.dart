@@ -10,25 +10,14 @@ import '../services/api_service.dart';
 /// 차단 목록은 서버(DB)에 저장되며, GET /users/me/blocked-ids 로 조회합니다.
 class UGCModeration {
 
-  /// 텍스트 검증 (빈 값/길이 + 금지어). 금지어는 [bannedWords]로 전달 (보통 settings API에서 내려준 목록).
-  static String? validateText(String text, {List<String>? bannedWords}) {
+  /// 텍스트 검증 (빈 값·최소 길이만). 금칙어 검사는 서버에서만 함.
+  static String? validateText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       return '내용을 입력해주세요.';
     }
     if (trimmed.length < 2) {
       return '조금 더 구체적으로 작성해주세요.';
-    }
-    final words = bannedWords ?? [];
-    if (words.isNotEmpty) {
-      final lower = trimmed.toLowerCase();
-      for (final word in words) {
-        final w = word.trim();
-        if (w.isEmpty) continue;
-        if (lower.contains(w.toLowerCase())) {
-          return '커뮤니티 가이드라인에 따라 부적절한 표현이 포함되어 있습니다.';
-        }
-      }
     }
     return null;
   }

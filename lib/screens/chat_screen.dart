@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:intl/intl.dart';
 import '../models/user.dart';
 import '../theme/app_theme.dart';
-import '../config/auth_config.dart';
 import '../services/chat_service.dart';
+import '../widgets/auth_required_content.dart';
 import 'meeting_chat_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -23,30 +23,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<share_lib.AuthProvider<User>>(
-      builder: (context, authProvider, child) {
-        if (!authProvider.isInitialized && !authProvider.isInitializing) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            context.read<share_lib.AuthProvider<User>>().initialize();
-          });
-        }
-
-        // 로그인 안 되어 있으면 안내 메시지
-        if (!authProvider.isAuthenticated) {
-          return share_lib.LoginRequiredScreen(
-            config: authConfig,
-            authScreenBuilder: (context) =>
-                share_lib.AuthScreen<User>(config: authConfig),
-          );
-        }
-
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) {
-          return const Center(child: Text('로그인이 필요합니다'));
-        }
-
-        return StreamBuilder<List<ChatRoom>>(
+    return AuthRequiredContent(
+      child: StreamBuilder<List<ChatRoom>>(
           stream: _chatService.getUserChatRoomsStream(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -136,6 +114,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 chatRooms.where((r) => r.meetingId.isNotEmpty).toList();
             final personalRooms =
                 chatRooms.where((r) => r.meetingId.isEmpty).toList();
+            final currentUser =
+                context.read<share_lib.AuthProvider<User>>().userProfile;
 
             return _ChatListWithTabs(
               meetingRooms: meetingRooms,
@@ -146,7 +126,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 String title = room.meetingTitle;
                 if (title.isEmpty) {
                   title = room.memberIds
-                      .where((id) => id != currentUser.uid)
+                      .where((id) => id != currentUser?.id)
                       .map((id) => room.memberNames[id] ?? '')
                       .join(', ');
                   if (title.isEmpty) title = '채팅';
@@ -163,8 +143,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             );
           },
-        );
-      },
+        ),
     );
   }
 }
@@ -212,8 +191,7 @@ class _ChatListWithTabsState extends State<_ChatListWithTabs> {
         _meetingUnread = meetingTotal;
         _personalUnread = personalTotal;
       });
-      widget.onUnreadTotalChanged
-          ?.call(meetingTotal + personalTotal);
+      widget.onUnreadTotalChanged?.call(meetingTotal + personalTotal);
     }
   }
 
@@ -392,7 +370,8 @@ class _ChatRoomCardWithUnread extends StatefulWidget {
   });
 
   @override
-  State<_ChatRoomCardWithUnread> createState() => _ChatRoomCardWithUnreadState();
+  State<_ChatRoomCardWithUnread> createState() =>
+      _ChatRoomCardWithUnreadState();
 }
 
 class _ChatRoomCardWithUnreadState extends State<_ChatRoomCardWithUnread> {
@@ -454,10 +433,9 @@ class _ChatRoomCard extends StatelessWidget {
 
     // 1:1 DM: 제목 = 상대방 이름, 모임 채팅: 제목 = 모임명
     final isDirectMessage = room.meetingId.isEmpty;
-    final displayTitle =
-        isDirectMessage && otherMembers.isNotEmpty
-            ? otherMembers.join(', ')
-            : room.meetingTitle;
+    final displayTitle = isDirectMessage && otherMembers.isNotEmpty
+        ? otherMembers.join(', ')
+        : room.meetingTitle;
     final otherMemberId = isDirectMessage
         ? room.memberIds.firstWhere(
             (id) => id != currentUser?.uid,
@@ -487,8 +465,7 @@ class _ChatRoomCard extends StatelessWidget {
               // 모임 대표 아이콘 (썸네일 또는 기본 아이콘)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child:
-                    thumbnailUrl != null && thumbnailUrl.isNotEmpty
+                child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
                     ? Image.network(
                         thumbnailUrl,
                         width: 56,
@@ -543,7 +520,8 @@ class _ChatRoomCard extends StatelessWidget {
                   if (unreadCount > 0) ...[
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor,
                         borderRadius: BorderRadius.circular(12),

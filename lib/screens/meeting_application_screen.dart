@@ -30,7 +30,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
   final _answer1Controller = TextEditingController();
   final _answer2Controller = TextEditingController();
   final _scrollController = ScrollController();
-  
+
   bool _isAnswer1Pasted = false;
   bool _isAnswer2Pasted = false;
   bool _isSubmitting = false;
@@ -97,7 +97,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
         final clipboardText = clipboardData!.text!;
         final answer1Text = _answer1Controller.text;
         final answer2Text = _answer2Controller.text;
-        
+
         // 붙여넣기 감지 (클립보드 내용이 텍스트에 포함되어 있고 길이가 일치)
         if (answer1Text.contains(clipboardText) &&
             answer1Text.length >= clipboardText.length &&
@@ -108,7 +108,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
             });
           }
         }
-        
+
         if (answer2Text.contains(clipboardText) &&
             answer2Text.length >= clipboardText.length &&
             clipboardText.length > 10) {
@@ -153,9 +153,11 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
 
     try {
       final meetingProvider = context.read<MeetingProvider>();
-      final authProvider = context.read<share_lib.AuthProvider<app_models.User>>();
-      
-      if (authProvider.user == null) {
+      final authProvider =
+          context.read<share_lib.AuthProvider<app_models.User>>();
+      final userProfile = authProvider.userProfile;
+
+      if (userProfile == null) {
         throw Exception('로그인이 필요합니다');
       }
 
@@ -166,7 +168,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
 
       await meetingProvider.applyToMeeting(
         widget.meetingId,
-        authProvider.user!.id,
+        userProfile.id,
         answer1 ?? '',
         null, // 질문 2는 제거
       );
@@ -323,7 +325,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // 질문이 있는 경우에만 답변 입력 필드 표시
                     if (questions.isNotEmpty && questions[0].isNotEmpty) ...[
                       _QuestionField(
@@ -341,7 +343,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
-                    
+
                     // 안내 문구
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -376,7 +378,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                 ),
               ),
             ),
-            
+
             // 하단 신청 버튼
             Container(
               padding: const EdgeInsets.all(16),
@@ -412,7 +414,8 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text('신청 완료'),

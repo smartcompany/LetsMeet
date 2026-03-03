@@ -27,18 +27,24 @@ class ApplicationStatusScreen extends StatelessWidget {
       body: Consumer2<MeetingProvider, AuthProvider<User>>(
         builder: (context, meetingProvider, authProvider, child) {
           final meeting = meetingProvider.getMeetingById(meetingId);
-          
+
           if (meeting == null) {
             return const Center(child: Text('모임을 찾을 수 없습니다'));
           }
 
-          if (authProvider.user == null) {
+          // 로그인 안 되어 있으면 로그인 필요 안내
+          if (!authProvider.isLoggedIn()) {
             return const Center(child: Text('로그인이 필요합니다'));
+          }
+
+          final userProfile = authProvider.userProfile;
+          if (userProfile == null) {
+            return const Center(child: Text('사용자를 찾을 수 없습니다'));
           }
 
           final application = meetingProvider.getApplicationByMeetingId(
             meetingId,
-            authProvider.user!.id,
+            userProfile.id,
           );
 
           final currentStatus = application?.status ?? status;
@@ -62,9 +68,10 @@ class ApplicationStatusScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           meeting.shortDescription ?? '',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.textSecondaryColor,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
                         ),
                       ],
                     ),
