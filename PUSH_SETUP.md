@@ -161,14 +161,6 @@ Android 8.0+ 기본 알림 채널은 `firebase_messaging`에서 처리됩니다.
 importScripts('https://www.gstatic.com/firebasejs/11.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging-compat.js');
 
-firebase.initializeApp({
-  apiKey: "YOUR_WEB_API_KEY",
-  authDomain: "letsmeet-8def5.firebaseapp.com",
-  projectId: "letsmeet-8def5",
-  storageBucket: "letsmeet-8def5.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_WEB_APP_ID"
-});
 
 const messaging = firebase.messaging();
 
@@ -245,27 +237,6 @@ Future<void> _setupPushNotifications() async {
   // 백그라운드/종료 상태 메시지 (main 함수 최상단에 등록)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 }
-
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint('Background: ${message.notification?.title}');
-}
-```
-
-### 7-2. main()에서 백그라운드 핸들러 등록
-
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 백그라운드 메시지 핸들러 (최상단에 등록)
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // ...
-}
-```
 
 ---
 

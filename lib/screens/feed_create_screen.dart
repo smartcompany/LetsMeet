@@ -40,19 +40,10 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
       List<String> imageUrls = [];
       for (var image in _selectedImages) {
         try {
-          final url = await apiService.uploadFeedImage(File(image.path));
+          final url = await ApiService.shared.uploadFeedImage(File(image.path));
           imageUrls.add(url);
         } catch (e) {
           setState(() => _isSubmitting = false);
@@ -65,7 +56,7 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
         }
       }
 
-      await apiService.createFeed(
+      await ApiService.shared.createFeed(
         content: text,
         imageUrls: imageUrls,
       );

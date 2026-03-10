@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/category_hierarchy.dart';
 import '../providers/settings_provider.dart';
@@ -58,7 +57,7 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final data = context.read<SettingsProvider>().meetingCategory;
+    final data = SettingsProvider.shared.meetingCategory;
     if (data == null) return;
     final parsed = CategoryHierarchy.parse(widget.initialCategory);
     if (parsed.main != null && data.containsKey(parsed.main)) {
@@ -70,7 +69,7 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
   }
 
   void _onMainTap(BuildContext context, String mainCat) {
-    final data = context.read<SettingsProvider>().meetingCategory;
+    final data = SettingsProvider.shared.meetingCategory;
     if (data == null) return;
     setState(() {
       _selectedMain = mainCat;
@@ -85,7 +84,10 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final data = context.watch<SettingsProvider>().meetingCategory;
+    return ListenableBuilder(
+      listenable: SettingsProvider.shared,
+      builder: (context, _) {
+        final data = SettingsProvider.shared.meetingCategory;
     if (data == null || data.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -201,6 +203,8 @@ class _CategoryPickerSheetState extends State<CategoryPickerSheet> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }

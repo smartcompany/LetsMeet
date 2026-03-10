@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
+import '../app_auth_provider.dart';
 import '../config/auth_config.dart';
 import '../models/user.dart';
 import '../screens/profile_setup_screen.dart';
@@ -16,24 +17,17 @@ class AuthRequiredContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider<User>>(
-      builder: (context, authProvider, _) {
-        if (!authProvider.isInitialized && !authProvider.isInitializing) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            context.read<AuthProvider<User>>().initialize();
-          });
+    return ListenableBuilder(
+      listenable: AppAuthProvider.shared,
+      builder: (context, _) {
+        // 로그인 안 되어 있으면 로그인 안내 화면
+        if (!AppAuthProvider.shared.isLoggedIn() ||
+            AppAuthProvider.shared.needProfileSetup()) {
+          return const _LoginPromptContent();
         }
 
-        if (!authProvider.isLoggedIn()) {
-          return _LoginPromptContent(authProvider: authProvider);
-        }
-
-        if (authProvider.needProfileSetup()) {
-          return const ProfileSetupScreen(embeddedInProfile: true);
-        }
-
-        if (authProvider.userProfile == null) {
+        // 로그인·프로필 로딩 중
+        if (AppAuthProvider.shared.userProfile == null) {
           return const Center(child: CircularProgressIndicator());
         }
 
@@ -43,11 +37,9 @@ class AuthRequiredContent extends StatelessWidget {
   }
 }
 
-/// 로그인 안내 + 로그인 버튼 (로그인 성공 시 필요하면 프로필 설정 화면 push)
+/// 로그인 안내 + 로그인 버튼
 class _LoginPromptContent extends StatelessWidget {
-  final AuthProvider<User> authProvider;
-
-  const _LoginPromptContent({required this.authProvider});
+  const _LoginPromptContent();
 
   @override
   Widget build(BuildContext context) {
@@ -128,21 +120,23 @@ class _LoginPromptContent extends StatelessWidget {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AuthScreen<User>(config: authConfig),
+        builder: (context) => ListenableProvider<AuthProvider<User>>.value(
+          value: AppAuthProvider.shared,
+          child: AuthScreen<User>(config: authConfig),
+        ),
         fullscreenDialog: true,
       ),
     );
 
     if (result != true || !context.mounted) return;
 
-    final ap = context.read<AuthProvider<User>>();
     for (var i = 0; i < 50 && context.mounted; i++) {
-      if (!ap.isLoading) break;
+      if (!AppAuthProvider.shared.isLoading) break;
       await Future.delayed(const Duration(milliseconds: 100));
     }
     if (!context.mounted) return;
 
-    final u = context.read<AuthProvider<User>>().userProfile;
+    final u = AppAuthProvider.shared.userProfile;
     final needSetup = u == null ||
         (authConfig.shouldShowProfileSetup != null &&
             authConfig.shouldShowProfileSetup!(u));

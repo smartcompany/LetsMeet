@@ -50,12 +50,6 @@ dependencies:
   # Image picker (share_lib에 포함, 압축 로직 내장)
   image_picker: ^1.0.7
 
-  # 사진/앨범 권한 요청 (Android 13+ READ_MEDIA_IMAGES 등)
-  permission_handler: ^11.3.1
-
-  # Android API 레벨 확인 (권한 요청 분기)
-  device_info_plus: ^11.1.0
-
   # Date/time picker
   flutter_datetime_picker_plus: ^2.1.0
   calendar_date_picker2: ^2.0.1

@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
+import '../app_auth_provider.dart';
 
 class NotificationProvider with ChangeNotifier {
-  NotificationProvider({required ApiService apiService}) : _apiService = apiService;
-  final ApiService _apiService;
+  NotificationProvider._();
+  static final NotificationProvider shared = NotificationProvider._();
 
   int _unreadCount = 0;
   Map<String, int> _pendingCounts = {};
@@ -14,18 +15,13 @@ class NotificationProvider with ChangeNotifier {
 
   Future<void> loadUnreadCount() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
+      if (!AppAuthProvider.shared.isLoggedIn()) {
         _unreadCount = 0;
         _pendingCounts = {};
         notifyListeners();
         return;
       }
-      final token = await user.getIdToken();
-      if (token != null) {
-        _apiService.setToken(token);
-      }
-      final counts = await _apiService.getPendingApplicationCounts();
+      final counts = await ApiService.shared.getPendingApplicationCounts();
       _pendingCounts = counts;
       _unreadCount = counts.values.fold<int>(0, (sum, c) => sum + c);
       notifyListeners();

@@ -10,7 +10,10 @@ import 'package:intl/intl.dart';
 import '../utils/ugc_moderation.dart';
 
 class MyFeedsScreen extends StatefulWidget {
-  const MyFeedsScreen({super.key});
+  /// 피드 탭 등에서 "수정" 선택 시 이 피드로 수정 모드로 진입
+  final Feed? editFeed;
+
+  const MyFeedsScreen({super.key, this.editFeed});
 
   @override
   State<MyFeedsScreen> createState() => _MyFeedsScreenState();
@@ -30,7 +33,15 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMyFeeds();
+    _loadMyFeeds().then((_) {
+      if (!mounted) return;
+      final editFeed = widget.editFeed;
+      if (editFeed != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _startEdit(editFeed);
+        });
+      }
+    });
   }
 
   @override
@@ -43,15 +54,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
   Future<void> _loadMyFeeds() async {
     setState(() => _isLoading = true);
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-      final feeds = await apiService.getMyFeeds();
+      final feeds = await ApiService.shared.getMyFeeds();
       setState(() {
         _myFeeds = feeds..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
@@ -124,16 +127,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
     if (confirmed != true) return;
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      await apiService.deleteFeed(feedId);
+      await ApiService.shared.deleteFeed(feedId);
       await _loadMyFeeds();
     } catch (e) {
       if (mounted) {
@@ -156,19 +150,10 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
       List<String> imageUrls = List.from(_existingImageUrls);
       for (var image in _selectedImages) {
         try {
-          final url = await apiService.uploadFeedImage(File(image.path));
+          final url = await ApiService.shared.uploadFeedImage(File(image.path));
           imageUrls.add(url);
         } catch (e) {
           setState(() => _isSubmitting = false);
@@ -183,14 +168,14 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
       if (_editingFeedId != null) {
         // 수정 모드
-        await apiService.updateFeed(
+        await ApiService.shared.updateFeed(
           _editingFeedId!,
           content: text,
           imageUrls: imageUrls,
         );
       } else {
         // 생성 모드
-        await apiService.createFeed(
+        await ApiService.shared.createFeed(
           content: text,
           imageUrls: imageUrls,
         );

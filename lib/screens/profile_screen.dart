@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:share_lib/share_lib_auth.dart';
-import '../models/user.dart';
+import '../app_auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import 'profile_setup_screen.dart';
@@ -14,6 +12,7 @@ import 'blocked_list_screen.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_style_section.dart';
 import '../widgets/auth_required_content.dart';
+import '../utils/in_app_browser.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -21,9 +20,10 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AuthRequiredContent(
-      child: Consumer<AuthProvider<User>>(
-        builder: (context, authProvider, _) {
-          final userProfile = authProvider.userProfile!;
+      child: ListenableBuilder(
+        listenable: AppAuthProvider.shared,
+        builder: (context, _) {
+          final userProfile = AppAuthProvider.shared.userProfile!;
           return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -46,9 +46,10 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               // 나를 설명하면 이런 편이에요 (스타일 섹션)
-              Consumer<SettingsProvider>(
-                builder: (context, settingsProvider, _) {
-                  final opts = settingsProvider.profileStyleOptions;
+              ListenableBuilder(
+                listenable: SettingsProvider.shared,
+                builder: (context, _) {
+                  final opts = SettingsProvider.shared.profileStyleOptions;
                   if (opts == null) return const SizedBox.shrink();
                   String? _resolve(String? id, List<ProfileStyleOption> list) {
                     if (id == null) return null;
@@ -143,15 +144,17 @@ class ProfileScreen extends StatelessWidget {
                     },
                   ),
                   _MenuItem(
-                    icon: Icons.settings_rounded,
-                    title: '설정',
+                    icon: Icons.privacy_tip_outlined,
+                    title: '앱 개인정보 처리',
                     onTap: () {
-                      // 설정 화면으로 이동 (추후 구현)
+                      openUrlInApp(
+                        'https://smartcompany.github.io/LetsMeet/privacy.html',
+                      );
                     },
                   ),
                   _MenuItem(
                     icon: Icons.delete_forever_rounded,
-                    title: '계정 삭제',
+                    title: '계정 탈퇴',
                     titleColor: const Color(0xFFDC2626),
                     onTap: () {
                       Navigator.push(
@@ -215,7 +218,7 @@ class ProfileScreen extends StatelessWidget {
 
                       if (confirm == true && context.mounted) {
                         await clearCommunityGuidelinesAccepted();
-                        await authProvider.logout();
+                        await AppAuthProvider.shared.logout();
                       }
                     },
                   ),

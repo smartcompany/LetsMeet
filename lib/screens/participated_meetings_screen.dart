@@ -18,7 +18,6 @@ class ParticipatedMeetingsScreen extends StatefulWidget {
 class _ParticipatedMeetingsScreenState extends State<ParticipatedMeetingsScreen> {
   bool _isLoading = true;
   List<Meeting> _meetings = [];
-  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -34,10 +33,7 @@ class _ParticipatedMeetingsScreenState extends State<ParticipatedMeetingsScreen>
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (token != null) _apiService.setToken(token);
-
-      final all = await _apiService.getMeetings(applicantId: uid);
+      final all = await ApiService.shared.getMeetings(applicantId: uid);
       final participated = all.where((m) {
         final status = m.userApplication?['status']?.toString();
         return status == 'approved' && m.hostId != uid;

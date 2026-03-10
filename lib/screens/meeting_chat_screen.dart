@@ -22,7 +22,6 @@ class MeetingChatScreen extends StatefulWidget {
 
 class _MeetingChatScreenState extends State<MeetingChatScreen> {
   final ChatService _chatService = ChatService();
-  final ApiService _apiService = ApiService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String? _userName;
@@ -43,7 +42,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
 
     try {
       final token = await currentUser.getIdToken();
-      if (token != null) _apiService.setToken(token);
+      if (token != null) ApiService.shared.setToken(token);
 
       final room = await _chatService.getChatRoom(widget.roomId);
       if (room == null || !mounted) return;
@@ -52,7 +51,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       final memberProfileUrls = <String, String>{};
       for (final memberId in room.memberIds) {
         try {
-          final profile = await _apiService.getUserProfile(memberId);
+          final profile = await ApiService.shared.getUserProfile(memberId);
           final url = profile['profile_image_url'] as String?;
           if (url != null && url.isNotEmpty) {
             memberProfileUrls[memberId] = url;
@@ -106,7 +105,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
         final recipientIds =
             room.memberIds.where((id) => id != currentUser.uid).toList();
         if (recipientIds.isNotEmpty) {
-          _apiService.notifyChatMessage(
+          ApiService.shared.notifyChatMessage(
             recipientUserIds: recipientIds,
             title: '${room.meetingTitle}',
             body: messageText.length > 50
@@ -141,7 +140,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       final token = await currentUser.getIdToken();
-      if (token != null) _apiService.setToken(token);
+      if (token != null) ApiService.shared.setToken(token);
     }
     if (!mounted) return;
     showModalBottomSheet(
@@ -149,7 +148,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _ChatSettingsPanel(
-        apiService: _apiService,
+        apiService: ApiService.shared,
         room:
             _room ??
             ChatRoom(

@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
-import 'package:share_lib/share_lib_auth.dart';
+import '../app_auth_provider.dart';
 import '../models/user.dart';
 import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
@@ -50,7 +48,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    final userProfile = context.read<AuthProvider<User>>().userProfile;
+    final userProfile = AppAuthProvider.shared.userProfile;
     if (userProfile != null) {
       _nameController.text =
           userProfile.fullName.isNotEmpty ? userProfile.fullName : '';
@@ -63,22 +61,25 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _backgroundImageUrl = userProfile.backgroundImageUrl;
     }
     // 프로필 설정 진입 시 약관 미동의면 약관 먼저 표시. 거절 시 로그아웃 + (push된 경우) pop
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _ensureGuidelinesThenContinue());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 푸시 직후 리빌드로 인한 중복 호출/즉시 pop 방지: 한 프레임 더 지연 후 푸시
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (!mounted) return;
+        _ensureGuidelinesThenContinue();
+      });
+    });
   }
 
   Future<void> _ensureGuidelinesThenContinue() async {
     final accepted = await isCommunityGuidelinesAccepted();
     if (accepted) return;
     if (!mounted) return;
+
     final ok = await ensureCommunityGuidelinesAccepted(context);
     if (!mounted) return;
     if (!ok) {
-      final authProvider = context.read<AuthProvider<User>>();
-
-      Navigator.of(context, rootNavigator: true).pop();
-
-      await authProvider.logout();
+      await AppAuthProvider.shared.logout();
+      Navigator.of(context).pop();
     }
   }
 
@@ -100,7 +101,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
-      final api = ApiService();
+      final api = ApiService.shared;
       final url = await api.uploadProfileImage(File(picked.path));
       if (!mounted) return;
       setState(() {
@@ -140,20 +141,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       debugPrint(
           '🟡 [ProfileSetup] 배경 업로드 시작: path=${fileToUpload.path}, size=$fileSize bytes');
 
-      final api = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          api.setToken(token);
-          debugPrint('🟡 [ProfileSetup] 토큰 설정 완료');
-        } else {
-          debugPrint('⚠️ [ProfileSetup] Firebase 토큰 없음');
-        }
-      } else {
-        debugPrint('⚠️ [ProfileSetup] Firebase 로그인 없음');
-      }
-
+      final api = ApiService.shared;
       final url = await api.uploadBackgroundImage(fileToUpload);
       debugPrint('✅ [ProfileSetup] 배경 업로드 성공: $url');
       if (!mounted) return;
@@ -193,31 +181,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
-      final apiService = context.read<ApiService>();
-      final authProvider = context.read<AuthProvider<User>>();
-
-      final result = await apiService.updateProfile(
+      final result = await ApiService.shared.updateProfile(
         fullName: _nameController.text.trim(),
         gender: _selectedGender,
-        bio: _bioController.text.trim().isNotEmpty
-            ? _bioController.text.trim()
-            : null,
+        bio: _bioController.text.trim(),
         profileImageUrl: _profileImageUrl,
         backgroundImageUrl: _backgroundImageUrl,
         lifeSceneId: _selectedLifeSceneId,
         selfStatementId: _selectedSelfStatementId,
         interactionStyleId: _selectedInteractionStyleId,
-        kakaoId: authProvider.kakaoId,
+        kakaoId: AppAuthProvider.shared.kakaoId,
       );
 
       if (!mounted) return;
 
       if (result is Map && result['custom_token'] != null) {
-        await authProvider.signInWithCustomToken(
+        await AppAuthProvider.shared.signInWithCustomToken(
           result['custom_token'] as String,
         );
       } else {
-        authProvider.setUserProfile(result as User);
+        AppAuthProvider.shared.setUserProfile(result as User);
       }
 
       if (!mounted) return;
@@ -380,7 +363,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   maxLines: 4,
                   minLines: 3,
                   decoration: InputDecoration(
-                    hintText: '간단한 자기소개를 입력해주세요 (선택)',
+                    hintText: '간단한 자기소개를 입력해주세요',
                     alignLabelWithHint: true,
                     filled: true,
                     fillColor: Colors.white,
@@ -408,6 +391,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       vertical: 16,
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '자기소개를 입력해주세요';
+                    }
+                    if (value.trim().length < 2) {
+                      return '자기소개는 2자 이상 입력해주세요';
+                    }
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 32),
@@ -470,9 +462,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 32),
 
                 // 나를 설명하면 이런 편이에요 (스타일 섹션)
-                Consumer<SettingsProvider>(
-                  builder: (context, settingsProvider, _) {
-                    final opts = settingsProvider.profileStyleOptions;
+                ListenableBuilder(
+                  listenable: SettingsProvider.shared,
+                  builder: (context, _) {
+                    final opts = SettingsProvider.shared.profileStyleOptions;
                     if (opts == null) {
                       return const Center(
                         child: Padding(
@@ -535,11 +528,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   children: [
                     OutlinedButton(
                       onPressed: () {
-                        final userProfile =
-                            context.read<AuthProvider<User>>().userProfile;
-                        final opts = context
-                            .read<SettingsProvider>()
-                            .profileStyleOptions;
+                        final userProfile = AppAuthProvider.shared.userProfile;
+                        final opts =
+                            SettingsProvider.shared.profileStyleOptions;
                         String? _findText(
                             List<ProfileStyleOption>? list, String? id) {
                           if (list == null || id == null) return null;

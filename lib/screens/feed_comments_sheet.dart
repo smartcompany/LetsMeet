@@ -39,15 +39,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   Future<void> _loadComments() async {
     setState(() => _isLoading = true);
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-      final comments = await apiService.getFeedComments(widget.feedId);
+      final comments = await ApiService.shared.getFeedComments(widget.feedId);
       final blocked = await UGCModeration.getBlockedUserIds();
       setState(() {
         _comments = comments
@@ -77,16 +69,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     setState(() => _isSubmitting = true);
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      final comment = await apiService.createFeedComment(
+      final comment = await ApiService.shared.createFeedComment(
         widget.feedId,
         text,
       );

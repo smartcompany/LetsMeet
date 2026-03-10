@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 import '../models/meeting.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
@@ -139,8 +138,11 @@ class MeetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meetingProvider = context.watch<MeetingProvider>();
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    return ListenableBuilder(
+      listenable: MeetingProvider.shared,
+      builder: (context, _) {
+        final meetingProvider = MeetingProvider.shared;
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final myStatus = _getMyMeetingStatus(
       showMyMeetingsOnly: meetingProvider.showMyMeetingsOnly,
       currentUserId: currentUserId,
@@ -386,6 +388,8 @@ class MeetingCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+      },
     );
   }
 

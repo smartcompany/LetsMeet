@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart' as share_lib;
 import '../config/auth_config.dart';
 import '../models/user.dart' as app_models;
+import '../app_auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/meeting_chat_screen.dart';
 import '../services/api_service.dart';
@@ -126,7 +126,6 @@ class UserProfileView extends StatefulWidget {
 }
 
 class _UserProfileViewState extends State<UserProfileView> {
-  final ApiService _apiService = ApiService();
   final ChatService _chatService = ChatService();
   app_models.User? _user;
   bool _isOpeningChat = false;
@@ -148,12 +147,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   Future<void> _loadProfile() async {
     try {
-      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (token != null) _apiService.setToken(token);
-    } catch (_) {}
-
-    try {
-      final data = await _apiService.getUserProfile(widget.userId);
+      final data = await ApiService.shared.getUserProfile(widget.userId);
       if (!mounted) return;
 
       final trustScore = (data['trust_score'] ?? 0) is int
@@ -306,7 +300,7 @@ class _UserProfileViewState extends State<UserProfileView> {
   }
 
   Widget _buildProfileStyleSection() {
-    final opts = context.read<SettingsProvider>().profileStyleOptions;
+    final opts = SettingsProvider.shared.profileStyleOptions;
     if (opts == null) return const SizedBox.shrink();
     final lifeScene = widget.previewStyleTexts?.lifeScene ??
         _resolveStyleText(_user!.lifeSceneId, optsKey: 0);
@@ -333,7 +327,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   String? _resolveStyleText(String? id, {required int optsKey}) {
     if (id == null || id.isEmpty) return null;
-    final opts = context.read<SettingsProvider>().profileStyleOptions;
+    final opts = SettingsProvider.shared.profileStyleOptions;
     if (opts == null) return null;
     final list = optsKey == 0
         ? opts.lifeScenes
@@ -349,8 +343,7 @@ class _UserProfileViewState extends State<UserProfileView> {
 
   Future<void> _openDirectChat() async {
     if (_isOpeningChat || _user == null) return;
-    final authUser =
-        context.read<share_lib.AuthProvider<app_models.User>>().userProfile;
+    final authUser = AppAuthProvider.shared.userProfile;
     if (authUser == null) {
       if (mounted) {
         ScaffoldMessenger.of(

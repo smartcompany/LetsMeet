@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../app_auth_provider.dart';
 
 class BlockedListScreen extends StatefulWidget {
   const BlockedListScreen({super.key});
@@ -11,7 +12,6 @@ class BlockedListScreen extends StatefulWidget {
 }
 
 class _BlockedListScreenState extends State<BlockedListScreen> {
-  final ApiService _api = ApiService();
   bool _loading = true;
   List<BlockedUserInfo> _list = [];
   final Set<String> _unblockingIds = {};
@@ -19,17 +19,7 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        setState(() {
-          _loading = false;
-          _list = [];
-        });
-        return;
-      }
-      final token = await user.getIdToken();
-      if (token != null) _api.setToken(token);
-      final list = await _api.getBlockedUsers();
+      final list = await ApiService.shared.getBlockedUsers();
       if (mounted) {
         setState(() {
           _list = list;
@@ -50,14 +40,15 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
     if (_unblockingIds.contains(user.userId)) return;
     setState(() => _unblockingIds.add(user.userId));
     try {
-      await _api.unblockUser(user.userId);
+      await ApiService.shared.unblockUser(user.userId);
       if (mounted) {
         setState(() {
           _list.removeWhere((e) => e.userId == user.userId);
           _unblockingIds.remove(user.userId);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${user.fullName ?? user.userId} 님 차단을 해제했습니다.')),
+          SnackBar(
+              content: Text('${user.fullName ?? user.userId} 님 차단을 해제했습니다.')),
         );
       }
     } catch (e) {
@@ -114,26 +105,36 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                       final u = _list[index];
                       final isUnblocking = _unblockingIds.contains(u.userId);
                       return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.dividerColor.withOpacity(0.5)),
+                          border: Border.all(
+                              color: AppTheme.dividerColor.withOpacity(0.5)),
                         ),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundImage: u.profileImageUrl != null && u.profileImageUrl!.isNotEmpty
+                            backgroundImage: u.profileImageUrl != null &&
+                                    u.profileImageUrl!.isNotEmpty
                                 ? NetworkImage(u.profileImageUrl!)
                                 : null,
-                            child: u.profileImageUrl == null || u.profileImageUrl!.isEmpty
+                            child: u.profileImageUrl == null ||
+                                    u.profileImageUrl!.isEmpty
                                 ? Text(
-                                    (u.fullName?.isNotEmpty == true ? u.fullName!.substring(0, 1) : '?').toUpperCase(),
-                                    style: const TextStyle(color: AppTheme.textSecondaryColor),
+                                    (u.fullName?.isNotEmpty == true
+                                            ? u.fullName!.substring(0, 1)
+                                            : '?')
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                        color: AppTheme.textSecondaryColor),
                                   )
                                 : null,
                           ),
                           title: Text(
-                            u.fullName?.isNotEmpty == true ? u.fullName! : '알 수 없음',
+                            u.fullName?.isNotEmpty == true
+                                ? u.fullName!
+                                : '알 수 없음',
                             style: const TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 16,
@@ -152,11 +153,13 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                                         ),
                                         actions: [
                                           TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
                                             child: const Text('취소'),
                                           ),
                                           TextButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
                                             child: const Text('차단 해제'),
                                           ),
                                         ],
@@ -168,7 +171,8 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   )
                                 : const Text('차단 해제'),
                           ),

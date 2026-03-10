@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:share_lib/share_lib_auth.dart' as share_lib;
-import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:intl/intl.dart';
-import '../models/user.dart';
+import '../app_auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/chat_service.dart';
 import '../widgets/auth_required_content.dart';
@@ -20,130 +17,151 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
+  Stream<List<ChatRoom>>? _chatRoomsStream;
+  String? _streamUserId;
+
+  Stream<List<ChatRoom>> _getChatRoomsStream(BuildContext context) {
+    final uid = AppAuthProvider.shared.userProfile?.id;
+    if (uid == _streamUserId && _chatRoomsStream != null) {
+      return _chatRoomsStream!;
+    }
+    _streamUserId = uid;
+    _chatRoomsStream = _chatService.getUserChatRoomsStream();
+    return _chatRoomsStream!;
+  }
 
   @override
   Widget build(BuildContext context) {
     return AuthRequiredContent(
-      child: StreamBuilder<List<ChatRoom>>(
-          stream: _chatService.getUserChatRoomsStream(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      child: ListenableBuilder(
+        listenable: AppAuthProvider.shared,
+        builder: (context, _) {
+          if (!AppAuthProvider.shared.isInitialized ||
+              AppAuthProvider.shared.isInitializing) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return StreamBuilder<List<ChatRoom>>(
+            stream: _getChatRoomsStream(context),
+            builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '채팅방 목록을 불러올 수 없습니다',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      snapshot.error.toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textTertiaryColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final chatRooms = snapshot.data ?? [];
-
-            if (chatRooms.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.primaryColor.withOpacity(0.1),
-                            AppTheme.primaryColor.withOpacity(0.05),
-                          ],
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.forum_rounded,
-                        size: 64,
-                        color: AppTheme.primaryColor.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      '채팅 목록이 없습니다',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '승인된 모임의 채팅방이 여기에 표시됩니다',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textTertiaryColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final meetingRooms =
-                chatRooms.where((r) => r.meetingId.isNotEmpty).toList();
-            final personalRooms =
-                chatRooms.where((r) => r.meetingId.isEmpty).toList();
-            final currentUser =
-                context.read<share_lib.AuthProvider<User>>().userProfile;
-
-            return _ChatListWithTabs(
-              meetingRooms: meetingRooms,
-              personalRooms: personalRooms,
-              chatService: _chatService,
-              onUnreadTotalChanged: widget.onUnreadCountChanged,
-              onRoomTap: (room) {
-                String title = room.meetingTitle;
-                if (title.isEmpty) {
-                  title = room.memberIds
-                      .where((id) => id != currentUser?.id)
-                      .map((id) => room.memberNames[id] ?? '')
-                      .join(', ');
-                  if (title.isEmpty) title = '채팅';
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MeetingChatScreen(
-                      roomId: room.id,
-                      meetingTitle: title,
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '채팅방 목록을 불러올 수 없습니다',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppTheme.textSecondaryColor,
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textTertiaryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             );
+          }
+
+          final chatRooms = snapshot.data ?? [];
+
+          if (chatRooms.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryColor.withOpacity(0.1),
+                          AppTheme.primaryColor.withOpacity(0.05),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.forum_rounded,
+                      size: 64,
+                      color: AppTheme.primaryColor.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    '채팅 목록이 없습니다',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '승인된 모임의 채팅방이 여기에 표시됩니다',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textTertiaryColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final meetingRooms =
+              chatRooms.where((r) => r.meetingId.isNotEmpty).toList();
+          final personalRooms =
+              chatRooms.where((r) => r.meetingId.isEmpty).toList();
+          final currentUser =
+              AppAuthProvider.shared.userProfile;
+
+          return _ChatListWithTabs(
+            meetingRooms: meetingRooms,
+            personalRooms: personalRooms,
+            chatService: _chatService,
+            onUnreadTotalChanged: widget.onUnreadCountChanged,
+            onRoomTap: (room) {
+              String title = room.meetingTitle;
+              if (title.isEmpty) {
+                title = room.memberIds
+                    .where((id) => id != currentUser?.id)
+                    .map((id) => room.memberNames[id] ?? '')
+                    .join(', ');
+                if (title.isEmpty) title = '채팅';
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MeetingChatScreen(
+                    roomId: room.id,
+                    meetingTitle: title,
+                  ),
+                ),
+              );
+            },
+          );
           },
-        ),
+          );
+        },
+      ),
     );
   }
 }
@@ -425,9 +443,10 @@ class _ChatRoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUserId =
+        AppAuthProvider.shared.userProfile?.id;
     final otherMembers = room.memberIds
-        .where((id) => id != currentUser?.uid)
+        .where((id) => id != currentUserId)
         .map((id) => room.memberNames[id] ?? '알 수 없음')
         .toList();
 
@@ -438,7 +457,7 @@ class _ChatRoomCard extends StatelessWidget {
         : room.meetingTitle;
     final otherMemberId = isDirectMessage
         ? room.memberIds.firstWhere(
-            (id) => id != currentUser?.uid,
+            (id) => id != currentUserId,
             orElse: () => '',
           )
         : '';

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
-import 'package:share_lib/share_lib_auth.dart' as auth_lib;
 import '../models/meeting.dart';
-import '../models/user.dart' as app_user;
+import '../app_auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -19,13 +17,11 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = true;
   List<Meeting> _meetingsWithPending = [];
-  final ApiService _apiService = ApiService();
 
   Future<void> _load(BuildContext context) async {
     setState(() => _isLoading = true);
-    final provider = context.read<NotificationProvider>();
-    await provider.loadUnreadCount();
-    final counts = provider.pendingCounts;
+    await NotificationProvider.shared.loadUnreadCount();
+    final counts = NotificationProvider.shared.pendingCounts;
     if (counts.isEmpty) {
       if (mounted) {
         setState(() {
@@ -41,9 +37,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      final token = await user.getIdToken();
-      if (token != null) _apiService.setToken(token);
-      final meetings = await _apiService.getMeetings(
+      final meetings = await ApiService.shared.getMeetings(
         hostId: user.uid,
         includeCompleted: false,
       );
@@ -78,9 +72,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: Colors.white,
         foregroundColor: AppTheme.textPrimaryColor,
       ),
-      body: Consumer<auth_lib.AuthProvider<app_user.User>>(
-        builder: (context, authProvider, _) {
-          if (authProvider.needProfileSetup()) {
+      body: ListenableBuilder(
+        listenable: AppAuthProvider.shared,
+        builder: (context, _) {
+          if (AppAuthProvider.shared.needProfileSetup()) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -127,8 +122,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             );
           }
-          final provider = context.watch<NotificationProvider>();
-          return RefreshIndicator(
+          return ListenableBuilder(
+            listenable: NotificationProvider.shared,
+            builder: (context, _) {
+              final provider = NotificationProvider.shared;
+              return RefreshIndicator(
             onRefresh: () => _load(context),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -169,6 +167,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 );
               },
             ),
+          );
+            },
           );
         },
       ),

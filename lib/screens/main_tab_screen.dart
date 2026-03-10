@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_localization.dart';
@@ -36,7 +35,7 @@ class _MainTabScreenState extends State<MainTabScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<NotificationProvider>().loadUnreadCount();
+      NotificationProvider.shared.loadUnreadCount();
       _checkPendingEvaluations();
     });
   }
@@ -67,11 +66,7 @@ class _MainTabScreenState extends State<MainTabScreen>
 
     setState(() => _isCheckingEvaluations = true);
     try {
-      final api = context.read<ApiService>();
-      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (token != null) api.setToken(token);
-
-      final pending = await api.getPendingEvaluations();
+      final pending = await ApiService.shared.getPendingEvaluations();
       if (!mounted || pending.isEmpty) return;
 
       final first = pending.first;
@@ -84,21 +79,48 @@ class _MainTabScreenState extends State<MainTabScreen>
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           title: const Text('모임 평가'),
-          content: Text(
-            '참여한 모임 "$title"에 대한 평가가 있습니다.\n평가를 작성하시겠습니까?',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('참여한 모임에 대한 평가가 있습니다.'),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('이 모임에 대해 평가를 작성하시겠습니까?'),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                _submitEmptyAndCheckNext(meetingId!, api);
+                _submitEmptyAndCheckNext(meetingId!);
               },
               child: const Text('평가 안함'),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                _openEvaluationScreenWithLoading(meetingId!, api);
+                _openEvaluationScreenWithLoading(meetingId!);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
@@ -116,15 +138,14 @@ class _MainTabScreenState extends State<MainTabScreen>
     }
   }
 
-  Future<void> _submitEmptyAndCheckNext(String meetingId, ApiService api) async {
+  Future<void> _submitEmptyAndCheckNext(String meetingId) async {
     try {
-      await api.submitMeetingEvaluation(meetingId);
+      await ApiService.shared.submitMeetingEvaluation(meetingId);
     } catch (_) {}
     if (mounted) _checkPendingEvaluations();
   }
 
-  Future<void> _openEvaluationScreenWithLoading(
-      String meetingId, ApiService api) async {
+  Future<void> _openEvaluationScreenWithLoading(String meetingId) async {
     final navigator = Navigator.of(context);
     showDialog<void>(
       context: context,
@@ -148,7 +169,7 @@ class _MainTabScreenState extends State<MainTabScreen>
       ),
     );
     try {
-      final meeting = await api.getMeeting(meetingId);
+      final meeting = await ApiService.shared.getMeeting(meetingId);
       if (!mounted) return;
       navigator.pop();
       if (!mounted) return;
@@ -190,8 +211,8 @@ class _MainTabScreenState extends State<MainTabScreen>
       case 0:
         {
           // 모임 탭 AppBar - 검색, 찜, 알림 아이콘
-          final meetingProvider = context.watch<MeetingProvider>();
-          final notificationProvider = context.watch<NotificationProvider>();
+          final meetingProvider = MeetingProvider.shared;
+          final notificationProvider = NotificationProvider.shared;
           if (_showSearchBar) {
             return AppBar(
               elevation: 0,
@@ -298,7 +319,7 @@ class _MainTabScreenState extends State<MainTabScreen>
                     ),
                   );
                   if (context.mounted) {
-                    context.read<NotificationProvider>().loadUnreadCount();
+                    NotificationProvider.shared.loadUnreadCount();
                   }
                 },
               ),
@@ -367,10 +388,17 @@ class _MainTabScreenState extends State<MainTabScreen>
         systemNavigationBarIconBrightness: Brightness.dark,
         systemNavigationBarDividerColor: Colors.transparent,
       ),
-      child: Scaffold(
+      child: ListenableBuilder(
+        listenable: Listenable.merge([
+          MeetingProvider.shared,
+          NotificationProvider.shared,
+        ]),
+        builder: (context, _) => Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         extendBody: false,
         extendBodyBehindAppBar: false,
+        // 키보드가 올라와도 레이아웃을 줄이지 않음 → FAB이 화면 맨 아래에 남아 키보드 뒤로 가려짐
+        resizeToAvoidBottomInset: false,
         appBar: _buildAppBar(context),
         body: SafeArea(
           child: IndexedStack(
@@ -514,6 +542,7 @@ class _MainTabScreenState extends State<MainTabScreen>
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
+    ),
     );
   }
 }

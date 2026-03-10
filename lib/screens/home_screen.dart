@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../providers/meeting_provider.dart';
 import '../widgets/meeting_card.dart';
 import '../widgets/filter_bar.dart';
@@ -17,20 +16,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 인증 없이도 모임 목록 로드 가능
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final meetingProvider = context.read<MeetingProvider>();
-      if (meetingProvider.meetings.isEmpty && !meetingProvider.isLoading) {
-        meetingProvider.loadMeetings();
+      MeetingProvider.shared.loadFavorites();
+      if (MeetingProvider.shared.meetings.isEmpty &&
+          !MeetingProvider.shared.isLoading) {
+        MeetingProvider.shared.loadMeetings();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<MeetingProvider>(
-      builder: (context, meetingProvider, child) {
+    return ListenableBuilder(
+      listenable: MeetingProvider.shared,
+      builder: (context, _) {
+        final meetingProvider = MeetingProvider.shared;
         // 로딩 중이면 로딩 표시
         if (meetingProvider.isLoading && meetingProvider.meetings.isEmpty) {
           return const Center(
@@ -152,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ),
         );
-        },
+      },
     );
   }
 }

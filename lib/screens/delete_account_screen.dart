@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'community_guidelines_screen.dart';
 
-/// 계정 삭제 화면 (App Store Guideline 5.1.1(v))
+/// 계정 탈퇴 화면 (App Store Guideline 5.1.1(v))
 class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
 
@@ -24,26 +23,19 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     setState(() => _isDeleting = true);
 
     try {
-      final api = context.read<ApiService>();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) api.setToken(token);
-      }
-
-      await api.deleteAccount();
+      await ApiService.shared.deleteAccount();
       await clearCommunityGuidelinesAccepted();
       await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('계정이 삭제되었습니다.')),
+        const SnackBar(content: Text('계정이 탈퇴되었습니다.')),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('계정 삭제 실패: $e')),
+        SnackBar(content: Text('계정 탈퇴 실패: $e')),
       );
     } finally {
       if (mounted) setState(() => _isDeleting = false);
@@ -54,7 +46,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('계정 삭제'),
+        title: const Text('계정 탈퇴'),
       ),
       body: SafeArea(
         child: Padding(
@@ -63,7 +55,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '계정을 삭제하면 다음 데이터가 모두 삭제되며, 복구할 수 없습니다.',
+                '계정을 탈퇴하면 다음 데이터가 모두 삭제되며, 복구할 수 없습니다.',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -88,7 +80,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        '이 작업은 되돌릴 수 없습니다. 정말 삭제하시겠습니까?',
+                        '이 작업은 되돌릴 수 없습니다. 정말 탈퇴하시겠습니까?',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.red.shade900,
@@ -112,7 +104,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     child: Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Text(
-                        '위 내용을 확인했으며, 계정 삭제에 동의합니다.',
+                        '위 내용을 확인했으며, 계정 탈퇴에 동의합니다.',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.textSecondaryColor,
@@ -141,7 +133,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('계정 삭제'),
+                      : const Text('계정 탈퇴'),
                 ),
               ),
             ],

@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../providers/meeting_provider.dart';
@@ -16,6 +14,7 @@ import '../utils/region_hierarchy.dart';
 import '../utils/photo_permission_helper.dart';
 import 'meeting_detail_screen.dart';
 import 'package:share_lib/share_lib.dart';
+import '../app_auth_provider.dart';
 
 class CreateMeetingScreen extends StatefulWidget {
   final Meeting? meeting;
@@ -186,7 +185,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           initialQuery: _locationController.text.trim(),
           onLocationSelected: (address, latitude, longitude) {
             setState(() {
-              _locationController.text = RegionHierarchy.normalizeForFilter(address);
+              _locationController.text =
+                  RegionHierarchy.normalizeForFilter(address);
               _locationError = null;
               _hasUnsavedChanges = true;
             });
@@ -200,7 +200,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     final now = DateTime.now();
     final firstDate = DateTime(now.year, now.month, now.day);
     final lastDate = DateTime(now.year + 1);
-    DateTime tempDate = _selectedDateTime ?? firstDate.add(const Duration(days: 1));
+    DateTime tempDate =
+        _selectedDateTime ?? firstDate.add(const Duration(days: 1));
     TimeOfDay tempTime = _selectedDateTime != null
         ? TimeOfDay.fromDateTime(_selectedDateTime!)
         : const TimeOfDay(hour: 19, minute: 0);
@@ -247,7 +248,15 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                                   calendarType: CalendarDatePicker2Type.single,
                                   firstDate: firstDate,
                                   lastDate: lastDate,
-                                  weekdayLabels: ['일', '월', '화', '수', '목', '금', '토'],
+                                  weekdayLabels: [
+                                    '일',
+                                    '월',
+                                    '화',
+                                    '수',
+                                    '목',
+                                    '금',
+                                    '토'
+                                  ],
                                   firstDayOfWeek: 1,
                                   controlsHeight: 44,
                                   dayTextStyle: const TextStyle(fontSize: 15),
@@ -255,7 +264,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
-                                  selectedDayHighlightColor: Theme.of(context).primaryColor,
+                                  selectedDayHighlightColor:
+                                      Theme.of(context).primaryColor,
                                   todayTextStyle: TextStyle(
                                     color: Theme.of(context).primaryColor,
                                     fontWeight: FontWeight.bold,
@@ -277,7 +287,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                                   tempTime.format(context),
                                   style: TextStyle(
                                     fontSize: 16,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -332,8 +343,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
             );
           },
         );
-    },
-  );
+      },
+    );
 
     if (result != null && mounted) {
       setState(() {
@@ -350,8 +361,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       void doGenerateIntro() async {
         if (!mounted) return;
         try {
-          final api = context.read<ApiService>();
-          final intro = await api.generateMeetingIntroduction(
+          final intro = await ApiService.shared.generateMeetingIntroduction(
             content: _descriptionController.text.trim(),
           );
           if (mounted) {
@@ -518,20 +528,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       final approvalType =
           _approvalType == '즉시 참여' ? 'immediate' : 'approval_required';
 
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
       // 이미지 업로드
       List<String> imageUrls = List.from(_existingImageUrls);
       for (final imageFile in _selectedImages) {
         try {
-          final imageUrl = await apiService.uploadMeetingImage(imageFile);
+          final imageUrl =
+              await ApiService.shared.uploadMeetingImage(imageFile);
           imageUrls.add(imageUrl);
         } catch (e) {
           debugPrint('이미지 업로드 실패: $e');
@@ -539,7 +541,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       }
 
       if (widget.meeting != null) {
-        await apiService.updateMeeting(
+        await ApiService.shared.updateMeeting(
           widget.meeting!.id,
           title: _titleController.text.trim(),
           meetingDate: meetingDateTime,
@@ -555,12 +557,13 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           ageRangeMax: _ageRangeMax,
           approvalType: approvalType,
           imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
-          applicationQuestions: _enableQuestion && _questionController.text.trim().isNotEmpty
-              ? [_questionController.text.trim()]
-              : [],
+          applicationQuestions:
+              _enableQuestion && _questionController.text.trim().isNotEmpty
+                  ? [_questionController.text.trim()]
+                  : [],
         );
       } else {
-        final meeting = await apiService.createMeeting(
+        final meeting = await ApiService.shared.createMeeting(
           title: _titleController.text.trim(),
           meetingDate: meetingDateTime,
           location: _locationController.text.trim(),
@@ -577,17 +580,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           ageRangeMax: _ageRangeMax,
           approvalType: approvalType,
           imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
-          applicationQuestions: _enableQuestion && _questionController.text.trim().isNotEmpty
-              ? [_questionController.text.trim()]
-              : null,
+          applicationQuestions:
+              _enableQuestion && _questionController.text.trim().isNotEmpty
+                  ? [_questionController.text.trim()]
+                  : null,
         );
 
         // Refresh meetings list
-        final meetingProvider = Provider.of<MeetingProvider>(
-          context,
-          listen: false,
-        );
-        await meetingProvider.loadMeetings();
+        await MeetingProvider.shared.loadMeetings();
 
         if (!mounted) return;
 
@@ -645,7 +645,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         return;
       }
       // 서버가 field 없이 금지어 메시지만 보낸 경우: 본문 아래에 표시
-      final errMsg = e is Exception ? e.toString().replaceFirst('Exception: ', '') : e.toString();
+      final errMsg = e is Exception
+          ? e.toString().replaceFirst('Exception: ', '')
+          : e.toString();
       if (errMsg.contains('허용되지 않는 표현')) {
         setState(() => _descriptionError = errMsg);
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1263,7 +1265,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       disabledBackgroundColor: Colors.grey[300],
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

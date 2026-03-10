@@ -32,7 +32,6 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
   bool _isDeletingChatRoom = false;
   String? _errorMessage;
   String? _chatRoomId;
-  final ApiService _apiService = ApiService();
   final ChatService _chatService = ChatService();
 
   @override
@@ -45,15 +44,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
 
   Future<void> _loadMeeting() async {
     try {
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          _apiService.setToken(token);
-        }
-      }
-
-      final meeting = await _apiService.getMeeting(widget.meetingId);
+      final meeting = await ApiService.shared.getMeeting(widget.meetingId);
       if (mounted) {
         setState(() {
           _meeting = meeting;
@@ -90,22 +81,14 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         _errorMessage = null;
       });
 
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          _apiService.setToken(token);
-        }
-      }
-
-      final applications = await _apiService.getApplications(widget.meetingId);
+      final applications = await ApiService.shared.getApplications(widget.meetingId);
 
       if (!mounted) return;
 
       // 즉시 참여 모임인데 대기 중인 신청이 있으면 자동 승인 (기존 데이터 정합성)
       Meeting? meeting = _meeting;
       if (meeting == null) {
-        meeting = await _apiService.getMeeting(widget.meetingId);
+        meeting = await ApiService.shared.getMeeting(widget.meetingId);
         if (mounted) setState(() => _meeting = meeting);
       }
       var finalApplications = applications;
@@ -113,12 +96,12 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
         for (final app in applications) {
           if (Application.fromJson(app).status == ApplicationStatus.pending) {
             try {
-              await _apiService.approveApplication(app['id'] as String);
+              await ApiService.shared.approveApplication(app['id'] as String);
             } catch (_) {}
           }
         }
         if (!mounted) return;
-        finalApplications = await _apiService.getApplications(widget.meetingId);
+        finalApplications = await ApiService.shared.getApplications(widget.meetingId);
       }
 
       if (!mounted) return;
@@ -139,7 +122,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
     if (_processingApplicationId != null) return;
     setState(() => _processingApplicationId = applicationId);
     try {
-      await _apiService.approveApplication(applicationId);
+      await ApiService.shared.approveApplication(applicationId);
       if (!mounted) return;
       _loadApplications();
     } catch (e) {
@@ -180,7 +163,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
     if (_processingApplicationId != null) return;
     setState(() => _processingApplicationId = applicationId);
     try {
-      await _apiService.rejectApplication(applicationId);
+      await ApiService.shared.rejectApplication(applicationId);
       if (!mounted) return;
       _loadApplications();
     } catch (e) {
@@ -425,7 +408,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       debugPrint('🔵 [채팅방생성] 3. getCurrentUser() 호출 (API)');
       final memberProfileUrls = <String, String>{};
       try {
-        final appUser = await _apiService.getCurrentUser();
+        final appUser = await ApiService.shared.getCurrentUser();
         debugPrint('🔵 [채팅방생성] 3. getCurrentUser() 완료');
         if (appUser.profileImageUrl != null &&
             appUser.profileImageUrl!.isNotEmpty) {
@@ -458,7 +441,7 @@ class _MeetingApplicationsScreenState extends State<MeetingApplicationsScreen> {
       final recipientIds = approvedUsers.map((u) => u['userId'] as String).toList();
       if (recipientIds.isNotEmpty) {
         unawaited(
-          _apiService
+          ApiService.shared
               .notifyChatMessage(
                 recipientUserIds: recipientIds,
                 title: '${_meeting!.title}',

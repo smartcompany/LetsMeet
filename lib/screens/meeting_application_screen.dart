@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:share_lib/share_lib_auth.dart' as share_lib;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
-import '../models/user.dart' as app_models;
+import '../app_auth_provider.dart';
 import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -37,7 +35,6 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
   Meeting? _meeting;
   bool _isLoading = true;
   String? _errorMessage;
-  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -55,15 +52,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
         _errorMessage = null;
       });
 
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          _apiService.setToken(token);
-        }
-      }
-
-      final meeting = await _apiService.getMeeting(widget.meetingId);
+      final meeting = await ApiService.shared.getMeeting(widget.meetingId);
 
       if (!mounted) return;
 
@@ -152,10 +141,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
     });
 
     try {
-      final meetingProvider = context.read<MeetingProvider>();
-      final authProvider =
-          context.read<share_lib.AuthProvider<app_models.User>>();
-      final userProfile = authProvider.userProfile;
+      final userProfile = AppAuthProvider.shared.userProfile;
 
       if (userProfile == null) {
         throw Exception('로그인이 필요합니다');
@@ -166,7 +152,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
           ? _answer1Controller.text.trim()
           : null;
 
-      await meetingProvider.applyToMeeting(
+      await MeetingProvider.shared.applyToMeeting(
         widget.meetingId,
         userProfile.id,
         answer1 ?? '',

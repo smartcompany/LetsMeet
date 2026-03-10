@@ -54,6 +54,15 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                         '이 앱은 다른 사용자와의 만남 및 소통을 위한 공간입니다. '
                         '아래 내용을 반드시 확인하시고, 동의하시는 경우에만 이용을 계속해 주세요.',
                       ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '부적절한 콘텐츠 및 악성 이용자에 대해 관용이 없음을 원칙으로 합니다. '
+                        '이용약관(EULA) 및 커뮤니티 가이드라인 위반 시 콘텐츠 삭제 및 계정 제한이 있을 수 있습니다.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       const Text(
                         '1. 허용되지 않는 콘텐츠',
@@ -77,7 +86,8 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                       ),
                       const SizedBox(height: 8),
                       _Bullet('피드와 댓글에서 부적절한 내용을 신고할 수 있습니다.'),
-                      _Bullet('다른 사용자를 차단하면 해당 사용자의 콘텐츠가 더 이상 노출되지 않습니다.'),
+                      _Bullet(
+                          '다른 사용자를 차단하면 해당 사용자의 콘텐츠가 피드에서 즉시 제거되며, 차단 정보는 운영팀 검토에 활용됩니다.'),
                       const SizedBox(height: 16),
                       const Text(
                         '3. 운영자의 조치',
@@ -90,23 +100,29 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                       _Bullet('신고 접수 후 24시간 내 검토·조치합니다.'),
                       _Bullet(
                           '가이드라인을 심각하게 위반하는 경우 콘텐츠 삭제 및 계정 이용 제한이 이루어질 수 있습니다.'),
+                      const SizedBox(height: 20),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: _agreed,
+                            onChanged: (v) =>
+                                setState(() => _agreed = v ?? false),
+                          ),
+                          const Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 12),
+                              child: Text(
+                                '위 내용을 모두 읽었으며, 이용약관(EULA) 및 커뮤니티 가이드라인에 동의합니다. '
+                                '부적절한 콘텐츠·악성 이용에 대한 관용 없음을 인지했습니다.',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _agreed,
-                    onChanged: (v) => setState(() => _agreed = v ?? false),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      '위 내용을 모두 읽었으며, 커뮤니티 가이드라인 및 이용 약관에 동의합니다.',
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -174,7 +190,8 @@ Future<bool> ensureCommunityGuidelinesAccepted(BuildContext context) async {
   if (ScreenStackObserver.instance.isOnStack(communityGuidelinesRouteName)) {
     return true; // 이미 스택에 있으면 중복 push 안 함
   }
-  final result = await Navigator.of(context).push<bool>(
+  if (!context.mounted) return false;
+  final result = await Navigator.of(context, rootNavigator: true).push<bool>(
     MaterialPageRoute(
       builder: (_) => const CommunityGuidelinesScreen(),
       fullscreenDialog: true,

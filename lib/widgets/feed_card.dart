@@ -9,17 +9,27 @@ class FeedCard extends StatelessWidget {
   final Feed feed;
   final VoidCallback onLike;
   final VoidCallback onComment;
+  /// 본인 글이 아니면 신고/차단, 본인 글이면 수정/삭제. currentUserId가 null이면 항상 신고/차단만 표시.
+  final String? currentUserId;
   final VoidCallback? onReport;
   final VoidCallback? onBlockUser;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const FeedCard({
     super.key,
     required this.feed,
     required this.onLike,
     required this.onComment,
+    this.currentUserId,
     this.onReport,
     this.onBlockUser,
+    this.onEdit,
+    this.onDelete,
   });
+
+  bool get _isMyFeed =>
+      currentUserId != null && feed.authorId == currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -80,22 +90,41 @@ class FeedCard extends StatelessWidget {
                   ),
                   PopupMenuButton<String>(
                     onSelected: (value) {
-                      if (value == 'report' && onReport != null) {
-                        onReport!();
-                      } else if (value == 'block' && onBlockUser != null) {
-                        onBlockUser!();
+                      if (_isMyFeed) {
+                        if (value == 'edit' && onEdit != null) {
+                          onEdit!();
+                        } else if (value == 'delete' && onDelete != null) {
+                          onDelete!();
+                        }
+                      } else {
+                        if (value == 'report' && onReport != null) {
+                          onReport!();
+                        } else if (value == 'block' && onBlockUser != null) {
+                          onBlockUser!();
+                        }
                       }
                     },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'report',
-                        child: Text('신고'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'block',
-                        child: Text('사용자 차단'),
-                      ),
-                    ],
+                    itemBuilder: (context) => _isMyFeed
+                        ? [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('수정'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('삭제'),
+                            ),
+                          ]
+                        : [
+                            const PopupMenuItem(
+                              value: 'report',
+                              child: Text('신고'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'block',
+                              child: Text('사용자 차단'),
+                            ),
+                          ],
                   ),
                 ],
               ),

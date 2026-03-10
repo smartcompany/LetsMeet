@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:share_lib/share_lib_auth.dart' as share_lib;
-import 'package:share_lib/share_lib.dart' hide AuthHelper;
 import '../models/meeting.dart';
-import '../models/user.dart' as app_models;
+import '../app_auth_provider.dart';
 import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
@@ -13,6 +10,7 @@ import '../utils/auth_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import '../utils/ugc_moderation.dart';
+import '../widgets/map_app_selector.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_chat_screen.dart';
 import 'meeting_evaluation_screen.dart';
@@ -54,16 +52,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _errorMessage = null;
       });
 
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      final meeting = await apiService.getMeeting(widget.meetingId);
+      final meeting = await ApiService.shared.getMeeting(widget.meetingId);
       final chatRoomId = await _resolveChatRoomId(meeting);
 
       bool? evalSubmitted;
@@ -71,7 +60,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           _canAccessMeetingChat(meeting)) {
         try {
           evalSubmitted =
-              await apiService.getMeetingEvaluationStatus(widget.meetingId);
+              await ApiService.shared
+                  .getMeetingEvaluationStatus(widget.meetingId);
         } catch (_) {
           evalSubmitted = true; // 오류 시 이미 제출된 것으로 처리
         }
@@ -198,7 +188,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     });
 
     try {
-      final apiService = ApiService();
+      final apiService = ApiService.shared;
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
         final token = await firebaseUser.getIdToken();
@@ -227,12 +217,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         ? (meeting.meetingLink ?? '온라인')
         : (meeting.locationDetail ?? meeting.location);
 
-    await MapService.showMapAppPicker(
-      context: context,
-      locationName: locationName,
-      // TODO: 모임에 좌표 정보가 있다면 추가
-      // latitude: meeting.latitude,
-      // longitude: meeting.longitude,
+    await MapAppSelector.showMapAppSelector(
+      context,
+      query: locationName.isEmpty ? null : locationName,
     );
   }
 
@@ -267,12 +254,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
     try {
       debugPrint('🔵 [MeetingDetailScreen] MeetingProvider 가져오기');
-      final meetingProvider = context.read<MeetingProvider>();
+      final meetingProvider = MeetingProvider.shared;
       debugPrint('🔵 [MeetingDetailScreen] AuthProvider 가져오기');
-      final authProvider =
-          context.read<share_lib.AuthProvider<app_models.User>>();
-
-      final userProfile = authProvider.userProfile;
+      final userProfile = AppAuthProvider.shared.userProfile;
       if (userProfile == null) {
         debugPrint('❌ [MeetingDetailScreen] 사용자 정보 없음');
         throw Exception('로그인이 필요합니다');
@@ -456,8 +440,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final isSuspended = meeting.status == MeetingStatus.suspended;
     final isUnderReview = meeting.status == MeetingStatus.underReview;
 
-    return Consumer<MeetingProvider>(
-      builder: (context, meetingProvider, child) {
+    return ListenableBuilder(
+      listenable: MeetingProvider.shared,
+      builder: (context, _) {
         return Stack(
           children: [
             // 스크롤 가능한 콘텐츠

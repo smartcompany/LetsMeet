@@ -58,7 +58,8 @@ class ProfileStyleOption {
 /// - meetingCategory: 모임 카테고리 계층
 /// - 광고: AdService에 전달 (ios_ad, android_ad, ref, down_load_url 등)
 class SettingsProvider extends ChangeNotifier {
-  SettingsProvider();
+  SettingsProvider._();
+  static final SettingsProvider shared = SettingsProvider._();
 
   /// 서버에서 받은 meetingCategory (대분류 -> 소분류 목록)
   Map<String, List<String>>? _meetingCategory;

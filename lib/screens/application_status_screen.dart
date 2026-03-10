@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:share_lib/share_lib_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
-import '../models/user.dart';
+import '../app_auth_provider.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
@@ -24,20 +22,21 @@ class ApplicationStatusScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('신청 상태'),
       ),
-      body: Consumer2<MeetingProvider, AuthProvider<User>>(
-        builder: (context, meetingProvider, authProvider, child) {
+      body: ListenableBuilder(
+        listenable: MeetingProvider.shared,
+        builder: (context, _) {
+          final meetingProvider = MeetingProvider.shared;
           final meeting = meetingProvider.getMeetingById(meetingId);
 
           if (meeting == null) {
             return const Center(child: Text('모임을 찾을 수 없습니다'));
           }
 
-          // 로그인 안 되어 있으면 로그인 필요 안내
-          if (!authProvider.isLoggedIn()) {
+          if (!AppAuthProvider.shared.isLoggedIn()) {
             return const Center(child: Text('로그인이 필요합니다'));
           }
 
-          final userProfile = authProvider.userProfile;
+          final userProfile = AppAuthProvider.shared.userProfile;
           if (userProfile == null) {
             return const Center(child: Text('사용자를 찾을 수 없습니다'));
           }

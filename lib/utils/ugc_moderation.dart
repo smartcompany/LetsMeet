@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/feed.dart';
 import '../models/feed_comment.dart';
 import '../models/meeting.dart';
 import '../services/api_service.dart';
+import '../app_auth_provider.dart';
 
 /// 유저 생성 콘텐츠(피드/댓글)에 대한 간단한 필터·신고·차단 유틸리티.
 /// 차단 목록은 서버(DB)에 저장되며, GET /users/me/blocked-ids 로 조회합니다.
@@ -24,13 +24,9 @@ class UGCModeration {
 
   /// 서버(DB)에서 차단한 사용자 ID 목록 조회. 비로그인 시 빈 집합.
   static Future<Set<String>> getBlockedUserIds() async {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null) return {};
+    if (!AppAuthProvider.shared.isLoggedIn()) return {};
     try {
-      final api = ApiService();
-      final token = await firebaseUser.getIdToken();
-      if (token != null) api.setToken(token);
-      final list = await api.getBlockedUserIds();
+      final list = await ApiService.shared.getBlockedUserIds();
       return list.toSet();
     } catch (e) {
       debugPrint('getBlockedUserIds: $e');
@@ -103,15 +99,7 @@ class UGCModeration {
     if (confirmed != true) return;
 
     try {
-      final api = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          api.setToken(token);
-        }
-      }
-      await api.blockUser(userId);
+      await ApiService.shared.blockUser(userId);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -214,15 +202,7 @@ class UGCModeration {
     if (result != true || selectedReason == null) return;
 
     try {
-      final api = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          api.setToken(token);
-        }
-      }
-      await api.reportContent(
+      await ApiService.shared.reportContent(
         targetType: targetType,
         targetId: targetId,
         targetUserId: targetUserId,

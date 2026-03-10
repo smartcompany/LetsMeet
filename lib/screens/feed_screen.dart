@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/feed.dart';
+import '../app_auth_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/feed_card.dart';
@@ -58,16 +59,7 @@ class FeedScreenState extends State<FeedScreen> {
     });
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      await apiService.toggleFeedLike(feed.id);
+      await ApiService.shared.toggleFeedLike(feed.id);
       // 성공 시 피드 목록 새로고침
       await _loadFeeds();
     } catch (e) {
@@ -98,19 +90,44 @@ class FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  Future<void> _deleteFeed(Feed feed) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('피드 삭제'),
+        content: const Text('정말로 이 피드를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ApiService.shared.deleteFeed(feed.id);
+      if (!mounted) return;
+      setState(() => _feeds.removeWhere((f) => f.id == feed.id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('피드 삭제 실패: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _loadFeeds() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-      final feeds = await apiService.getFeeds();
+      final feeds = await ApiService.shared.getFeeds();
       final blocked = await UGCModeration.getBlockedUserIds();
       if (!mounted) return;
       setState(() {
@@ -142,8 +159,12 @@ class FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildWriteFeedPrompt() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const SizedBox.shrink();
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return const SizedBox.shrink();
+
+    final userProfile = AppAuthProvider.shared.userProfile;
+    final profileImageUrl = userProfile?.profileImageUrl;
+    final displayName = userProfile?.fullName ?? firebaseUser.displayName ?? '';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -167,13 +188,13 @@ class FeedScreenState extends State<FeedScreen> {
             CircleAvatar(
               radius: 20,
               backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-              backgroundImage: user.photoURL != null
-                  ? NetworkImage(user.photoURL!)
+              backgroundImage: profileImageUrl != null && profileImageUrl.isNotEmpty
+                  ? NetworkImage(profileImageUrl)
                   : null,
-              child: user.photoURL == null
+              child: profileImageUrl == null || profileImageUrl.isEmpty
                   ? Text(
-                      (user.displayName?.isNotEmpty == true
-                              ? user.displayName!.substring(0, 1)
+                      (displayName.isNotEmpty
+                              ? displayName.substring(0, 1)
                               : '?')
                           .toUpperCase(),
                       style: const TextStyle(
@@ -259,10 +280,13 @@ class FeedScreenState extends State<FeedScreen> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final feed = _feeds[index];
+                  final currentUserId =
+                      AppAuthProvider.shared.userProfile?.id;
                   return FeedCard(
                     feed: feed,
                     onLike: () => _toggleLike(feed),
                     onComment: () => _showComments(feed),
+                    currentUserId: currentUserId,
                     onReport: () => UGCModeration.reportFeed(context, feed),
                     onBlockUser: () async {
                       await UGCModeration.blockUser(
@@ -277,6 +301,17 @@ class FeedScreenState extends State<FeedScreen> {
                         );
                       });
                     },
+                    onEdit: () async {
+                      final updated = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              MyFeedsScreen(editFeed: feed),
+                        ),
+                      );
+                      if (updated == true && mounted) _loadFeeds();
+                    },
+                    onDelete: () => _deleteFeed(feed),
                   );
                 },
                 childCount: _feeds.length,

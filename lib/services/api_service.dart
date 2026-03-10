@@ -20,6 +20,16 @@ class ApiValidationException implements Exception {
 }
 
 class ApiService implements AuthServiceInterface {
+  static ApiService? _instance;
+
+  /// 싱글턴. 앱 전역에서 ApiService.shared 로 접근.
+  static ApiService get shared {
+    _instance ??= ApiService._();
+    return _instance!;
+  }
+
+  ApiService._();
+
   // Production server URL
   static String get baseUrl {
     return 'https://lets-meet-server.vercel.app/api';
@@ -103,20 +113,22 @@ class ApiService implements AuthServiceInterface {
     return User.fromJson(jsonDecode(response.body));
   }
 
-  /// 계정 삭제 (App Store Guideline 5.1.1(v) - 계정 생성 시 계정 삭제 제공)
+  /// 계정 탈퇴 (App Store Guideline 5.1.1(v) - 계정 생성 시 계정 삭제 제공)
   Future<void> deleteAccount() async {
     final response = await http.delete(
       Uri.parse('$baseUrl/users/me'),
       headers: _headers,
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      try {
-        final data = jsonDecode(response.body) as Map<String, dynamic>?;
-        throw Exception(data?['error'] ?? '계정 삭제에 실패했습니다.');
-      } catch (e) {
-        if (e is Exception) rethrow;
-        throw Exception('계정 삭제에 실패했습니다.');
+      String message = '계정 탈퇴에 실패했습니다.';
+      final body = response.body.trim();
+      if (body.isNotEmpty) {
+        try {
+          final data = jsonDecode(body) as Map<String, dynamic>?;
+          if (data?['error'] != null) message = data!['error'] as String;
+        } catch (_) {}
       }
+      throw Exception(message);
     }
   }
 

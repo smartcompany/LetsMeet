@@ -18,11 +18,10 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
   bool _isLoading = true;
   List<Meeting> _myMeetings = []; // 내가 만든 모임
   Map<String, int> _pendingCounts = {};
-  final ApiService _apiService = ApiService();
 
   Future<void> _loadPendingCounts() async {
     try {
-      final counts = await _apiService.getPendingApplicationCounts();
+      final counts = await ApiService.shared.getPendingApplicationCounts();
       if (mounted) setState(() => _pendingCounts = counts);
     } catch (_) {}
   }
@@ -47,11 +46,11 @@ class _MyMeetingsScreenState extends State<MyMeetingsScreen> {
         // 인증 토큰 설정
         final token = await currentUser.getIdToken();
         if (token != null) {
-          _apiService.setToken(token);
+          ApiService.shared.setToken(token);
         }
 
         // 내가 호스트인 모든 모임 조회 (완료된 모임 포함)
-        final myMeetings = await _apiService.getMeetings(
+        final myMeetings = await ApiService.shared.getMeetings(
           hostId: currentUser.uid,
           includeCompleted: true,
         );

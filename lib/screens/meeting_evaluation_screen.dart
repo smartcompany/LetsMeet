@@ -19,7 +19,6 @@ class MeetingEvaluationScreen extends StatefulWidget {
 }
 
 class _MeetingEvaluationScreenState extends State<MeetingEvaluationScreen> {
-  final ApiService _apiService = ApiService();
   int? _meetingRating;
   final Map<String, int> _participantScores = {};
   bool _isSubmitting = false;
@@ -48,19 +47,13 @@ class _MeetingEvaluationScreenState extends State<MeetingEvaluationScreen> {
   @override
   void initState() {
     super.initState();
-    _initToken();
-  }
-
-  Future<void> _initToken() async {
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token != null) _apiService.setToken(token);
   }
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
     debugPrint('🔵 [MeetingEvaluationScreen] 제출: meetingId=${widget.meeting.id}, status=${widget.meeting.status}');
     try {
-      await _apiService.submitMeetingEvaluation(
+      await ApiService.shared.submitMeetingEvaluation(
         widget.meeting.id,
         meetingRating: _meetingRating,
         participantScores:
@@ -87,7 +80,7 @@ class _MeetingEvaluationScreenState extends State<MeetingEvaluationScreen> {
   Future<void> _skip() async {
     setState(() => _isSubmitting = true);
     try {
-      await _apiService.submitMeetingEvaluation(widget.meeting.id);
+      await ApiService.shared.submitMeetingEvaluation(widget.meeting.id);
       if (!mounted) return;
       widget.onSubmitted?.call();
       Navigator.pop(context, true);

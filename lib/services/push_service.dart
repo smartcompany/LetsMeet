@@ -4,27 +4,16 @@ import 'package:flutter/foundation.dart';
 import '../firebase_options.dart';
 import 'api_service.dart';
 
-/// 백그라운드/종료 상태에서 수신한 메시지 핸들러
-/// main() 최상단에서 등록해야 함
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint(
-      '[PushService] Background: ${message.notification?.title} - ${message.notification?.body}');
-  debugPrint('[PushService] Data: ${message.data}');
-}
-
 /// 푸시 알림 서비스
 class PushService {
-  PushService({required ApiService apiService}) : _apiService = apiService;
-
-  final ApiService _apiService;
+  PushService._();
+  static final PushService shared = PushService._();
 
   /// 웹 푸시용 VAPID 키 (Firebase Console → Project settings → Cloud Messaging → Web Push certificates)
   static const String? _vapidKeyWeb =
       'BJMXYRTBLsB5no6QO7Ou3htptQK1A2cqsypxX6M4BBejdcY392-rieqFIMEpoaVQPALubRQO4S0Yvw1AdUW5fK0';
 
-  /// 푸시 알림 초기화 (권한 요청, 토큰 획득, 핸들러 등록)
+  /// 푸시 알림 초기화 (백그라운드 핸들러 등록, 권한 요청, 토큰 획득 등)
   Future<void> initialize() async {
     try {
       final messaging = FirebaseMessaging.instance;
@@ -57,6 +46,9 @@ class PushService {
       // 포그라운드 메시지
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
+      // 백그라운드 메시지
+      FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
+
       // 알림 탭으로 앱 열었을 때
       _handleInitialMessage();
       FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
@@ -67,11 +59,18 @@ class PushService {
 
   Future<void> _saveTokenToServer(String token) async {
     try {
-      await _apiService.saveFcmToken(token);
+      await ApiService.shared.saveFcmToken(token);
       debugPrint('[PushService] FCM 토큰 서버 저장 완료');
     } catch (e) {
       debugPrint('[PushService] 토큰 저장 실패: $e');
     }
+  }
+
+  @pragma('vm:entry-point')
+  Future<void> _onBackgroundMessage(RemoteMessage message) async {
+    debugPrint(
+        '[PushService] Background: ${message.notification?.title} - ${message.notification?.body}');
+    debugPrint('[PushService] Data: ${message.data}');
   }
 
   void _onForegroundMessage(RemoteMessage message) {

@@ -25,6 +25,21 @@ class MapAppSelector {
   }) async {
     final mapApps = <Map<String, dynamic>>[];
 
+    // iOS: 애플 지도를 맨 위에 (App Store Guideline 4.0 - native mapping option)
+    if (Platform.isIOS) {
+      mapApps.add({
+        'name': '애플 지도',
+        'icon': Icons.map_outlined,
+        'color': Colors.grey.shade700,
+        'url': query != null && query.isNotEmpty
+            ? 'maps://?q=${Uri.encodeComponent(query)}'
+            : 'maps://',
+        'fallbackUrl': query != null && query.isNotEmpty
+            ? 'https://maps.apple.com/?q=${Uri.encodeComponent(query)}'
+            : 'https://maps.apple.com',
+      });
+    }
+
     // 카카오맵
     mapApps.add({
       'name': '카카오맵',
@@ -75,21 +90,6 @@ class MapAppSelector {
         'fallbackUrl': query != null && query.isNotEmpty
             ? 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}'
             : 'https://www.google.com/maps',
-      });
-    }
-
-    // 애플 지도 (iOS만)
-    if (Platform.isIOS) {
-      mapApps.add({
-        'name': '애플 지도',
-        'icon': Icons.map_outlined,
-        'color': Colors.grey.shade700,
-        'url': query != null && query.isNotEmpty
-            ? 'maps://?q=${Uri.encodeComponent(query)}'
-            : 'maps://',
-        'fallbackUrl': query != null && query.isNotEmpty
-            ? 'https://maps.apple.com/?q=${Uri.encodeComponent(query)}'
-            : 'https://maps.apple.com',
       });
     }
 

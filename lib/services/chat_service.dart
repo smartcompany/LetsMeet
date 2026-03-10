@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// 디버그 시에만 채팅 상세 로그 출력 (실기기 로그 폭주 방지). true로 바꾸면 채팅 상세 로그 켜짐
+bool get _chatVerbose => kDebugMode && false;
 
 class ChatMessage {
   final String id;
@@ -109,27 +113,32 @@ class ChatService {
   // 명시적으로 기본 Firebase 앱의 Firestore 인스턴스 사용
   FirebaseFirestore get _firestore {
     final app = Firebase.app();
-    print(
-      '🔵 [ChatService] Firestore 인스턴스 확인 - 앱 이름: ${app.name}, 프로젝트 ID: ${app.options.projectId}',
-    );
+    if (_chatVerbose) {
+      debugPrint(
+        '🔵 [ChatService] Firestore 인스턴스 확인 - 앱 이름: ${app.name}, 프로젝트 ID: ${app.options.projectId}',
+      );
+    }
     return FirebaseFirestore.instanceFor(app: app);
   }
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Firebase 초기화 이후에만 접근되도록 getter로 지연 접근 (앱 시작 시 크래시 방지)
+  FirebaseAuth get _auth => FirebaseAuth.instance;
 
-  /// Firebase 프로젝트 정보 출력 (디버깅용)
+  /// Firebase 프로젝트 정보 출력 (디버깅용, _chatVerbose일 때만)
   void printFirebaseInfo() {
+    if (!_chatVerbose) return;
     try {
       final app = Firebase.app();
-      print('🔵 [ChatService] Firebase App 이름: ${app.name}');
-      print('🔵 [ChatService] Firebase 프로젝트 ID: ${app.options.projectId}');
-      print('🔵 [ChatService] Firebase 앱 ID: ${app.options.appId}');
-      print('🔵 [ChatService] Firebase 데이터베이스 URL: ${app.options.databaseURL}');
-      print(
+      debugPrint('🔵 [ChatService] Firebase App 이름: ${app.name}');
+      debugPrint('🔵 [ChatService] Firebase 프로젝트 ID: ${app.options.projectId}');
+      debugPrint('🔵 [ChatService] Firebase 앱 ID: ${app.options.appId}');
+      debugPrint(
+          '🔵 [ChatService] Firebase 데이터베이스 URL: ${app.options.databaseURL}');
+      debugPrint(
         '🔵 [ChatService] Firebase Console 링크: https://console.firebase.google.com/project/${app.options.projectId}/firestore',
       );
     } catch (e) {
-      print('⚠️ [ChatService] Firebase 정보 조회 오류: $e');
+      debugPrint('⚠️ [ChatService] Firebase 정보 조회 오류: $e');
     }
   }
 
@@ -250,7 +259,8 @@ class ChatService {
         final writeFuture = docRef.set(roomData);
         try {
           await writeFuture.timeout(const Duration(seconds: 8));
-          print('✅ [ChatService] Firestore.set() 서버 ACK 완료 문서 ID: ${docRef.id}');
+          print(
+              '✅ [ChatService] Firestore.set() 서버 ACK 완료 문서 ID: ${docRef.id}');
         } on TimeoutException {
           // 서버 ACK가 지연돼도 로컬 반영이 확인되면 진행 (무한 대기 방지)
           print('⚠️ [ChatService] Firestore.set() ACK 지연 - 로컬 반영 확인으로 진행');
@@ -391,11 +401,11 @@ class ChatService {
           .doc(roomId)
           .collection('messages')
           .add({
-            'userId': currentUser.uid,
-            'userName': userName,
-            'message': message,
-            'createdAt': Timestamp.now(),
-          });
+        'userId': currentUser.uid,
+        'userName': userName,
+        'message': message,
+        'createdAt': Timestamp.now(),
+      });
 
       // 채팅방 업데이트 시간 갱신
       await _firestore.collection('chatRooms').doc(roomId).update({
@@ -420,10 +430,10 @@ class ChatService {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => ChatMessage.fromFirestore(doc))
-              .toList();
-        });
+      return snapshot.docs
+          .map((doc) => ChatMessage.fromFirestore(doc))
+          .toList();
+    });
   }
 
   /// 1:1 채팅방 ID 생성 (두 사용자 UID를 정렬해 고정값 반환)
@@ -525,25 +535,22 @@ class ChatService {
   Stream<List<ChatRoom>> getUserChatRoomsStream() {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      print('⚠️ [ChatService] getUserChatRoomsStream: 로그인되지 않음');
+      if (_chatVerbose)
+        debugPrint('⚠️ [ChatService] getUserChatRoomsStream: 로그인되지 않음');
       return Stream.value([]);
     }
 
-    // Firebase 프로젝트 정보 출력
-    printFirebaseInfo();
+    if (_chatVerbose) printFirebaseInfo();
+    if (_chatVerbose) {
+      debugPrint(
+          '🔵 [ChatService] getUserChatRoomsStream: 현재 사용자 UID = ${currentUser.uid}');
+      debugPrint(
+          '🔵 [ChatService] getUserChatRoomsStream - Firestore 프로젝트 ID: ${_firestore.app.options.projectId}');
+      debugPrint(
+          '🔵 [ChatService] 쿼리 실행: chatRooms 컬렉션에서 memberIds에 ${currentUser.uid} 포함된 문서 조회');
+    }
 
-    print(
-      '🔵 [ChatService] getUserChatRoomsStream: 현재 사용자 UID = ${currentUser.uid}',
-    );
-
-    // Firestore 인스턴스 확인 및 로그 출력
     final firestore = _firestore;
-    print(
-      '🔵 [ChatService] getUserChatRoomsStream - Firestore 프로젝트 ID: ${firestore.app.options.projectId}',
-    );
-    print(
-      '🔵 [ChatService] 쿼리 실행: chatRooms 컬렉션에서 memberIds에 ${currentUser.uid} 포함된 문서 조회',
-    );
 
     // 인덱스 없이도 작동하도록 먼저 필터링하고, 클라이언트에서 정렬
     return firestore
@@ -551,31 +558,35 @@ class ChatService {
         .where('memberIds', arrayContains: currentUser.uid)
         .snapshots()
         .map((snapshot) {
-          print(
-            '🔵 [ChatService] getUserChatRoomsStream: ${snapshot.docs.length}개의 채팅방 발견',
-          );
-          final rooms = snapshot.docs
-              .map((doc) {
-                final room = ChatRoom.fromFirestore(doc);
-                print(
-                  '🔵 [ChatService] 채팅방: id=${room.id}, meetingId=${room.meetingId}, memberIds=${room.memberIds}',
-                );
-                print(
-                  '🔵 [ChatService] 사용자 UID가 memberIds에 포함되어 있는가? ${room.memberIds.contains(currentUser.uid)}',
-                );
-                return room;
-              })
-              .where(
-                (room) => room.memberIds.contains(currentUser.uid),
-              ) // 추가 필터링
-              .toList();
+      if (_chatVerbose) {
+        debugPrint(
+            '🔵 [ChatService] getUserChatRoomsStream: ${snapshot.docs.length}개의 채팅방 발견');
+      }
+      final rooms = snapshot.docs
+          .map((doc) {
+            final room = ChatRoom.fromFirestore(doc);
+            if (_chatVerbose) {
+              debugPrint(
+                '🔵 [ChatService] 채팅방: id=${room.id}, meetingId=${room.meetingId}, memberIds=${room.memberIds}',
+              );
+              debugPrint(
+                '🔵 [ChatService] 사용자 UID가 memberIds에 포함되어 있는가? ${room.memberIds.contains(currentUser.uid)}',
+              );
+            }
+            return room;
+          })
+          .where(
+            (room) => room.memberIds.contains(currentUser.uid),
+          ) // 추가 필터링
+          .toList();
 
-          // 클라이언트에서 updatedAt 기준으로 정렬
-          rooms.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      // 클라이언트에서 updatedAt 기준으로 정렬
+      rooms.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-          print('🔵 [ChatService] 최종 채팅방 수: ${rooms.length}');
-          return rooms;
-        });
+      if (_chatVerbose)
+        debugPrint('🔵 [ChatService] 최종 채팅방 수: ${rooms.length}');
+      return rooms;
+    });
   }
 
   static const String _lastReadPrefix = 'chat_last_read_';
@@ -673,10 +684,7 @@ class ChatService {
     try {
       // messages 하위 컬렉션 삭제
       while (true) {
-        final snapshot = await roomRef
-            .collection('messages')
-            .limit(200)
-            .get();
+        final snapshot = await roomRef.collection('messages').limit(200).get();
         if (snapshot.docs.isEmpty) break;
         final batch = _firestore.batch();
         for (final doc in snapshot.docs) {
@@ -702,9 +710,9 @@ class ChatService {
         .limit(1)
         .snapshots()
         .map((snapshot) {
-          if (snapshot.docs.isEmpty) return null;
-          return ChatMessage.fromFirestore(snapshot.docs.first);
-        });
+      if (snapshot.docs.isEmpty) return null;
+      return ChatMessage.fromFirestore(snapshot.docs.first);
+    });
   }
 
   /// 채팅방의 마지막 메시지 가져오기

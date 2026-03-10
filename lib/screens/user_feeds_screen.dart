@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../models/feed.dart';
+import '../models/user.dart' as app_models;
+import '../app_auth_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/feed_card.dart';
 import 'feed_comments_sheet.dart';
+import 'my_feeds_screen.dart';
+import '../utils/ugc_moderation.dart';
+import 'package:share_lib/share_lib_auth.dart' as share_lib;
 
 /// 특정 사용자가 작성한 피드 목록 화면 (프로필에서 "피드 보기" 선택 시)
 class UserFeedsScreen extends StatefulWidget {
@@ -56,16 +62,7 @@ class _UserFeedsScreenState extends State<UserFeedsScreen> {
     });
 
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-
-      await apiService.toggleFeedLike(feed.id);
+      await ApiService.shared.toggleFeedLike(feed.id);
       await _loadFeeds();
     } catch (e) {
       await _loadFeeds();
@@ -93,18 +90,43 @@ class _UserFeedsScreenState extends State<UserFeedsScreen> {
     }
   }
 
+  Future<void> _deleteFeed(Feed feed) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('피드 삭제'),
+        content: const Text('정말로 이 피드를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ApiService.shared.deleteFeed(feed.id);
+      if (!mounted) return;
+      setState(() => _feeds.removeWhere((f) => f.id == feed.id));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('피드 삭제 실패: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _loadFeeds() async {
     setState(() => _isLoading = true);
     try {
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          apiService.setToken(token);
-        }
-      }
-      final feeds = await apiService.getFeedsByUser(widget.userId);
+      final feeds = await ApiService.shared.getFeedsByUser(widget.userId);
       setState(() {
         _feeds = feeds..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _isLoading = false;
@@ -161,10 +183,35 @@ class _UserFeedsScreenState extends State<UserFeedsScreen> {
         itemCount: _feeds.length,
         itemBuilder: (context, index) {
           final feed = _feeds[index];
+          final currentUserId =
+              AppAuthProvider.shared.userProfile?.id;
           return FeedCard(
             feed: feed,
             onLike: () => _toggleLike(feed),
             onComment: () => _showComments(feed),
+            currentUserId: currentUserId,
+            onReport: () => UGCModeration.reportFeed(context, feed),
+            onBlockUser: () async {
+              await UGCModeration.blockUser(
+                context,
+                userId: feed.authorId,
+                userName: feed.authorName,
+              );
+              if (!context.mounted) return;
+              setState(() {
+                _feeds.removeWhere((f) => f.authorId == feed.authorId);
+              });
+            },
+            onEdit: () async {
+              final updated = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyFeedsScreen(editFeed: feed),
+                ),
+              );
+              if (updated == true && mounted) _loadFeeds();
+            },
+            onDelete: () => _deleteFeed(feed),
           );
         },
       ),

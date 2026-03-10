@@ -1,17 +1,19 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 import '../services/api_service.dart';
 import '../utils/category_hierarchy.dart';
 import '../utils/region_hierarchy.dart';
+import '../app_auth_provider.dart';
 
 class MeetingProvider with ChangeNotifier {
+  MeetingProvider._();
+  static final MeetingProvider shared = MeetingProvider._();
+
   List<Meeting> _meetings = [];
   List<Application> _applications = [];
   bool _isLoading = false;
-  final ApiService _apiService = ApiService();
 
   // 필터 상태
   int? _selectedAgeMin;
@@ -81,7 +83,7 @@ class MeetingProvider with ChangeNotifier {
     }
 
     if (_showMyMeetingsOnly) {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final uid = AppAuthProvider.shared.userProfile?.id;
       if (uid == null) return [];
       filtered = filtered.where((m) {
         final isHost = m.hostId == uid;
@@ -147,12 +149,8 @@ class MeetingProvider with ChangeNotifier {
     return filtered.toList();
   }
 
-  MeetingProvider() {
-    _loadFavorites();
-    loadMeetings();
-  }
-
-  Future<void> _loadFavorites() async {
+  /// 찜 목록을 로컬(SharedPreferences)에서 불러옵니다. 외부에서 필요 시 호출.
+  Future<void> loadFavorites() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final list = prefs.getStringList(_favoritesKey);
@@ -271,24 +269,10 @@ class MeetingProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('🔵 [MeetingProvider] ApiService 생성');
-      final apiService = ApiService();
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        debugPrint('🔵 [MeetingProvider] Firebase 토큰 가져오기');
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          debugPrint('✅ [MeetingProvider] 토큰 설정 완료');
-          apiService.setToken(token);
-        } else {
-          debugPrint('❌ [MeetingProvider] 토큰이 null');
-        }
-      } else {
-        debugPrint('❌ [MeetingProvider] Firebase 사용자 없음');
-      }
+      debugPrint('🔵 [MeetingProvider] ApiService 호출 준비');
 
       debugPrint('🔵 [MeetingProvider] API 호출 시작');
-      final application = await apiService.applyToMeeting(
+      final application = await ApiService.shared.applyToMeeting(
         meetingId,
         answer1: answer1.isNotEmpty ? answer1 : null,
         answer2: answer2,
@@ -315,17 +299,9 @@ class MeetingProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Firebase 토큰이 있으면 설정 (선택사항)
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser != null) {
-        final token = await firebaseUser.getIdToken();
-        if (token != null) {
-          _apiService.setToken(token);
-        }
-      }
-
+      // Firebase 토큰이 있으면 설정 (선택사항) — 현재는 AppAuthProvider에서 최초 한 번만 설정
       // API에서 모임 목록 가져오기 (인증 없이도 가능)
-      final meetings = await _apiService.getMeetings();
+      final meetings = await ApiService.shared.getMeetings();
 
       _meetings = meetings;
       _isLoading = false;
