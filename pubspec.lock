@@ -1056,9 +1056,11 @@ packages:
   share_lib:
     dependency: "direct main"
     description:
-      path: "../../flutter_share_lib"
-      relative: true
-    source: path
+      path: "."
+      ref: main
+      resolved-ref: "6edee57fa42d3c7a1298e52097f586b589fc116a"
+      url: "https://github.com/smartcompany/flutter_share_lib.git"
+    source: git
     version: "1.0.0"
   share_plus:
     dependency: "direct main"

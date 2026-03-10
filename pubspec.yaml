@@ -85,7 +85,9 @@ dependencies:
   
   # Shared library for authentication, image picker 등
   share_lib:
-    path: ../../flutter_share_lib
+    git:
+      url: https://github.com/smartcompany/flutter_share_lib.git
+      ref: main
   
   # i18n support
   flutter_localizations:
