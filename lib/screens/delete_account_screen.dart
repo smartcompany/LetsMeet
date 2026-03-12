@@ -23,7 +23,20 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     setState(() => _isDeleting = true);
 
     try {
+      // 1) 서버(Supabase)에서 계정 및 연관 데이터 삭제
       await ApiService.shared.deleteAccount();
+
+      // 2) Firebase Auth 계정 삭제 (가능한 경우)
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        try {
+          await currentUser.delete();
+        } catch (_) {
+          // 최근 로그인 요구 등으로 실패할 수 있으므로, 실패해도 앱 데이터 삭제는 완료된 상태로 처리
+        }
+      }
+
+      // 3) 약관 동의 플래그 초기화 및 로그아웃 처리
       await clearCommunityGuidelinesAccepted();
       await FirebaseAuth.instance.signOut();
 

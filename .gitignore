@@ -55,3 +55,4 @@ app.*.map.json
 ios/Runner.app.dSYM.zip
 ios/Runner.ipa
 report.xml
+pubspec_overrides.yaml
