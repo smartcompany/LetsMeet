@@ -516,7 +516,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                             itemBuilder: (context, index) {
                               return Image.network(
                                 meeting.imageUrls![index],
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
                                     color: Colors.grey[200],

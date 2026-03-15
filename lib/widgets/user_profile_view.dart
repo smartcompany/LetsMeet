@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:share_lib/share_lib_auth.dart' as share_lib;
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:provider/provider.dart';
+import 'package:share_lib/share_lib_auth.dart';
 import '../config/auth_config.dart';
 import '../models/user.dart' as app_models;
 import '../app_auth_provider.dart';
@@ -102,9 +103,11 @@ class UserProfileView extends StatefulWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => share_lib.AuthScreen<app_models.User>(
-            config: authConfig,
+          builder: (context) => ListenableProvider<AuthProvider<app_models.User>>.value(
+            value: AppAuthProvider.shared,
+            child: AuthScreen<app_models.User>(config: authConfig),
           ),
+          fullscreenDialog: true,
         ),
       );
       return;
