@@ -35,5 +35,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 ```yaml
 dependency_overrides:
   share_lib:
-    path: ../flutter_share_lib  # 실제 경로에 맞게 수정
+    path: ../../flutter_share_lib
 ```
+
+`LetsMeet/client` 기준이며, `flutter_share_lib`는 `LetsMeet`와 같은 상위 폴더에 둡니다 (예: `~/Projects/flutter_share_lib`).

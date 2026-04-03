@@ -30,4 +30,4 @@ final GoogleSignIn googleSignIn = GoogleSignIn(
 
 ## flutter_share_lib에 반영 후
 - LetsMeet `pubspec.yaml`에서 share_lib를 최신 커밋으로 올리거나,  
-  로컬 개발 시 `dependency_overrides`로 `path: ../flutter_share_lib` 사용.
+  로컬 개발 시 `client/pubspec_overrides.yaml`에 `path: ../../flutter_share_lib` 사용 (LetsMeet와 형제 폴더인 `~/Projects/flutter_share_lib`).

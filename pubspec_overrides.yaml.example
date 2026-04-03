@@ -1,0 +1,12 @@
+# iOS/Android 앱 빌드에서 로컬 share_lib 패치를 쓰려면 이 파일을 복사하세요:
+#   cp pubspec_overrides.yaml.example pubspec_overrides.yaml
+# (pubspec_overrides.yaml 은 .gitignore — 웹 빌드에는 넣지 않음 → git 의존성 사용)
+#
+# 웹 배포(Vercel 등): pubspec_overrides.yaml 이 없어야 share_lib 가 pubspec.yaml 의 git 을 따릅니다.
+#
+# 로컬 flutter_share_lib 저장소는 LetsMeet와 형제 폴더: ~/Projects/flutter_share_lib
+# (LetsMeet/client 기준 ../../flutter_share_lib)
+
+dependency_overrides:
+  share_lib:
+    path: ../../flutter_share_lib

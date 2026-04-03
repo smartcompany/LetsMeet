@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:share_lib/share_lib_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../app_auth_provider.dart';
 import '../models/user.dart';
 import '../providers/settings_provider.dart';
@@ -32,7 +36,7 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _nicknameController = TextEditingController();
   final _bioController = TextEditingController();
   bool _isSubmitting = false;
   String? _selectedGender; // 'male' or 'female'
@@ -48,18 +52,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
-    final userProfile = AppAuthProvider.shared.userProfile;
-    if (userProfile != null) {
-      _nameController.text =
-          userProfile.fullName.isNotEmpty ? userProfile.fullName : '';
-      _selectedLifeSceneId = userProfile.lifeSceneId;
-      _selectedSelfStatementId = userProfile.selfStatementId;
-      _selectedInteractionStyleId = userProfile.interactionStyleId;
-      _bioController.text = userProfile.bio ?? '';
-      _selectedGender = userProfile.gender;
-      _profileImageUrl = userProfile.profileImageUrl;
-      _backgroundImageUrl = userProfile.backgroundImageUrl;
-    }
+    _initProfileFieldsFromState();
+    // 최초 프로필 없음: Sign in with Apple 가이드상 닉네임 입력을 강제할 수 없어,
+    // 로그인에서 받은 표시 이름(Firebase / Apple 캐시)으로 닉네임 칸을 채웁니다.
+    unawaited(_prefillNicknameFromLoginWhenNoProfile());
+    // Apple 로그인 직후에는 Firebase displayName이 한 프레임 늦게 잡히는 경우가 있어
+    // reload 후 닉네임·사진을 다시 반영합니다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncDisplayNameAndPhotoFromFirebase();
+    });
     // 프로필 설정 진입 시 약관 미동의면 약관 먼저 표시. 거절 시 로그아웃 + (push된 경우) pop
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 푸시 직후 리빌드로 인한 중복 호출/즉시 pop 방지: 한 프레임 더 지연 후 푸시
@@ -68,6 +69,139 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         _ensureGuidelinesThenContinue();
       });
     });
+  }
+
+  void _initProfileFieldsFromState() {
+    final userProfile = AppAuthProvider.shared.userProfile;
+    if (userProfile != null) {
+      _nicknameController.text =
+          userProfile.fullName.isNotEmpty ? userProfile.fullName : '';
+      _selectedLifeSceneId = userProfile.lifeSceneId;
+      _selectedSelfStatementId = userProfile.selfStatementId;
+      _selectedInteractionStyleId = userProfile.interactionStyleId;
+      _bioController.text = userProfile.bio ?? '';
+      _selectedGender = userProfile.gender;
+      _profileImageUrl = userProfile.profileImageUrl;
+      _backgroundImageUrl = userProfile.backgroundImageUrl;
+    } else {
+      // 서버 프로필 없음(최초 소셜 로그인): 동기적으로 캐시된 Firebase 표시 이름·사진 반영
+      // (displayName이 아직 없으면 _prefillNicknameFromLoginWhenNoProfile / _sync에서 보강)
+      final fb = FirebaseAuth.instance.currentUser;
+      if (fb != null) {
+        final name = fb.displayName?.trim();
+        if (name != null && name.isNotEmpty) {
+          _nicknameController.text = name;
+        }
+        final photo = fb.photoURL;
+        if (photo != null && photo.isNotEmpty) {
+          _profileImageUrl = photo;
+        }
+      }
+    }
+  }
+
+  /// Firebase `displayName`(및 Apple 로컬 캐시)에서 로그인 시 받은 표시 이름을 가져옵니다.
+  Future<String> _resolveLoginDisplayNameForNickname() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.reload();
+    } catch (_) {}
+    final u = FirebaseAuth.instance.currentUser;
+    final n = u?.displayName?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    final prefs = await SharedPreferences.getInstance();
+    final fromPrefs = displayNameFromApplePrefs(prefs);
+    if (fromPrefs.isNotEmpty) return fromPrefs;
+    return '';
+  }
+
+  /// 서버 프로필이 없을 때(최초 설정) 닉네임 칸을 로그인 표시 이름으로 채웁니다.
+  Future<void> _prefillNicknameFromLoginWhenNoProfile() async {
+    if (!mounted) return;
+    if (AppAuthProvider.shared.userProfile != null) return;
+    if (_nicknameController.text.trim().isNotEmpty) return;
+
+    final resolved = await _resolveLoginDisplayNameForNickname();
+    if (!mounted || resolved.isEmpty) return;
+    setState(() {
+      _nicknameController.text = resolved;
+    });
+  }
+
+  /// Apple이 최초에만 넘긴 표시 이름을 share_lib가 저장한 값 → Firebase가 아직 비어 있을 때 닉네임 필드에 반영
+  Future<void> _applyCachedAppleDisplayNameIfNeeded() async {
+    if (!mounted) return;
+    final serverEmpty =
+        (AppAuthProvider.shared.userProfile?.fullName.trim().isEmpty ?? true);
+    if (!serverEmpty) return;
+    if (_nicknameController.text.trim().isNotEmpty) return;
+    final n = FirebaseAuth.instance.currentUser?.displayName?.trim();
+    if (n != null && n.isNotEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final cached = displayNameFromApplePrefs(prefs);
+    if (cached.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      _nicknameController.text = cached;
+    });
+  }
+
+  /// Sign in with Apple 직후 등 Firebase 프로필이 갱신된 뒤 표시 이름을 닉네임 필드에 반영합니다.
+  Future<void> _syncDisplayNameAndPhotoFromFirebase() async {
+    final fb = FirebaseAuth.instance.currentUser;
+    if (fb == null || !mounted) return;
+    try {
+      await fb.reload();
+    } catch (_) {
+      // 네트워크 등 — 기존 캐시 값으로 진행
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return;
+
+    final name = user.displayName?.trim();
+    final photo = user.photoURL;
+
+    // 서버에 저장된 닉네임이 없고, 칸이 비어 있으면 Firebase(Apple이 넘긴 표시 이름)로 채움
+    final serverName =
+        AppAuthProvider.shared.userProfile?.fullName.trim() ?? '';
+    final needsNameFromFirebase =
+        serverName.isEmpty && (_nicknameController.text.trim().isEmpty);
+    final hasFirebaseName = name != null && name.isNotEmpty;
+
+    if (needsNameFromFirebase && hasFirebaseName) {
+      setState(() {
+        _nicknameController.text = name;
+      });
+    } else {
+      await _applyCachedAppleDisplayNameIfNeeded();
+    }
+
+    if (_profileImageUrl == null || _profileImageUrl!.isEmpty) {
+      if (photo != null && photo.isNotEmpty) {
+        setState(() {
+          _profileImageUrl = photo;
+        });
+      }
+    }
+
+    // 한 번 더 지연 후 동기화 (Apple updateDisplayName 타이밍 대비)
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    try {
+      await FirebaseAuth.instance.currentUser?.reload();
+    } catch (_) {}
+    final u2 = FirebaseAuth.instance.currentUser;
+    if (u2 == null || !mounted) return;
+    final n2 = u2.displayName?.trim();
+    if (n2 != null &&
+        n2.isNotEmpty &&
+        _nicknameController.text.trim().isEmpty &&
+        (AppAuthProvider.shared.userProfile?.fullName.trim().isEmpty ?? true)) {
+      setState(() {
+        _nicknameController.text = n2;
+      });
+    }
+    await _applyCachedAppleDisplayNameIfNeeded();
   }
 
   Future<void> _ensureGuidelinesThenContinue() async {
@@ -85,7 +219,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nicknameController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -170,10 +304,54 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
 
     if (_selectedLifeSceneId == null || _selectedInteractionStyleId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('좋아하는 시간과 같이 있으면을 선택해주세요')),
-      );
+      final opts = SettingsProvider.shared.profileStyleOptions;
+      if (opts != null) {
+        ProfileStyleSection.showStylePickerSheet(
+          context,
+          lifeSceneId: _selectedLifeSceneId,
+          selfStatementId: _selectedSelfStatementId,
+          interactionStyleId: _selectedInteractionStyleId,
+          opts: opts,
+          onUpdate: ({
+            lifeSceneId,
+            selfStatementId,
+            interactionStyleId,
+          }) async {
+            setState(() {
+              if (lifeSceneId != null) {
+                _selectedLifeSceneId = lifeSceneId;
+              }
+              if (selfStatementId != null) {
+                _selectedSelfStatementId = selfStatementId;
+              }
+              if (interactionStyleId != null) {
+                _selectedInteractionStyleId = interactionStyleId;
+              }
+            });
+          },
+        );
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('스타일을 등록해 주세요')),
+        );
+      });
       return;
+    }
+
+    var fullNameForApi = _nicknameController.text.trim();
+    if (fullNameForApi.isEmpty &&
+        AppAuthProvider.shared.userProfile == null) {
+      fullNameForApi = await _resolveLoginDisplayNameForNickname();
+      if (fullNameForApi.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인에서 표시 이름을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -182,7 +360,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     try {
       final result = await ApiService.shared.updateProfile(
-        fullName: _nameController.text.trim(),
+        fullName: fullNameForApi,
         gender: _selectedGender,
         bio: _bioController.text.trim(),
         profileImageUrl: _profileImageUrl,
@@ -404,9 +582,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                 const SizedBox(height: 32),
 
-                // 이름 입력
+                // 닉네임 입력
                 Text(
-                  '이름',
+                  '닉네임',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -415,9 +593,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _nameController,
+                  controller: _nicknameController,
                   decoration: InputDecoration(
-                    hintText: '이름을 입력해주세요',
+                    hintText: '닉네임을 입력해주세요',
                     prefixIcon: Icon(
                       Icons.person_outline,
                       color: AppTheme.textSecondaryColor,
@@ -449,10 +627,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    final t = value?.trim() ?? '';
+                    final isFirstProfileSetup =
+                        AppAuthProvider.shared.userProfile == null;
+                    // 최초 프로필: 가이드상 닉네임 입력을 강제하지 않음(제출 시 로그인 표시 이름 사용)
+                    if (isFirstProfileSetup) {
+                      if (t.isEmpty) return null;
+                      if (t.length < 2) {
+                        return '닉네임은 최소 2자 이상이어야 합니다';
+                      }
+                      return null;
+                    }
+                    if (t.isEmpty) {
                       return '닉네임을 입력해주세요';
                     }
-                    if (value.trim().length < 2) {
+                    if (t.length < 2) {
                       return '닉네임은 최소 2자 이상이어야 합니다';
                     }
                     return null;
@@ -543,9 +732,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                         UserProfileView.showPreview(
                           context,
-                          fullName: _nameController.text.trim().isEmpty
-                              ? '이름'
-                              : _nameController.text.trim(),
+                          fullName: _nicknameController.text.trim().isEmpty
+                              ? '닉네임'
+                              : _nicknameController.text.trim(),
                           profileImageUrl: _profileImageUrl,
                           backgroundImageUrl: _backgroundImageUrl,
                           bio: _bioController.text.trim().isEmpty

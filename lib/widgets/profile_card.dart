@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import '../utils/trust_score_utils.dart';
 
 /// 프로필 카드 공통 위젯
-/// 배경 사진, 프로필 사진, 이름, 가입일, 자기소개, 신뢰도 배지, 관심사 표시
+/// 배경 사진, 프로필 사진, 표시 이름(닉네임), 가입일, 자기소개, 신뢰도 배지, 관심사 표시
 class ProfileCard extends StatelessWidget {
   final String fullName;
   final String? profileImageUrl;
