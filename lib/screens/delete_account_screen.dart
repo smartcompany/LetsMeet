@@ -79,7 +79,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.red.shade700),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -133,7 +134,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           width: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Text('계정 탈퇴'),

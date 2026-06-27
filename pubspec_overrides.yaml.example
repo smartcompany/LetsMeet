@@ -6,6 +6,8 @@
 #
 # 로컬 flutter_share_lib 저장소는 LetsMeet와 형제 폴더: ~/Projects/flutter_share_lib
 # (LetsMeet/client 기준 ../../flutter_share_lib)
+#
+# pubspec_overrides.yaml 의 dependency_overrides 는 pubspec.yaml 과 합쳐지지 않고 대체됩니다.
 
 dependency_overrides:
   share_lib:

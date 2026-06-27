@@ -58,8 +58,12 @@ else
 fi
 
 # -------- Clean previous builds --------
+# Flutter는 보통 <프로젝트>/build 에 산출 (native_assets 등). ios/build 만 지우면 stale 프레임워크가 남을 수 있음.
 log "기존 빌드 아티팩트 정리 중..."
-cd ios || fail "ios 폴더 이동 실패"
+if [ -d "${PROJECT_DIR}/build" ]; then
+  rm -rf "${PROJECT_DIR}/build"
+fi
+cd "${PROJECT_DIR}/ios" || fail "ios 폴더 이동 실패"
 if [ -d "build" ]; then
   rm -rf build
 fi
@@ -69,7 +73,7 @@ fi
 if [ -d "Runner.xcodeproj/xcuserdata" ]; then
   rm -rf Runner.xcodeproj/xcuserdata
 fi
-cd ..
+cd "${PROJECT_DIR}" || fail "프로젝트 루트 복귀 실패"
 
 # -------- Flutter iOS config-only (Release) --------
 log "flutter build ios --config-only --release"

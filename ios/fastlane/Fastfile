@@ -1,3 +1,5 @@
+require "shellwords"
+
 # This file contains the fastlane.tools configuration
 # You can find the documentation at https://docs.fastlane.tools
 #
@@ -24,7 +26,14 @@ default_platform(:ios)
 platform :ios do
   desc "Push a new release build to the App Store"
   lane :release do
-    
+    # Flutter leaves build/native_assets and stale Frameworks; Xcode "clean" does not remove them.
+    # Old objective_c.framework (from path_provider_foundation 2.6+) then ships in the IPA and App Store rejects it.
+    client_root = File.expand_path("../..", __dir__)
+    Dir.chdir(client_root) do
+      sh("flutter", "clean")
+      sh("flutter", "pub", "get")
+    end
+
     cocoapods(
       clean_install: true,
       repo_update: false,
@@ -67,6 +76,11 @@ platform :ios do
       clean: true,
       export_options: export_opts
     )
+
+    ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH]
+    if ipa_path && File.exist?(ipa_path)
+      sh("bash", "-c", "! unzip -l #{Shellwords.escape(ipa_path)} | grep -q objective_c.framework")
+    end
     
     # Upload dSYM to Crashlytics
     upload_symbols_to_crashlytics(

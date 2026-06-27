@@ -341,8 +341,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
 
     var fullNameForApi = _nicknameController.text.trim();
-    if (fullNameForApi.isEmpty &&
-        AppAuthProvider.shared.userProfile == null) {
+    if (fullNameForApi.isEmpty && AppAuthProvider.shared.userProfile == null) {
       fullNameForApi = await _resolveLoginDisplayNameForNickname();
       if (fullNameForApi.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -492,7 +491,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
                 // 성별 선택
                 Text(
-                  '성별',
+                  '성별 (선택)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -500,6 +499,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                Text(
+                  '입력하지 않아도 프로필을 완료할 수 있습니다.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     ChoiceChip(

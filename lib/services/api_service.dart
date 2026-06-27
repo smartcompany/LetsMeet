@@ -42,9 +42,9 @@ class ApiService implements AuthServiceInterface {
   }
 
   Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (_token != null) 'Authorization': 'Bearer $_token',
-  };
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
 
   // Social login APIs
   // 카카오 로그인 후 UID와 kakao_id 받기
@@ -311,7 +311,8 @@ class ApiService implements AuthServiceInterface {
   Future<String> uploadBackgroundImage(File file) async {
     final uri = Uri.parse('$baseUrl/users/me/background-image');
     debugPrint('🟡 [ApiService] 배경 업로드 요청: $uri');
-    debugPrint('🟡 [ApiService] 파일: ${file.path}, size=${file.lengthSync()} bytes');
+    debugPrint(
+        '🟡 [ApiService] 파일: ${file.path}, size=${file.lengthSync()} bytes');
     debugPrint('🟡 [ApiService] 토큰: ${_token != null ? "있음" : "없음"}');
 
     final request = http.MultipartRequest('POST', uri);
@@ -325,10 +326,12 @@ class ApiService implements AuthServiceInterface {
     final streamedResponse = await request.send();
     final responseBody = await streamedResponse.stream.bytesToString();
 
-    debugPrint('🟡 [ApiService] 배경 업로드 응답: status=${streamedResponse.statusCode}, body=$responseBody');
+    debugPrint(
+        '🟡 [ApiService] 배경 업로드 응답: status=${streamedResponse.statusCode}, body=$responseBody');
 
     if (streamedResponse.statusCode != 200) {
-      debugPrint('❌ [ApiService] 배경 업로드 실패: status=${streamedResponse.statusCode}');
+      debugPrint(
+          '❌ [ApiService] 배경 업로드 실패: status=${streamedResponse.statusCode}');
       throw Exception(
         '배경 업로드 실패 (${streamedResponse.statusCode}): $responseBody',
       );
@@ -364,9 +367,8 @@ class ApiService implements AuthServiceInterface {
       queryParams.add('include_completed=true');
     }
 
-    final queryString = queryParams.isNotEmpty
-        ? '?${queryParams.join('&')}'
-        : '';
+    final queryString =
+        queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
     final response = await http.get(
       Uri.parse('$baseUrl/meetings$queryString'),
       headers: _headers,
@@ -518,7 +520,8 @@ class ApiService implements AuthServiceInterface {
         if (ageRangeMax != null) 'age_range_max': ageRangeMax,
         if (approvalType != null) 'approval_type': approvalType,
         if (imageUrls != null) 'image_urls': imageUrls,
-        if (applicationQuestions != null) 'application_questions': applicationQuestions,
+        if (applicationQuestions != null)
+          'application_questions': applicationQuestions,
       }),
     );
     if (response.statusCode != 200) {
@@ -568,15 +571,18 @@ class ApiService implements AuthServiceInterface {
       body['participant_scores'] = participantScores;
     }
     final url = '$baseUrl/meetings/$meetingId/evaluations';
-    debugPrint('🔵 [ApiService] 평가 제출: meetingId=$meetingId, url=$url, body=$body');
+    debugPrint(
+        '🔵 [ApiService] 평가 제출: meetingId=$meetingId, url=$url, body=$body');
     final response = await http.post(
       Uri.parse(url),
       headers: _headers,
       body: jsonEncode(body),
     );
-    debugPrint('🔵 [ApiService] 평가 제출 응답: status=${response.statusCode}, body=${response.body}');
+    debugPrint(
+        '🔵 [ApiService] 평가 제출 응답: status=${response.statusCode}, body=${response.body}');
     if (response.statusCode != 200) {
-      final err = (jsonDecode(response.body) as Map<String, dynamic>?)?['error'];
+      final err =
+          (jsonDecode(response.body) as Map<String, dynamic>?)?['error'];
       throw Exception(err ?? 'Failed to submit evaluation');
     }
   }

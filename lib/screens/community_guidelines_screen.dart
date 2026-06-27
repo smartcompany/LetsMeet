@@ -16,7 +16,10 @@ class CommunityGuidelinesScreen extends StatefulWidget {
 }
 
 class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
-  bool _agreed = false;
+  bool _agreedPrivacy = false;
+  bool _agreedCommunity = false;
+
+  bool get _canContinue => _agreedPrivacy && _agreedCommunity;
 
   Future<void> _accept() async {
     final prefs = await SharedPreferences.getInstance();
@@ -43,7 +46,7 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        '커뮤니티 가이드라인',
+                        '개인정보 처리 및 커뮤니티 이용 안내',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -51,10 +54,49 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        '이 앱은 다른 사용자와의 만남 및 소통을 위한 공간입니다. '
-                        '아래 내용을 반드시 확인하시고, 동의하시는 경우에만 이용을 계속해 주세요.',
+                        '아래 내용을 확인하고 동의해야 서비스를 이용할 수 있습니다.',
                       ),
                       const SizedBox(height: 12),
+                      const Text(
+                        '1. 개인정보 처리 안내',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _Bullet('서비스 운영을 위해 필요한 최소한의 정보만 처리합니다.'),
+                      _Bullet('수집 항목: 로그인 식별자, 프로필 정보(닉네임/이미지), 서비스 이용기록'),
+                      _Bullet('민감정보는 수집하지 않으며, 선택 정보는 입력하지 않아도 됩니다.'),
+                      _Bullet('관련 법령 또는 정책에 따라 필요한 기간 동안만 보관 후 삭제합니다.'),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: _agreedPrivacy,
+                            onChanged: (v) =>
+                                setState(() => _agreedPrivacy = v ?? false),
+                          ),
+                          const Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 12),
+                              child: Text(
+                                '개인정보 처리방침 및 데이터 처리 목적·범위를 확인했으며 이에 동의합니다.',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '2. 커뮤니티(UGC) 이용 가이드라인',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       const Text(
                         '부적절한 콘텐츠 및 악성 이용자에 대해 관용이 없음을 원칙으로 합니다. '
                         '이용약관(EULA) 및 커뮤니티 가이드라인 위반 시 콘텐츠 삭제 및 계정 제한이 있을 수 있습니다.',
@@ -63,12 +105,12 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       const Text(
-                        '1. 허용되지 않는 콘텐츠',
+                        '허용되지 않는 콘텐츠',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -78,10 +120,10 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                       _Bullet('사기, 스팸, 광고 및 기타 불법 행위'),
                       const SizedBox(height: 16),
                       const Text(
-                        '2. 신고 및 차단',
+                        '신고 및 차단',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -90,10 +132,10 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                           '다른 사용자를 차단하면 해당 사용자의 콘텐츠가 피드에서 즉시 제거되며, 차단 정보는 운영팀 검토에 활용됩니다.'),
                       const SizedBox(height: 16),
                       const Text(
-                        '3. 운영자의 조치',
+                        '운영자의 조치',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -105,16 +147,15 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Checkbox(
-                            value: _agreed,
+                            value: _agreedCommunity,
                             onChanged: (v) =>
-                                setState(() => _agreed = v ?? false),
+                                setState(() => _agreedCommunity = v ?? false),
                           ),
                           const Expanded(
                             child: Padding(
                               padding: EdgeInsets.only(top: 12),
                               child: Text(
-                                '위 내용을 모두 읽었으며, 이용약관(EULA) 및 커뮤니티 가이드라인에 동의합니다. '
-                                '부적절한 콘텐츠·악성 이용에 대한 관용 없음을 인지했습니다.',
+                                '커뮤니티(UGC) 운영 정책, 신고·제재 정책, 이용약관(EULA)에 동의합니다.',
                               ),
                             ),
                           ),
@@ -128,7 +169,7 @@ class _CommunityGuidelinesScreenState extends State<CommunityGuidelinesScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _agreed ? _accept : null,
+                  onPressed: _canContinue ? _accept : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
