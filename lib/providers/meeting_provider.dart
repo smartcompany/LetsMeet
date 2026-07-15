@@ -7,6 +7,12 @@ import '../utils/category_hierarchy.dart';
 import '../utils/region_hierarchy.dart';
 import '../app_auth_provider.dart';
 
+enum HomeMeetingSort {
+  popular,
+  newest,
+  startingToday,
+}
+
 class MeetingProvider with ChangeNotifier {
   MeetingProvider._();
   static final MeetingProvider shared = MeetingProvider._();
@@ -30,6 +36,8 @@ class MeetingProvider with ChangeNotifier {
   Set<String> _favoriteIds = {};
   bool _showFavoritesOnly = false;
 
+  HomeMeetingSort _homeSort = HomeMeetingSort.popular;
+
   static const String _favoritesKey = 'meeting_favorite_ids';
 
   List<Meeting> get meetings => _meetings;
@@ -44,6 +52,7 @@ class MeetingProvider with ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get showFavoritesOnly => _showFavoritesOnly;
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
+  HomeMeetingSort get homeSort => _homeSort;
 
   bool isFavorite(String meetingId) => _favoriteIds.contains(meetingId);
 
@@ -147,6 +156,43 @@ class MeetingProvider with ChangeNotifier {
     }
 
     return filtered.toList();
+  }
+
+  /// 홈 탭 정렬/필터 적용 목록 (첫 항목 = 대형 카드)
+  List<Meeting> get homeMeetings {
+    final list = filteredMeetings;
+    switch (_homeSort) {
+      case HomeMeetingSort.popular:
+        final sorted = [...list];
+        sorted.sort(
+          (a, b) => b.currentParticipantCount.compareTo(a.currentParticipantCount),
+        );
+        return sorted;
+      case HomeMeetingSort.newest:
+        final sorted = [...list];
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return sorted;
+      case HomeMeetingSort.startingToday:
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        return list
+            .where((m) {
+              final day = DateTime(
+                m.meetingDate.year,
+                m.meetingDate.month,
+                m.meetingDate.day,
+              );
+              return day == today;
+            })
+            .toList()
+          ..sort((a, b) => a.meetingDate.compareTo(b.meetingDate));
+    }
+  }
+
+  void setHomeSort(HomeMeetingSort sort) {
+    if (_homeSort == sort) return;
+    _homeSort = sort;
+    notifyListeners();
   }
 
   /// 찜 목록을 로컬(SharedPreferences)에서 불러옵니다. 외부에서 필요 시 호출.
