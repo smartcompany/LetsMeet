@@ -7,6 +7,7 @@ import 'profile_setup_screen.dart';
 import 'my_meetings_screen.dart';
 import 'my_feeds_screen.dart';
 import 'delete_account_screen.dart';
+import 'set_password_screen.dart';
 import 'community_guidelines_screen.dart';
 import 'blocked_list_screen.dart';
 import '../widgets/profile_card.dart';
@@ -143,6 +144,22 @@ class ProfileScreen extends StatelessWidget {
                       );
                     },
                   ),
+                  if (AppAuthProvider.shared.canLinkPassword ||
+                      AppAuthProvider.shared.hasPasswordProvider)
+                    _MenuItem(
+                      icon: Icons.lock_outline_rounded,
+                      title: AppAuthProvider.shared.hasPasswordProvider
+                          ? '비밀번호 변경'
+                          : '비밀번호 설정',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SetPasswordScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   _MenuItem(
                     icon: Icons.privacy_tip_outlined,
                     title: '앱 개인정보 처리',
