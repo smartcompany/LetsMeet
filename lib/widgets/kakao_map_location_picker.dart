@@ -550,8 +550,8 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
               ],
             ),
           ),
-          // 선택된 위치 정보 (간략히)
-          if (_selectedAddress != null)
+          // 검색 결과가 없을 때(지도 탭·현재 위치)만 상단 선택 바 표시
+          if (_searchResults.isEmpty && _selectedAddress != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: Colors.blue.shade50,
@@ -695,10 +695,32 @@ class _KakaoMapLocationPickerState extends State<KakaoMapLocationPicker> {
                                               item.address,
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.grey.shade600,
+                                                color: isSelected
+                                                    ? Colors.blue.shade700
+                                                    : Colors.grey.shade600,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
+                                            )
+                                          : null,
+                                      trailing: isSelected
+                                          ? TextButton(
+                                              onPressed: _confirmSelection,
+                                              style: TextButton.styleFrom(
+                                                backgroundColor:
+                                                    const Color(0xFF4285F4),
+                                                foregroundColor: Colors.white,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 8,
+                                                ),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                              ),
+                                              child: const Text('선택'),
                                             )
                                           : null,
                                       dense: true,

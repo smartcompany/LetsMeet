@@ -355,14 +355,40 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     }
   }
 
+  /// 요청 내용 입력 팝업 → 광고 시청 → AI 생성 후 모임 소개란에 채움
   Future<void> _requestAiIntroduction() async {
+    if (_isRequestingAi) return;
+
+    final prompt = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return _AiIntroductionRequestDialog(
+          initialText: _descriptionController.text.trim(),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    if (prompt == null) return;
+    if (prompt.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI에게 요청할 내용을 입력해 주세요.')),
+      );
+      return;
+    }
+
+    await _runAdThenGenerateIntroduction(prompt.trim());
+  }
+
+  Future<void> _runAdThenGenerateIntroduction(String prompt) async {
     setState(() => _isRequestingAi = true);
     try {
-      void doGenerateIntro() async {
+      Future<void> doGenerateIntro() async {
         if (!mounted) return;
         try {
           final intro = await ApiService.shared.generateMeetingIntroduction(
-            content: _descriptionController.text.trim(),
+            content: prompt,
           );
           if (mounted) {
             setState(() {
@@ -384,10 +410,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
       if (kIsWeb) {
         // 웹에서는 AdService(Platform) 미지원으로 광고 스킵 후 바로 AI 생성
-        doGenerateIntro();
+        await doGenerateIntro();
       } else {
         await AdService.shared.showAd(
-          onAdDismissed: doGenerateIntro,
+          onAdDismissed: () {
+            doGenerateIntro();
+          },
           onAdFailedToShow: () {
             if (mounted) {
               setState(() => _isRequestingAi = false);
@@ -1492,6 +1520,125 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// AI 모임 소개 요청 입력 팝업. 컨트롤러를 위젯이 소유·해제해 dispose 레이스 방지.
+class _AiIntroductionRequestDialog extends StatefulWidget {
+  const _AiIntroductionRequestDialog({required this.initialText});
+
+  final String initialText;
+
+  @override
+  State<_AiIntroductionRequestDialog> createState() =>
+      _AiIntroductionRequestDialogState();
+}
+
+class _AiIntroductionRequestDialogState
+    extends State<_AiIntroductionRequestDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.75;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxHeight),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            16 + media.viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'AI에게 요청하기',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '키워드만 간단히 적어 주세요. 광고를 본 뒤 AI가 모임 소개문을 작성해 채워 줍니다.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondaryColor,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _controller,
+                        maxLines: 6,
+                        minLines: 4,
+                        maxLength: 500,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          hintText: '예: 토요일 한강 피크닉, 20대, 편한 분위기',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_controller.text),
+                  icon: const Icon(Icons.auto_awesome, size: 18),
+                  label: const Text('광고 보고 AI에게 요청'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
