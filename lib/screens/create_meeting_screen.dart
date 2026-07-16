@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
@@ -363,7 +363,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        return _AiIntroductionRequestDialog(
+        return AiIntroductionRequestDialog(
           initialText: _descriptionController.text.trim(),
         );
       },
@@ -1525,18 +1525,19 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 }
 
 /// AI 모임 소개 요청 입력 팝업. 컨트롤러를 위젯이 소유·해제해 dispose 레이스 방지.
-class _AiIntroductionRequestDialog extends StatefulWidget {
-  const _AiIntroductionRequestDialog({required this.initialText});
+@visibleForTesting
+class AiIntroductionRequestDialog extends StatefulWidget {
+  const AiIntroductionRequestDialog({super.key, required this.initialText});
 
   final String initialText;
 
   @override
-  State<_AiIntroductionRequestDialog> createState() =>
+  State<AiIntroductionRequestDialog> createState() =>
       _AiIntroductionRequestDialogState();
 }
 
 class _AiIntroductionRequestDialogState
-    extends State<_AiIntroductionRequestDialog> {
+    extends State<AiIntroductionRequestDialog> {
   late final TextEditingController _controller;
 
   @override
@@ -1560,13 +1561,10 @@ class _AiIntroductionRequestDialogState
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 480, maxHeight: maxHeight),
+        // Dialog 가 자체적으로 viewInsets(키보드)만큼 위치를 보정하므로
+        // 여기서 또 더하면 이중 보정되어 입력창이 밀려나 안 보이게 된다.
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            16 + media.viewInsets.bottom,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
