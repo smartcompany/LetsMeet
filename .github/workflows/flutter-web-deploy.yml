@@ -33,11 +33,11 @@ jobs:
       - name: Copy vercel.json for routing
         run: cp vercel.json build/web/
 
+      # amondnet/vercel-action@v25 는 Vercel CLI 25.1.0 고정이라
+      # "requires version 47.2.2 or later" 오류로 배포 실패 → 최신 CLI 직접 사용
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: 'build/web --prod'  # Vercel CLI 25+ 에서 --yes 제거됨
-          vercel-project-name: letsmeet-web
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm install -g vercel@latest
+          vercel deploy build/web --prod --yes --token="$VERCEL_TOKEN"
