@@ -276,8 +276,11 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
         ? '${widget.meetingTitle} ($participantCount명)'
         : widget.meetingTitle;
 
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -489,6 +492,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

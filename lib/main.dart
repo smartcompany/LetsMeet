@@ -86,8 +86,10 @@ class _MyAppState extends State<MyApp> {
       javaScriptAppKey: "d7c582cd72cf487332fe74fd6cf3b5bc",
     );
 
+    // 설정(카테고리·광고 등)은 메인 진입 전 반드시 완료
+    await SettingsProvider.shared.load();
+
     unawaited(_initKakaoMap());
-    unawaited(SettingsProvider.shared.load());
     unawaited(PushService.shared.initialize());
     unawaited(MeetingProvider.shared.loadMeetings());
 

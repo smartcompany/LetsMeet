@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../models/application.dart';
 import '../app_auth_provider.dart';
@@ -228,7 +227,10 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
     final dateFormat = DateFormat('M월 d일 (E) HH:mm', 'ko_KR');
     final questions = _meeting!.applicationQuestions ?? [];
 
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('모임 신청'),
       ),
@@ -411,6 +413,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

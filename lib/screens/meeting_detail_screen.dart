@@ -305,8 +305,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('모임 상세'),
         actions: [
           if (_meeting != null &&
@@ -399,7 +402,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
             ),
         ],
       ),
-      body: _isLoading
+        body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? Center(
@@ -430,6 +433,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               : _meeting == null
                   ? const Center(child: Text('모임을 찾을 수 없습니다'))
                   : _buildMeetingContent(_meeting!),
+      ),
     );
   }
 

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../models/feed.dart';
@@ -220,9 +219,12 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('내 피드 보기')),
-      body: RefreshIndicator(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('내 피드 보기')),
+        body: RefreshIndicator(
         onRefresh: _loadMyFeeds,
         child: CustomScrollView(
           controller: _scrollController,
@@ -443,6 +445,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

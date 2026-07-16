@@ -18,11 +18,14 @@ class ApplicationStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('신청 상태'),
-      ),
-      body: ListenableBuilder(
+        ),
+        body: ListenableBuilder(
         listenable: MeetingProvider.shared,
         builder: (context, _) {
           final meetingProvider = MeetingProvider.shared;
@@ -108,6 +111,7 @@ class ApplicationStatusScreen extends StatelessWidget {
             ),
           );
         },
+        ),
       ),
     );
   }

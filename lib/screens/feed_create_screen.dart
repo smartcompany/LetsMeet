@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
 import '../utils/photo_permission_helper.dart';
@@ -81,8 +80,11 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('피드 쓰기'),
         actions: [
           TextButton(
@@ -99,10 +101,10 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                   ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
@@ -178,6 +180,7 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

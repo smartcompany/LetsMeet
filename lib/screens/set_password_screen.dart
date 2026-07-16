@@ -81,17 +81,20 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     final email = AppAuthProvider.shared.currentEmail ?? '';
     final title = _isChange ? '비밀번호 변경' : '비밀번호 설정';
 
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(title),
         backgroundColor: AppTheme.backgroundColor,
         foregroundColor: AppTheme.textPrimaryColor,
         elevation: 0,
-      ),
-      backgroundColor: AppTheme.backgroundColor,
-      body: Form(
-        key: _formKey,
-        child: ListView(
+        ),
+        backgroundColor: AppTheme.backgroundColor,
+        body: Form(
+          key: _formKey,
+          child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
             Text(
@@ -204,6 +207,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

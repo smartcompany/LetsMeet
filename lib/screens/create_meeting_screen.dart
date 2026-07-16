@@ -14,7 +14,6 @@ import '../utils/region_hierarchy.dart';
 import '../utils/photo_permission_helper.dart';
 import 'meeting_detail_screen.dart';
 import 'package:share_lib/share_lib.dart';
-import '../app_auth_provider.dart';
 
 class CreateMeetingScreen extends StatefulWidget {
   final Meeting? meeting;
@@ -53,7 +52,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   final TextEditingController _questionController = TextEditingController();
   bool _hasUnsavedChanges = false;
   bool _isLoading = false;
-  bool _isRequestingAi = false;
+  bool _isLoadingAd = false;
+  bool _isGeneratingAi = false;
   final List<XFile> _selectedImages = [];
   final List<String> _existingImageUrls = []; // 수정 모드에서 기존 이미지 URL
 
@@ -357,7 +357,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
   /// 요청 내용 입력 팝업 → 광고 시청 → AI 생성 후 모임 소개란에 채움
   Future<void> _requestAiIntroduction() async {
-    if (_isRequestingAi) return;
+    if (_isLoadingAd || _isGeneratingAi) return;
 
     final prompt = await showDialog<String>(
       context: context,
@@ -382,10 +382,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   }
 
   Future<void> _runAdThenGenerateIntroduction(String prompt) async {
-    setState(() => _isRequestingAi = true);
+    setState(() => _isLoadingAd = true);
     try {
       Future<void> doGenerateIntro() async {
         if (!mounted) return;
+        setState(() {
+          _isLoadingAd = false;
+          _isGeneratingAi = true;
+        });
         try {
           final intro = await ApiService.shared.generateMeetingIntroduction(
             content: prompt,
@@ -395,12 +399,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               _descriptionController.text = intro;
               _descriptionError = null;
               _hasUnsavedChanges = true;
-              _isRequestingAi = false;
+              _isGeneratingAi = false;
             });
           }
         } catch (e) {
           if (mounted) {
-            setState(() => _isRequestingAi = false);
+            setState(() => _isGeneratingAi = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('$e')),
             );
@@ -418,13 +422,18 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
           },
           onAdFailedToShow: () {
             if (mounted) {
-              setState(() => _isRequestingAi = false);
+              setState(() => _isLoadingAd = false);
             }
           },
         );
       }
     } catch (_) {
-      if (mounted) setState(() => _isRequestingAi = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingAd = false;
+          _isGeneratingAi = false;
+        });
+      }
     }
   }
 
@@ -714,9 +723,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
-        appBar: AppBar(
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            Scaffold(
+            backgroundColor: const Color(0xFFF5F7FA),
+            appBar: AppBar(
           elevation: 0,
           backgroundColor: Colors.white,
           leading: IconButton(
@@ -860,15 +874,10 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         const Spacer(),
                         TextButton.icon(
                           onPressed:
-                              _isRequestingAi ? null : _requestAiIntroduction,
-                          icon: _isRequestingAi
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.auto_awesome, size: 18),
+                              (_isLoadingAd || _isGeneratingAi)
+                                  ? null
+                                  : _requestAiIntroduction,
+                          icon: const Icon(Icons.auto_awesome, size: 18),
                           label: const Text('광고보고 AI에게 요청하기'),
                         ),
                       ],
@@ -876,14 +885,27 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
                       decoration: InputDecoration(
                         hintText: '모임 분위기, 대상, 기대 효과를 설명해주세요 (20-500자)',
                         border: const OutlineInputBorder(),
                         alignLabelWithHint: true,
                         errorText: _descriptionError,
                         errorStyle: const TextStyle(color: Colors.red),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
+                        ),
+                        hintStyle: const TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
                       ),
-                      maxLines: 5,
+                      minLines: 7,
+                      maxLines: 9,
                       maxLength: 500,
                       validator: _validateDescription,
                       textInputAction: TextInputAction.newline,
@@ -1327,6 +1349,22 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               ],
             ),
           ),
+            ),
+          ),
+            if (_isLoadingAd || _isGeneratingAi)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0x66000000),
+                  child: Center(
+                    child: _AiLoadingOverlayContent(
+                      message: _isLoadingAd
+                          ? '광고를 불러오는 중...'
+                          : 'AI가 소개글을 생성하는 중...',
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -1523,6 +1561,32 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
     );
   }
 }
+
+class _AiLoadingOverlayContent extends StatelessWidget {
+  final String message;
+
+  const _AiLoadingOverlayContent({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const CircularProgressIndicator(),
+        const SizedBox(height: 16),
+        Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 
 /// AI 모임 소개 요청 입력 팝업. 컨트롤러를 위젯이 소유·해제해 dispose 레이스 방지.
 @visibleForTesting
