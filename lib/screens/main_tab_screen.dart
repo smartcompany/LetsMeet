@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
-import '../utils/app_localization.dart';
 import '../utils/auth_helper.dart';
 import '../providers/meeting_provider.dart';
 import '../providers/notification_provider.dart';
@@ -15,9 +14,13 @@ import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_evaluation_screen.dart';
+import '../widgets/brand_title.dart';
 
 class MainTabScreen extends StatefulWidget {
-  const MainTabScreen({super.key});
+  /// 홈 탭이 첫 프레임까지 그려진 뒤 호출 (스플래시 제거용)
+  final VoidCallback? onHomeAppeared;
+
+  const MainTabScreen({super.key, this.onHomeAppeared});
 
   @override
   State<MainTabScreen> createState() => _MainTabScreenState();
@@ -244,15 +247,8 @@ class _MainTabScreenState extends State<MainTabScreen>
             elevation: 0,
             backgroundColor: Colors.white,
             centerTitle: false,
-            title: Text(
-              AppLocalization.appName(),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            titleSpacing: 20,
+            title: const BrandTitle(),
+            titleSpacing: 16,
             actions: [
               IconButton(
                 icon: const Icon(Icons.search),
@@ -404,7 +400,7 @@ class _MainTabScreenState extends State<MainTabScreen>
           child: IndexedStack(
             index: _currentIndex,
             children: [
-              const HomeScreen(),
+              HomeScreen(onAppeared: widget.onHomeAppeared),
               FeedScreen(key: _feedScreenKey),
               ChatScreen(
                 onUnreadCountChanged: (count) {

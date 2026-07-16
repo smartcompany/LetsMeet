@@ -20,6 +20,7 @@ class MeetingProvider with ChangeNotifier {
   List<Meeting> _meetings = [];
   List<Application> _applications = [];
   bool _isLoading = false;
+  bool _hasLoadedMeetingsOnce = false;
 
   // 필터 상태
   int? _selectedAgeMin;
@@ -43,6 +44,7 @@ class MeetingProvider with ChangeNotifier {
   List<Meeting> get meetings => _meetings;
   List<Application> get applications => _applications;
   bool get isLoading => _isLoading;
+  bool get hasLoadedMeetingsOnce => _hasLoadedMeetingsOnce;
   int? get selectedAgeMin => _selectedAgeMin;
   int? get selectedAgeMax => _selectedAgeMax;
   String? get selectedLocation => _selectedLocation;
@@ -351,10 +353,12 @@ class MeetingProvider with ChangeNotifier {
 
       _meetings = meetings;
       _isLoading = false;
+      _hasLoadedMeetingsOnce = true;
       notifyListeners();
     } catch (e) {
       debugPrint('❌ [MeetingProvider] 모임 목록 로드 실패: $e');
       _isLoading = false;
+      _hasLoadedMeetingsOnce = true;
       notifyListeners();
     }
   }

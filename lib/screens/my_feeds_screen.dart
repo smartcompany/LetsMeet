@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../models/feed.dart';
 import '../utils/photo_permission_helper.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feed_content_text.dart';
 import 'package:intl/intl.dart';
 import '../utils/ugc_moderation.dart';
 
@@ -557,7 +558,10 @@ class _FeedCard extends StatelessWidget {
                 },
               ),
             ),
-          Padding(padding: const EdgeInsets.all(16), child: Text(feed.content)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: FeedContentText(content: feed.content),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(

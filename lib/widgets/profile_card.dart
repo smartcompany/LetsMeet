@@ -235,7 +235,7 @@ class ProfileCard extends StatelessWidget {
                 child: Text(
                   bio!,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     color: AppTheme.textSecondaryColor,
                     height: 1.5,
                   ),

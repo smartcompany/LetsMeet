@@ -169,19 +169,6 @@ class ProfileScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  _MenuItem(
-                    icon: Icons.delete_forever_rounded,
-                    title: '계정 탈퇴',
-                    titleColor: const Color(0xFFDC2626),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DeleteAccountScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   if (kDebugMode)
                     _MenuItem(
                       icon: Icons.assignment_outlined,
@@ -237,6 +224,19 @@ class ProfileScreen extends StatelessWidget {
                         await clearCommunityGuidelinesAccepted();
                         await AppAuthProvider.shared.logout();
                       }
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.delete_forever_rounded,
+                    title: '계정 탈퇴',
+                    titleColor: const Color(0xFFDC2626),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DeleteAccountScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],

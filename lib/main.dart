@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -6,36 +10,45 @@ import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart' hide Route;
 import 'package:share_lib/share_lib_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'providers/meeting_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/main_tab_screen.dart';
-import 'screens/profile_setup_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/push_service.dart';
-import 'utils/deep_link_handler.dart';
 import 'utils/app_localization.dart';
 import 'utils/screen_stack_observer.dart';
-import 'app_auth_provider.dart';
+
+const _splashAsset = 'assets/splash/splash.png';
+const _splashColor = Color(0xFF6B4EAA);
+const _splashChannel = MethodChannel('letsmeet/splash');
+
+Future<void> _precacheSplashImage() async {
+  try {
+    final data = await rootBundle.load(_splashAsset);
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+    );
+    await codec.getNextFrame();
+  } catch (e) {
+    debugPrint('⚠️ 스플래시 이미지 프리로드 실패: $e');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // iOS/Android: 세로만 (Info.plist UISupportedInterfaceOrientations 와 동일 정책)
+  // preserve/deferFirstFrame 사용 안 함:
+  // 커스텀 FlutterViewController에서는 LaunchScreen이 이미 사라진 뒤
+  // defer만 하면 빈 서피스가 그대로 보임. 대신 즉시 runApp → Flutter 스플래시.
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
 
-  // Firebase 초기화 (완료될 때까지 기다린 뒤 runApp 실행)
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint('⚠️ Firebase 초기화 오류: $e');
-  }
+  // 첫 프레임을 최대한 빨리 그리기 위해 Firebase 등은 runApp 이후로 이동
+  unawaited(_precacheSplashImage());
 
-  // 나머지 초기화(Firebase, Kakao SDK, 설정 로드 등)는
-  // MyApp 내부에서 비동기로 수행하면서, 처음에는 전역 로딩 화면을 보여준다.
   runApp(const MyApp());
 }
 
@@ -49,7 +62,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _initialized = false;
+  bool _initDone = false;
+  bool _showSplashOverlay = true;
+  bool _splashRemoved = false;
 
   @override
   void initState() {
@@ -58,30 +73,54 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initAsync() async {
-    // 카카오 SDK 초기화
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Firebase 초기화 오류: $e');
+    }
+
     KakaoSdk.init(
       nativeAppKey: "e3221d057fe64e623f672e3e2b8b12a5",
       javaScriptAppKey: "d7c582cd72cf487332fe74fd6cf3b5bc",
     );
 
-    // 카카오맵 SDK 초기화 (카카오 로그인과 동일한 네이티브 앱 키 사용)
+    unawaited(_initKakaoMap());
+    unawaited(SettingsProvider.shared.load());
+    unawaited(PushService.shared.initialize());
+    unawaited(MeetingProvider.shared.loadMeetings());
+
+    await initializeDateFormatting('ko_KR', null);
+
+    if (!mounted) return;
+
+    // 메인(홈)을 스플래시 아래에서 빌드 — remove는 홈 appear 콜백에서
+    setState(() => _initDone = true);
+  }
+
+  Future<void> _initKakaoMap() async {
     try {
       await KakaoMapSdk.instance.initialize('e3221d057fe64e623f672e3e2b8b12a5');
       debugPrint('✅ 카카오맵 SDK 초기화 완료');
     } catch (e) {
       debugPrint('⚠️ 카카오맵 SDK 초기화 오류: $e');
     }
+  }
 
-    // 한국어 로케일 데이터 초기화
-    await initializeDateFormatting('ko_KR', null);
+  /// 홈이 첫 프레임까지 그려진 뒤(viewDidAppear에 해당) 호출
+  void _onHomeAppeared() {
+    if (_splashRemoved || !mounted) return;
+    _splashRemoved = true;
 
-    // 설정 API 로드 (카테고리, 광고 등)
-    await SettingsProvider.shared.load();
+    // 네이티브 윈도우 스플래시 오버레이 제거
+    if (!kIsWeb) {
+      unawaited(
+        _splashChannel.invokeMethod<void>('remove').catchError((_) {}),
+      );
+    }
 
-    await PushService.shared.initialize();
-
-    if (!mounted) return;
-    setState(() => _initialized = true);
+    setState(() => _showSplashOverlay = false);
   }
 
   @override
@@ -99,15 +138,44 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AuthLocalizations.supportedLocales,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: Stack(
+        fit: StackFit.expand,
         children: [
-          const MainTabScreen(),
-          if (!_initialized)
-            Container(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              child: const Center(child: CircularProgressIndicator()),
-            ),
+          if (_initDone) MainTabScreen(onHomeAppeared: _onHomeAppeared),
+          if (_showSplashOverlay) const _SplashHoldScreen(),
         ],
+      ),
+    );
+  }
+}
+
+/// 네이티브 Launch Screen과 동일 배경·이미지
+class _SplashHoldScreen extends StatelessWidget {
+  const _SplashHoldScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: _splashColor,
+      child: SizedBox.expand(
+        child: Center(
+          child: Image(
+            image: AssetImage(_splashAsset),
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
       ),
     );
   }

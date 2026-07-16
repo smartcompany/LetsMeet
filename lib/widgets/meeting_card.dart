@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/meeting.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/category_hierarchy.dart';
 
 enum MeetingCardVariant {
   standard,
@@ -99,18 +100,21 @@ class MeetingCard extends StatelessWidget {
     return interestIcons[firstInterest] ?? Icons.topic_outlined;
   }
 
-  double get _participantRatio {
-    if (meeting.maxParticipants <= 0) return 0;
-    return (meeting.currentParticipantCount / meeting.maxParticipants)
-        .clamp(0.0, 1.0);
-  }
-
-  int get _participantPercent => (_participantRatio * 100).round();
-
   String get _locationLabel {
     final detail = meeting.locationDetail?.trim();
     if (detail != null && detail.isNotEmpty) return detail;
     return meeting.location;
+  }
+
+  /// 썸네일용 짧은 카테고리 라벨 (소분류 우선)
+  String? get _categoryLabel {
+    final parsed = CategoryHierarchy.parse(meeting.category);
+    final sub = parsed.sub?.trim();
+    if (sub != null && sub.isNotEmpty) return sub;
+    final main = parsed.main?.trim();
+    if (main != null && main.isNotEmpty) return main;
+    if (meeting.interests.isNotEmpty) return meeting.interests.first;
+    return null;
   }
 
   _MyMeetingStatus? _getMyMeetingStatus({
@@ -316,9 +320,6 @@ class MeetingCard extends StatelessWidget {
                   _JoinFooter(
                     current: meeting.currentParticipantCount,
                     max: meeting.maxParticipants,
-                    ratio: _participantRatio,
-                    percent: _participantPercent,
-                    onJoin: onTap,
                   ),
               ],
             ),
@@ -338,100 +339,105 @@ class MeetingCard extends StatelessWidget {
     return _buildCardShell(
       margin: const EdgeInsets.only(bottom: 14),
       radius: 14,
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_categoryLabel != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _CategoryOutlineChip(label: _categoryLabel!),
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
                     width: 96,
                     height: 96,
-                    child: _buildMeetingImage(
-                      hasImage: hasImage,
-                      interestColor: interestColor,
-                      interestIcon: interestIcon,
-                      iconSize: 32,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(
-                          right: onToggleFavorite != null ? 28 : 0,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildMeetingImage(
+                          hasImage: hasImage,
+                          interestColor: interestColor,
+                          interestIcon: interestIcon,
+                          iconSize: 32,
                         ),
-                        child: Text(
-                          meeting.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimaryColor,
-                            height: 1.3,
+                        if (onToggleFavorite != null)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: _FavoriteButton(
+                              isFavorite: isFavorite,
+                              onToggleFavorite: onToggleFavorite!,
+                              compact: true,
+                            ),
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (meeting.shortDescription != null &&
-                          meeting.shortDescription!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          meeting.shortDescription!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondaryColor.withOpacity(0.9),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
-                      const SizedBox(height: 8),
-                      _DateTimeRow(date: meeting.meetingDate, compact: true),
-                      const SizedBox(height: 4),
-                      _InfoRow(
-                        icon: Icons.location_on_rounded,
-                        text: meeting.location,
-                        compact: true,
-                      ),
-                      const SizedBox(height: 10),
-                      if (myStatus != null)
-                        _StatusBadge(
-                          label: myStatus.label,
-                          color: myStatus.color,
-                        )
-                      else
-                        _JoinFooter(
-                          current: meeting.currentParticipantCount,
-                          max: meeting.maxParticipants,
-                          ratio: _participantRatio,
-                          percent: _participantPercent,
-                          onJoin: onTap,
-                          compact: true,
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          if (onToggleFavorite != null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: _FavoriteButton(
-                isFavorite: isFavorite,
-                onToggleFavorite: onToggleFavorite!,
-                compact: true,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meeting.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimaryColor,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (meeting.shortDescription != null &&
+                      meeting.shortDescription!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      meeting.shortDescription!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondaryColor.withOpacity(0.9),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _DateTimeRow(date: meeting.meetingDate, compact: true),
+                  const SizedBox(height: 4),
+                  _InfoRow(
+                    icon: Icons.location_on_rounded,
+                    text: meeting.location,
+                    compact: true,
+                  ),
+                  const SizedBox(height: 10),
+                  if (myStatus != null)
+                    _StatusBadge(
+                      label: myStatus.label,
+                      color: myStatus.color,
+                    )
+                  else
+                    _JoinFooter(
+                      current: meeting.currentParticipantCount,
+                      max: meeting.maxParticipants,
+                      compact: true,
+                    ),
+                ],
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -712,21 +718,15 @@ class _DateTimeRow extends StatelessWidget {
   }
 }
 
-/// 왼쪽: 인원 + 진행률 + %, 오른쪽: 참가하기 버튼 (아웃라인)
+/// 인원 참여 수만 표시 (진행률·참가하기 버튼 없음). 카드 탭으로 상세/참가.
 class _JoinFooter extends StatelessWidget {
   final int current;
   final int max;
-  final double ratio;
-  final int percent;
-  final VoidCallback onJoin;
   final bool compact;
 
   const _JoinFooter({
     required this.current,
     required this.max,
-    required this.ratio,
-    required this.percent,
-    required this.onJoin,
     this.compact = false,
   });
 
@@ -736,7 +736,6 @@ class _JoinFooter extends StatelessWidget {
     final iconSize = compact ? 14.0 : 15.0;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(
           Icons.people_outline_rounded,
@@ -750,51 +749,6 @@ class _JoinFooter extends StatelessWidget {
             fontSize: fontSize,
             fontWeight: FontWeight.w600,
             color: AppTheme.textPrimaryColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: compact ? 5 : 6,
-              backgroundColor: AppTheme.dividerColor,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$percent%',
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textSecondaryColor,
-          ),
-        ),
-        const SizedBox(width: 10),
-        OutlinedButton(
-          onPressed: onJoin,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppTheme.primaryColor,
-            side: const BorderSide(color: AppTheme.primaryColor),
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 12 : 14,
-              vertical: compact ? 7 : 8,
-            ),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: Text(
-            '참가하기',
-            style: TextStyle(
-              fontSize: compact ? 13 : 14,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ),
       ],
@@ -815,23 +769,54 @@ class _FavoriteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = compact ? 18.0 : 24.0;
+    final padding = compact ? 5.0 : 8.0;
+
     return Material(
-      color: compact
-          ? Colors.white.withOpacity(0.92)
-          : Colors.black.withOpacity(0.4),
+      color: Colors.black.withOpacity(0.4),
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: onToggleFavorite,
         borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: EdgeInsets.all(compact ? 6 : 8),
+          padding: EdgeInsets.all(padding),
           child: Icon(
             isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite
-                ? Colors.red
-                : (compact ? AppTheme.textSecondaryColor : Colors.white),
-            size: compact ? 20 : 24,
+            color: isFavorite ? Colors.red : Colors.white,
+            size: size,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryOutlineChip extends StatelessWidget {
+  final String label;
+
+  const _CategoryOutlineChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.textPrimaryColor.withOpacity(0.55),
+          width: 1.2,
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: AppTheme.textPrimaryColor,
+          height: 1.1,
         ),
       ),
     );

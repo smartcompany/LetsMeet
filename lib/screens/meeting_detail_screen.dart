@@ -629,7 +629,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       Expanded(
                         child: Text(
                           meeting.title,
-                          style: Theme.of(context).textTheme.displayLarge,
+                          style: Theme.of(context).textTheme.headlineMedium,
                         ),
                       ),
                     ],
@@ -838,7 +838,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                       title: '모임 설명',
                       child: Text(
                         meeting.description!,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                     ),
                     const SizedBox(height: 24),
