@@ -53,42 +53,53 @@ platform :ios do
     )
 
     profile_name = lane_context[SharedValues::SIGH_NAME]
-    # Archive 단계도 App Store 프로파일 + Distribution 인증서를 쓰도록 강제.
-    # export_options만 설정하면 archive가 Automatic/Development로 남아
-    # "Team Provisioning Profile doesn't include signing certificate"로 실패함.
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Runner.xcodeproj",
-      team_id: "NTCK5U8AWD",
-      bundle_identifier: "com.smartcompany.letsMeet",
-      code_sign_identity: "Apple Distribution",
-      profile_name: profile_name,
-      targets: ["Runner"]
-    )
-    
-    # Clean build folder before building
-    clean_build_artifacts
-    
-    export_opts = {
-      method: "app-store",
-      uploadBitcode: false,
-      uploadSymbols: true,
-      compileBitcode: false,
-      signingStyle: "manual",
-      teamID: "NTCK5U8AWD",
-      provisioningProfiles: {
-        "com.smartcompany.letsMeet" => profile_name
+    # Archive용으로만 Manual + Distribution. 끝나면 Automatic으로 되돌려
+    # 기기/시뮬레이터 Run 시 0xe800801f (Beta profile) 방지.
+    begin
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: "Runner.xcodeproj",
+        team_id: "NTCK5U8AWD",
+        bundle_identifier: "com.smartcompany.letsMeet",
+        code_sign_identity: "Apple Distribution",
+        profile_name: profile_name,
+        targets: ["Runner"]
+      )
+
+      # Clean build folder before building
+      clean_build_artifacts
+
+      export_opts = {
+        method: "app-store",
+        uploadBitcode: false,
+        uploadSymbols: true,
+        compileBitcode: false,
+        signingStyle: "manual",
+        teamID: "NTCK5U8AWD",
+        provisioningProfiles: {
+          "com.smartcompany.letsMeet" => profile_name
+        }
       }
-    }
-    
-    build_app(
-      workspace: "Runner.xcworkspace", 
-      scheme: "Runner",
-      export_method: "app-store",
-      clean: true,
-      codesigning_identity: "Apple Distribution: yonggeon kim (NTCK5U8AWD)",
-      export_options: export_opts
-    )
+
+      build_app(
+        workspace: "Runner.xcworkspace",
+        scheme: "Runner",
+        export_method: "app-store",
+        clean: true,
+        codesigning_identity: "Apple Distribution: yonggeon kim (NTCK5U8AWD)",
+        export_options: export_opts
+      )
+    ensure
+      update_code_signing_settings(
+        use_automatic_signing: true,
+        path: "Runner.xcodeproj",
+        team_id: "NTCK5U8AWD",
+        bundle_identifier: "com.smartcompany.letsMeet",
+        code_sign_identity: "Apple Development",
+        profile_name: "",
+        targets: ["Runner"]
+      )
+    end
 
     ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH]
     if ipa_path && File.exist?(ipa_path)
