@@ -463,6 +463,7 @@ class _MeetingChatScreenState extends State<MeetingChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      scrollPadding: const EdgeInsets.only(bottom: 220),
                       decoration: InputDecoration(
                         hintText: '메시지를 입력하세요...',
                         border: OutlineInputBorder(

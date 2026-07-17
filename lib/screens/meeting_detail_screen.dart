@@ -1269,6 +1269,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                                 const SizedBox(height: 12),
                                 TextFormField(
                                   controller: _answerController,
+                                  scrollPadding: const EdgeInsets.only(bottom: 220),
                                   maxLines: 8,
                                   minLines: 5,
                                   maxLength: 100,

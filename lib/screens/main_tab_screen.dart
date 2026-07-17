@@ -232,6 +232,7 @@ class _MainTabScreenState extends State<MainTabScreen>
               ),
               title: TextField(
                 controller: _searchController,
+                scrollPadding: const EdgeInsets.only(bottom: 140),
                 focusNode: _searchFocusNode,
                 autofocus: true,
                 decoration: InputDecoration(

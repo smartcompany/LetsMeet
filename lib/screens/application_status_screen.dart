@@ -234,6 +234,7 @@ class _ApprovedStatus extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextField(
+                scrollPadding: const EdgeInsets.only(bottom: 220),
                 maxLines: 5,
                 decoration: InputDecoration(
                   hintText: '참여 전 생각을 정리해보세요. (비공개)',

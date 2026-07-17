@@ -444,7 +444,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -548,6 +548,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _bioController,
+                  scrollPadding: const EdgeInsets.only(bottom: 220),
                   maxLines: 4,
                   minLines: 3,
                   decoration: InputDecoration(
@@ -604,6 +605,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _nicknameController,
+                  scrollPadding: const EdgeInsets.only(bottom: 220),
                   decoration: InputDecoration(
                     hintText: '닉네임을 입력해주세요',
                     prefixIcon: Icon(

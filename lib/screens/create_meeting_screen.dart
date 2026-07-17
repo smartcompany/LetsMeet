@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
@@ -12,6 +13,7 @@ import '../widgets/category_picker_sheet.dart';
 import '../models/meeting.dart';
 import '../utils/region_hierarchy.dart';
 import '../utils/photo_permission_helper.dart';
+import '../utils/number_format_utils.dart';
 import 'meeting_detail_screen.dart';
 import 'package:share_lib/share_lib.dart';
 
@@ -24,6 +26,7 @@ class CreateMeetingScreen extends StatefulWidget {
 }
 
 class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
+  static const EdgeInsets _keyboardScrollPadding = EdgeInsets.only(bottom: 32);
   final _formKey = GlobalKey<FormState>();
   final _scrollController = ScrollController();
   final _titleController = TextEditingController();
@@ -69,8 +72,9 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _titleController.text = widget.meeting!.title;
       _descriptionController.text = widget.meeting!.description ?? '';
       _locationController.text = widget.meeting!.location;
-      _participationFeeController.text =
-          widget.meeting!.participationFee?.toString() ?? '0';
+      _participationFeeController.text = formatThousands(
+        widget.meeting!.participationFee ?? 0,
+      );
       _selectedCategory = widget.meeting!.category;
       _selectedDateTime = widget.meeting!.meetingDate;
       // _minParticipants 필드가 Meeting 모델에 없는 경우 기본값 사용
@@ -167,10 +171,10 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
 
   String? _validateParticipationFee(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return '0';
+      return null;
     }
-    final fee = int.tryParse(value);
-    if (fee == null || fee < 0) {
+    final fee = parseThousands(value);
+    if (fee < 0) {
       return '참가 비용은 0원 이상이어야 합니다';
     }
     return null;
@@ -363,9 +367,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        return AiIntroductionRequestDialog(
-          initialText: _descriptionController.text.trim(),
-        );
+        return const AiIntroductionRequestDialog(initialText: '');
       },
     );
 
@@ -378,10 +380,14 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       return;
     }
 
+    // 팝업 닫힌 뒤 포커스가 아래 모임 소개란으로 돌아가 키보드가 남지 않도록
+    FocusManager.instance.primaryFocus?.unfocus();
+
     await _runAdThenGenerateIntroduction(prompt.trim());
   }
 
   Future<void> _runAdThenGenerateIntroduction(String prompt) async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isLoadingAd = true);
     try {
       Future<void> doGenerateIntro() async {
@@ -545,7 +551,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       final meetingDateTime = _selectedDateTime!;
 
       // Parse participation fee
-      final fee = int.tryParse(_participationFeeController.text) ?? 0;
+      final fee = parseThousands(_participationFeeController.text);
 
       // Map gender restriction from ratio
       String? genderRestriction;
@@ -770,6 +776,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _titleController,
+                      scrollPadding: _keyboardScrollPadding,
                       decoration: InputDecoration(
                         hintText: '모임 제목을 입력하세요 (최대 40자)',
                         border: const OutlineInputBorder(),
@@ -885,6 +892,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
+                      scrollPadding: _keyboardScrollPadding,
                       style: const TextStyle(
                         fontSize: 16,
                         height: 1.5,
@@ -972,6 +980,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                         Expanded(
                           child: TextFormField(
                             controller: _locationController,
+                            scrollPadding: _keyboardScrollPadding,
                             readOnly: true,
                             decoration: InputDecoration(
                               hintText: '지도에서 위치 선택',
@@ -1078,12 +1087,17 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _participationFeeController,
+                  scrollPadding: _keyboardScrollPadding,
                   decoration: const InputDecoration(
                     hintText: '0',
                     border: OutlineInputBorder(),
                     suffixText: '원',
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    ThousandsSeparatorInputFormatter(),
+                  ],
                   validator: _validateParticipationFee,
                   textInputAction: TextInputAction.next,
                 ),
@@ -1278,6 +1292,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _questionController,
+                    scrollPadding: _keyboardScrollPadding,
                     onChanged: (_) {
                       _hasUnsavedChanges = true;
                       if (_applicationQuestionsError != null) {
@@ -1645,7 +1660,10 @@ class _AiIntroductionRequestDialogState
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      Navigator.of(context).pop();
+                    },
                     icon: const Icon(Icons.close),
                     visualDensity: VisualDensity.compact,
                   ),
@@ -1668,6 +1686,7 @@ class _AiIntroductionRequestDialogState
                       const SizedBox(height: 14),
                       TextField(
                         controller: _controller,
+                        scrollPadding: const EdgeInsets.only(bottom: 32),
                         maxLines: 6,
                         minLines: 4,
                         maxLength: 500,
@@ -1686,8 +1705,10 @@ class _AiIntroductionRequestDialogState
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_controller.text),
+                  onPressed: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    Navigator.of(context).pop(_controller.text);
+                  },
                   icon: const Icon(Icons.auto_awesome, size: 18),
                   label: const Text('광고 보고 AI에게 요청'),
                   style: ElevatedButton.styleFrom(

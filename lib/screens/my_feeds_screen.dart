@@ -264,6 +264,7 @@ class _MyFeedsScreenState extends State<MyFeedsScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _contentController,
+                      scrollPadding: const EdgeInsets.only(bottom: 220),
                       maxLines: 4,
                       onChanged: (_) {
                         if (_contentError != null) setState(() => _contentError = null);

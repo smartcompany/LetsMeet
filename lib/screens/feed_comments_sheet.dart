@@ -286,6 +286,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                       Expanded(
                         child: TextField(
                           controller: _commentController,
+                          scrollPadding: const EdgeInsets.only(bottom: 220),
                           onChanged: (_) {
                             if (_commentError != null) setState(() => _commentError = null);
                           },

@@ -18,6 +18,7 @@ import 'firebase_options.dart';
 import 'services/push_service.dart';
 import 'utils/app_localization.dart';
 import 'utils/screen_stack_observer.dart';
+import 'widgets/keyboard_dismiss_overlay.dart';
 
 const _splashAsset = 'assets/splash/splash.png';
 const _splashColor = Color(0xFF6B4EAA);
@@ -145,7 +146,9 @@ class _MyAppState extends State<MyApp> {
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.noScaling,
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: KeyboardDismissOverlay(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: Stack(

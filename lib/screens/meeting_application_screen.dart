@@ -241,7 +241,7 @@ class _MeetingApplicationScreenState extends State<MeetingApplicationScreen> {
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -475,6 +475,7 @@ class _QuestionFieldState extends State<_QuestionField> {
         const SizedBox(height: 12),
         TextFormField(
           controller: widget.controller,
+          scrollPadding: const EdgeInsets.only(bottom: 220),
           maxLines: 8,
           minLines: 5,
           maxLength: widget.maxLength,

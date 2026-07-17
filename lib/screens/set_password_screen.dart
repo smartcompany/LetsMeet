@@ -129,6 +129,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
             const SizedBox(height: 24),
             TextFormField(
               controller: _passwordController,
+              scrollPadding: const EdgeInsets.only(bottom: 220),
               obscureText: _obscurePassword,
               decoration: InputDecoration(
                 labelText: '비밀번호',
@@ -157,6 +158,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _confirmController,
+              scrollPadding: const EdgeInsets.only(bottom: 220),
               obscureText: _obscureConfirm,
               decoration: InputDecoration(
                 labelText: '비밀번호 확인',

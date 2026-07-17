@@ -103,12 +103,13 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
         ],
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 24),
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
               controller: _contentController,
+              scrollPadding: const EdgeInsets.only(bottom: 220),
               maxLines: 10,
               onChanged: (_) {
                 if (_contentError != null) setState(() => _contentError = null);
