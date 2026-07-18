@@ -4,6 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:share_lib/share_lib.dart';
 import '../services/api_service.dart'; // baseUrl용
 
+/// http 패키지는 Content-Type에 charset이 없으면 latin1로 디코딩함.
+/// 서버 JSON은 UTF-8이므로 bodyBytes를 UTF-8로 읽는다.
+dynamic _decodeJsonResponse(http.Response response) {
+  return jsonDecode(utf8.decode(response.bodyBytes));
+}
+
 /// 프로필 스타일 옵션 (서버 settings.json)
 class ProfileStyleOptions {
   final String description;
@@ -90,8 +96,8 @@ class SettingsProvider extends ChangeNotifier {
   /// 앱 시작 시 설정 로드
   /// - meetingCategory 파싱
   /// - AdService baseUrl 설정 및 loadSettings 호출
-  Future<void> load() async {
-    if (_loaded) return;
+  Future<void> load({bool force = false}) async {
+    if (_loaded && !force) return;
 
     try {
       final uri = Uri.parse('$_settingsBaseUrl/api/settings');
@@ -103,7 +109,7 @@ class SettingsProvider extends ChangeNotifier {
         return;
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = _decodeJsonResponse(response) as Map<String, dynamic>;
 
       // meetingCategory 파싱
       // 형식: { "key": { "main": "대분류 표시명", "sub": ["소분류", ...] } }

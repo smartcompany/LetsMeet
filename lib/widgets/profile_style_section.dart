@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
+import 'profile_style_text.dart';
 
 /// 프로필 스타일 섹션
 /// 제목 + 설정 버튼 + 선택된 텍스트 목록
@@ -80,7 +81,7 @@ class ProfileStyleSection extends StatelessWidget {
             ...texts.map(
               (t) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
+                child: ProfileStyleText(
                   t,
                   style: TextStyle(
                     fontSize: 15,
@@ -239,7 +240,7 @@ class _StylePickerSheetContentState extends State<_StylePickerSheetContent> {
                                 width: 2,
                               ),
                             ),
-                            child: Text(
+                            child: ProfileStyleText(
                               opt.text,
                               style: TextStyle(
                                 fontSize: 14,
@@ -285,7 +286,7 @@ class _StylePickerSheetContentState extends State<_StylePickerSheetContent> {
                                 width: 2,
                               ),
                             ),
-                            child: Text(
+                            child: ProfileStyleText(
                               opt.text,
                               style: TextStyle(
                                 fontSize: 14,
@@ -329,7 +330,7 @@ class _StylePickerSheetContentState extends State<_StylePickerSheetContent> {
                                 width: 2,
                               ),
                             ),
-                            child: Text(
+                            child: ProfileStyleText(
                               opt.text,
                               style: TextStyle(
                                 fontSize: 14,

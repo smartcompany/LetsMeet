@@ -30,6 +30,13 @@ class ApiService implements AuthServiceInterface {
 
   ApiService._();
 
+  /// http 패키지는 charset 없으면 latin1로 디코딩 → UTF-8 JSON은 bodyBytes 사용
+  static String _utf8Body(http.Response response) =>
+      utf8.decode(response.bodyBytes);
+
+  static dynamic _jsonBody(http.Response response) =>
+      jsonDecode(_utf8Body(response));
+
   // Production server URL
   static String get baseUrl {
     return 'https://lets-meet-server.vercel.app/api';
@@ -58,9 +65,9 @@ class ApiService implements AuthServiceInterface {
       );
       if (response.statusCode != 200) {
         print('❌ [ApiService] 서버 응답 상태: ${response.statusCode}');
-        print('❌ [ApiService] 서버 응답 본문: ${response.body}');
+        print('❌ [ApiService] 서버 응답 본문: ${_utf8Body(response)}');
         try {
-          final errorData = jsonDecode(response.body);
+          final errorData = _jsonBody(response);
           final errorMessage =
               errorData['error'] ?? 'Failed to login with Kakao';
           print('❌ [ApiService] 파싱된 에러 메시지: $errorMessage');
@@ -70,13 +77,13 @@ class ApiService implements AuthServiceInterface {
               e.toString().contains('Failed to login with Kakao')) {
             rethrow;
           }
-          print('❌ [ApiService] JSON 파싱 실패, 원본 응답: ${response.body}');
+          print('❌ [ApiService] JSON 파싱 실패, 원본 응답: ${_utf8Body(response)}');
           throw Exception(
-            'Failed to login with Kakao: ${response.statusCode}\nResponse: ${response.body}',
+            'Failed to login with Kakao: ${response.statusCode}\nResponse: ${_utf8Body(response)}',
           );
         }
       }
-      final data = jsonDecode(response.body);
+      final data = _jsonBody(response);
       final result = {
         'uid': data['uid'] as String,
         'kakao_id': data['kakao_id'] as String,
@@ -110,7 +117,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception('Failed to get user');
     }
-    return User.fromJson(jsonDecode(response.body));
+    return User.fromJson(_jsonBody(response));
   }
 
   /// 계정 탈퇴 (App Store Guideline 5.1.1(v) - 계정 생성 시 계정 삭제 제공)
@@ -121,7 +128,7 @@ class ApiService implements AuthServiceInterface {
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
       String message = '계정 탈퇴에 실패했습니다.';
-      final body = response.body.trim();
+      final body = _utf8Body(response).trim();
       if (body.isNotEmpty) {
         try {
           final data = jsonDecode(body) as Map<String, dynamic>?;
@@ -164,7 +171,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to update user');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
 
     // 카카오 로그인이고 새 사용자인 경우 custom_token이 포함된 Map 반환
     // 그 외의 경우 User 객체 반환
@@ -182,7 +189,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200) {
-      final body = response.body;
+      final body = _utf8Body(response);
       Object? err;
       if (body.isNotEmpty) {
         try {
@@ -193,7 +200,7 @@ class ApiService implements AuthServiceInterface {
       final suffix = err != null ? ': $err' : '';
       throw Exception('HTTP ${response.statusCode}$suffix (userId=$userId)');
     }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _jsonBody(response) as Map<String, dynamic>;
   }
 
   /// 호스트인 모임별 pending 신청 수 조회
@@ -205,7 +212,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       return {};
     }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = _jsonBody(response) as Map<String, dynamic>;
     return data.map((k, v) => MapEntry(k, (v as num).toInt()));
   }
 
@@ -241,10 +248,10 @@ class ApiService implements AuthServiceInterface {
       body: jsonEncode({'content': content}),
     );
     if (response.statusCode != 200) {
-      final body = jsonDecode(response.body);
+      final body = _jsonBody(response);
       throw Exception(body['error'] ?? '모임 소개 생성에 실패했습니다.');
     }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = _jsonBody(response) as Map<String, dynamic>;
     return data['introduction'] as String;
   }
 
@@ -257,7 +264,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       return {'chat_push_enabled': true};
     }
-    return jsonDecode(response.body) as Map<String, dynamic>;
+    return _jsonBody(response) as Map<String, dynamic>;
   }
 
   /// 채팅 푸시 알림 설정 업데이트
@@ -376,7 +383,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get meetings');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).map((e) => Meeting.fromJson(e)).toList();
   }
 
@@ -388,7 +395,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get meeting');
     }
-    return Meeting.fromJson(jsonDecode(response.body));
+    return Meeting.fromJson(_jsonBody(response));
   }
 
   Future<String> uploadMeetingImage(XFile xFile) async {
@@ -460,7 +467,7 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final errorBody = _jsonBody(response) as Map<String, dynamic>?;
       final msg = errorBody?['error']?.toString() ?? 'Failed to create meeting';
       final field = errorBody?['field']?.toString();
       if (response.statusCode == 400 && field != null) {
@@ -468,7 +475,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception(msg);
     }
-    return Meeting.fromJson(jsonDecode(response.body));
+    return Meeting.fromJson(_jsonBody(response));
   }
 
   Future<void> deleteMeeting(String id) async {
@@ -477,7 +484,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to delete meeting');
     }
   }
@@ -525,7 +532,7 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final errorBody = _jsonBody(response) as Map<String, dynamic>?;
       final msg = errorBody?['error']?.toString() ?? 'Failed to update meeting';
       final field = errorBody?['field']?.toString();
       if (response.statusCode == 400 && field != null) {
@@ -533,7 +540,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception(msg);
     }
-    return Meeting.fromJson(jsonDecode(response.body));
+    return Meeting.fromJson(_jsonBody(response));
   }
 
   /// 모임 평가 완료 여부
@@ -543,7 +550,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200) return true;
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = _jsonBody(response) as Map<String, dynamic>;
     return (data['submitted'] as bool?) ?? true;
   }
 
@@ -554,7 +561,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200) return [];
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     if (data is! List) return [];
     return data.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -579,10 +586,10 @@ class ApiService implements AuthServiceInterface {
       body: jsonEncode(body),
     );
     debugPrint(
-        '🔵 [ApiService] 평가 제출 응답: status=${response.statusCode}, body=${response.body}');
+        '🔵 [ApiService] 평가 제출 응답: status=${response.statusCode}, body=${_utf8Body(response)}');
     if (response.statusCode != 200) {
       final err =
-          (jsonDecode(response.body) as Map<String, dynamic>?)?['error'];
+          (_jsonBody(response) as Map<String, dynamic>?)?['error'];
       throw Exception(err ?? 'Failed to submit evaluation');
     }
   }
@@ -616,10 +623,10 @@ class ApiService implements AuthServiceInterface {
       );
 
       debugPrint('🔵 [ApiService] 응답 상태 코드: ${response.statusCode}');
-      debugPrint('🔵 [ApiService] 응답 본문: ${response.body}');
+      debugPrint('🔵 [ApiService] 응답 본문: ${_utf8Body(response)}');
 
       if (response.statusCode != 201) {
-        final errorBody = jsonDecode(response.body);
+        final errorBody = _jsonBody(response);
         debugPrint('❌ [ApiService] 신청 실패');
         debugPrint(
           '❌ [ApiService] 에러: ${errorBody['error'] ?? 'Unknown error'}',
@@ -627,7 +634,7 @@ class ApiService implements AuthServiceInterface {
         throw Exception(errorBody['error'] ?? 'Failed to apply to meeting');
       }
 
-      final responseData = jsonDecode(response.body);
+      final responseData = _jsonBody(response);
       debugPrint('✅ [ApiService] 신청 성공');
       debugPrint('✅ [ApiService] 응답 데이터: $responseData');
       return Application.fromJson(responseData);
@@ -648,7 +655,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get applications');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).cast<Map<String, dynamic>>();
   }
 
@@ -660,7 +667,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to approve application');
     }
-    return Application.fromJson(jsonDecode(response.body));
+    return Application.fromJson(_jsonBody(response));
   }
 
   Future<Application> rejectApplication(String applicationId) async {
@@ -671,7 +678,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to reject application');
     }
-    return Application.fromJson(jsonDecode(response.body));
+    return Application.fromJson(_jsonBody(response));
   }
 
   // Feed APIs
@@ -683,7 +690,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get feeds');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).map((e) => Feed.fromJson(e)).toList();
   }
 
@@ -695,7 +702,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get my feeds');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).map((e) => Feed.fromJson(e)).toList();
   }
 
@@ -707,7 +714,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get user feeds');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).map((e) => Feed.fromJson(e)).toList();
   }
 
@@ -724,7 +731,7 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final errorBody = _jsonBody(response) as Map<String, dynamic>?;
       final msg = errorBody?['error']?.toString() ?? 'Failed to create feed';
       final field = errorBody?['field']?.toString();
       if (response.statusCode == 400 && field != null) {
@@ -732,7 +739,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception(msg);
     }
-    return Feed.fromJson(jsonDecode(response.body));
+    return Feed.fromJson(_jsonBody(response));
   }
 
   Future<Feed> updateFeed(
@@ -749,7 +756,7 @@ class ApiService implements AuthServiceInterface {
       }),
     );
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final errorBody = _jsonBody(response) as Map<String, dynamic>?;
       final msg = errorBody?['error']?.toString() ?? 'Failed to update feed';
       final field = errorBody?['field']?.toString();
       if (response.statusCode == 400 && field != null) {
@@ -757,7 +764,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception(msg);
     }
-    return Feed.fromJson(jsonDecode(response.body));
+    return Feed.fromJson(_jsonBody(response));
   }
 
   Future<void> deleteFeed(String id) async {
@@ -766,7 +773,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to delete feed');
     }
   }
@@ -777,7 +784,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to toggle like');
     }
   }
@@ -790,7 +797,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       throw Exception('Failed to get comments');
     }
-    final data = jsonDecode(response.body);
+    final data = _jsonBody(response);
     return (data as List).map((e) => FeedComment.fromJson(e)).toList();
   }
 
@@ -801,7 +808,7 @@ class ApiService implements AuthServiceInterface {
       body: jsonEncode({'content': content}),
     );
     if (response.statusCode != 201) {
-      final errorBody = jsonDecode(response.body) as Map<String, dynamic>?;
+      final errorBody = _jsonBody(response) as Map<String, dynamic>?;
       final msg = errorBody?['error']?.toString() ?? 'Failed to create comment';
       final field = errorBody?['field']?.toString();
       if (response.statusCode == 400 && field != null) {
@@ -809,7 +816,7 @@ class ApiService implements AuthServiceInterface {
       }
       throw Exception(msg);
     }
-    return FeedComment.fromJson(jsonDecode(response.body));
+    return FeedComment.fromJson(_jsonBody(response));
   }
 
   Future<String> uploadFeedImage(File file) async {
@@ -858,7 +865,7 @@ class ApiService implements AuthServiceInterface {
       body: jsonEncode(body),
     );
     if (response.statusCode != 201 && response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to report content');
     }
   }
@@ -870,7 +877,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to block user');
     }
   }
@@ -882,7 +889,7 @@ class ApiService implements AuthServiceInterface {
       headers: _headers,
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      final errorBody = jsonDecode(response.body);
+      final errorBody = _jsonBody(response);
       throw Exception(errorBody['error'] ?? 'Failed to unblock user');
     }
   }
@@ -896,7 +903,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       return [];
     }
-    final body = jsonDecode(response.body);
+    final body = _jsonBody(response);
     final list = body['blocked_user_ids'];
     if (list is List) {
       return list.map((e) => e.toString()).toList();
@@ -913,7 +920,7 @@ class ApiService implements AuthServiceInterface {
     if (response.statusCode != 200) {
       return [];
     }
-    final body = jsonDecode(response.body);
+    final body = _jsonBody(response);
     final list = body['blocked_users'];
     if (list is! List) return [];
     return list.map((e) {

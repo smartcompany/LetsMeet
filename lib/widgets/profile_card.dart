@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/user.dart' as app_models;
 import '../theme/app_theme.dart';
 import '../utils/trust_score_utils.dart';
+import 'profile_style_text.dart';
 
 /// 프로필 카드 공통 위젯
 /// 배경 사진, 프로필 사진, 표시 이름(닉네임), 가입일, 자기소개, 신뢰도 배지, 관심사 표시
@@ -309,7 +310,7 @@ class ProfileCard extends StatelessWidget {
                   if (lifeSceneText != null && lifeSceneText!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
+                      child: ProfileStyleText(
                         lifeSceneText!,
                         style: TextStyle(
                           fontSize: 14,
@@ -322,7 +323,7 @@ class ProfileCard extends StatelessWidget {
                   if (selfStatementText != null && selfStatementText!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
+                      child: ProfileStyleText(
                         selfStatementText!,
                         style: TextStyle(
                           fontSize: 14,
@@ -334,7 +335,7 @@ class ProfileCard extends StatelessWidget {
                     ),
                   if (interactionStyleText != null &&
                       interactionStyleText!.isNotEmpty)
-                    Text(
+                    ProfileStyleText(
                       interactionStyleText!,
                       style: TextStyle(
                         fontSize: 14,
