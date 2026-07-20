@@ -1,6 +1,8 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../screens/meeting_detail_screen.dart';
+import '../services/app_analytics_service.dart';
 
 /// 모임 딥링크 처리
 /// - letsmeet://meeting/{id}
@@ -32,6 +34,19 @@ class DeepLinkHandler {
       if (uri == null) return;
       final meetingId = _parseMeetingId(uri);
       if (meetingId == null || meetingId.isEmpty) return;
+
+      unawaited(
+        AppAnalyticsService.log(
+          'deep_link_opened',
+          properties: {'target': 'meeting'},
+        ),
+      );
+      unawaited(
+        AppAnalyticsService.log(
+          'meeting_detail_opened',
+          properties: {'source': 'deep_link'},
+        ),
+      );
 
       final context = navigatorKey.currentContext;
       if (context == null) return;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
@@ -7,6 +8,7 @@ import '../utils/auth_helper.dart';
 import '../providers/meeting_provider.dart';
 import '../providers/notification_provider.dart';
 import '../services/api_service.dart';
+import '../services/app_analytics_service.dart';
 import 'home_screen.dart';
 import 'notifications_screen.dart';
 import 'feed_screen.dart';
@@ -45,6 +47,18 @@ class _MainTabScreenState extends State<MainTabScreen>
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+
+  void _selectTab(int index, {String? tabName}) {
+    setState(() => _currentIndex = index);
+    if (tabName != null) {
+      unawaited(
+        AppAnalyticsService.log(
+          'tab_selected',
+          properties: {'tab': tabName},
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -444,13 +458,13 @@ class _MainTabScreenState extends State<MainTabScreen>
                         _TabItem(
                           icon: Icons.group_rounded,
                           isSelected: _currentIndex == 0,
-                          onTap: () => setState(() => _currentIndex = 0),
+                          onTap: () => _selectTab(0, tabName: 'home'),
                         ),
                         _TabItem(
                           icon: Icons.dynamic_feed_rounded,
                           isSelected: _currentIndex == 1,
                           onTap: () {
-                            setState(() => _currentIndex = 1);
+                            _selectTab(1, tabName: 'feed');
                             // 피드 탭으로 이동할 때 새로고침
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               _feedScreenKey.currentState?.refresh();
@@ -462,14 +476,14 @@ class _MainTabScreenState extends State<MainTabScreen>
                           builder: (_, count, __) => _TabItem(
                             icon: Icons.forum_rounded,
                             isSelected: _currentIndex == 2,
-                            onTap: () => setState(() => _currentIndex = 2),
+                            onTap: () => _selectTab(2, tabName: 'chat'),
                             badge: count > 0 ? count : null,
                           ),
                         ),
                         _TabItem(
                           icon: Icons.account_circle_rounded,
                           isSelected: _currentIndex == 3,
-                          onTap: () => setState(() => _currentIndex = 3),
+                          onTap: () => _selectTab(3, tabName: 'profile'),
                         ),
                       ],
                     ),

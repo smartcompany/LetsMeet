@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_lib/share_lib_auth.dart';
@@ -5,6 +7,7 @@ import '../app_auth_provider.dart';
 import '../screens/profile_setup_screen.dart';
 import '../models/user.dart';
 import '../config/auth_config.dart';
+import '../services/app_analytics_service.dart';
 
 class AuthHelper {
   /// 인증이 필요한 경우 인증 플로우를 시작하고,
@@ -12,6 +15,8 @@ class AuthHelper {
   /// 이미 인증되어 있으면 true를 반환합니다.
   static Future<bool> requireAuth(BuildContext context) async {
     if (!AppAuthProvider.shared.isLoggedIn()) {
+      unawaited(AppAnalyticsService.log('login_required'));
+      unawaited(AppAnalyticsService.log('login_started'));
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -22,14 +27,23 @@ class AuthHelper {
           fullscreenDialog: true,
         ),
       );
+      if (result == true) {
+        unawaited(AppAnalyticsService.log('login_succeeded'));
+      } else {
+        unawaited(AppAnalyticsService.log('login_cancelled'));
+      }
       return result == true;
     }
 
     if (AppAuthProvider.shared.needProfileSetup()) {
+      unawaited(AppAnalyticsService.log('profile_setup_viewed'));
       final result = await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ProfileSetupScreen()),
       );
+      if (result == true) {
+        unawaited(AppAnalyticsService.log('profile_setup_completed'));
+      }
       return result == true;
     }
 

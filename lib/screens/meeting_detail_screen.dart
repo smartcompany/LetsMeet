@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +9,7 @@ import '../providers/meeting_provider.dart';
 import '../services/api_service.dart';
 import '../services/chat_service.dart';
 import '../utils/auth_helper.dart';
+import '../services/app_analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import '../utils/ugc_moderation.dart';
@@ -252,6 +255,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       _isSubmitting = true;
     });
 
+    unawaited(AppAnalyticsService.log('meeting_apply_started'));
+
     try {
       debugPrint('🔵 [MeetingDetailScreen] MeetingProvider 가져오기');
       final meetingProvider = MeetingProvider.shared;
@@ -278,6 +283,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       );
 
       debugPrint('✅ [MeetingDetailScreen] 신청 성공');
+      unawaited(AppAnalyticsService.log('meeting_apply_succeeded'));
       if (!mounted) return;
 
       setState(() {
@@ -290,6 +296,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       debugPrint('❌ [MeetingDetailScreen] 에러 타입: ${e.runtimeType}');
       debugPrint('❌ [MeetingDetailScreen] 에러 메시지: $e');
       debugPrint('❌ [MeetingDetailScreen] 스택 트레이스: $stackTrace');
+      unawaited(
+        AppAnalyticsService.log(
+          'meeting_apply_failed',
+          properties: {'reason': e.runtimeType.toString()},
+        ),
+      );
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;

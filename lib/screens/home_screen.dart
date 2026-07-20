@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../providers/meeting_provider.dart';
 import '../widgets/meeting_card.dart';
 import '../widgets/filter_bar.dart';
 import '../widgets/home_meeting_sort_bar.dart';
 import '../theme/app_theme.dart';
+import '../services/app_analytics_service.dart';
 import 'meeting_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!_didNotifyAppeared) {
         _didNotifyAppeared = true;
         widget.onAppeared?.call();
+        unawaited(AppAnalyticsService.log('home_viewed'));
       }
     });
   }
@@ -41,6 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
     MeetingProvider meetingProvider,
     String meetingId,
   ) async {
+    unawaited(
+      AppAnalyticsService.log(
+        'meeting_detail_opened',
+        properties: {'source': 'home'},
+      ),
+    );
     final result = await Navigator.push(
       context,
       MaterialPageRoute(

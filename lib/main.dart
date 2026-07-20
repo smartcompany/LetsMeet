@@ -16,7 +16,9 @@ import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/push_service.dart';
+import 'services/app_analytics_service.dart';
 import 'utils/app_localization.dart';
+import 'utils/deep_link_handler.dart';
 import 'utils/screen_stack_observer.dart';
 import 'widgets/keyboard_dismiss_overlay.dart';
 
@@ -92,7 +94,9 @@ class _MyAppState extends State<MyApp> {
 
     unawaited(_initKakaoMap());
     unawaited(PushService.shared.initialize());
+    unawaited(AppAnalyticsService.initialize());
     unawaited(MeetingProvider.shared.loadMeetings());
+    DeepLinkHandler.init(navigatorKey);
 
     await initializeDateFormatting('ko_KR', null);
 

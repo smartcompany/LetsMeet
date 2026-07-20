@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:share_lib/share_lib_image_picker.dart';
 import '../services/api_service.dart';
+import '../services/app_analytics_service.dart';
 import '../providers/meeting_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kakao_map_location_picker.dart';
@@ -63,6 +66,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(AppAnalyticsService.log('meeting_create_opened'));
     _titleController.addListener(_onFieldChanged);
     _descriptionController.addListener(_onFieldChanged);
     _locationController.addListener(_onFieldChanged);
@@ -363,6 +367,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   Future<void> _requestAiIntroduction() async {
     if (_isLoadingAd || _isGeneratingAi) return;
 
+    unawaited(AppAnalyticsService.log('meeting_create_ai_opened'));
+
     final prompt = await showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -379,6 +385,19 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       );
       return;
     }
+
+    unawaited(
+      AppAnalyticsService.log(
+        'meeting_create_ai_submitted',
+        properties: {
+          'prompt_length_bucket': prompt.trim().length <= 20
+              ? 'short'
+              : prompt.trim().length <= 60
+                  ? 'medium'
+                  : 'long',
+        },
+      ),
+    );
 
     // 팝업 닫힌 뒤 포커스가 아래 모임 소개란으로 돌아가 키보드가 남지 않도록
     FocusManager.instance.primaryFocus?.unfocus();
@@ -407,10 +426,17 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               _hasUnsavedChanges = true;
               _isGeneratingAi = false;
             });
+            unawaited(AppAnalyticsService.log('meeting_create_ai_succeeded'));
           }
         } catch (e) {
           if (mounted) {
             setState(() => _isGeneratingAi = false);
+            unawaited(
+              AppAnalyticsService.log(
+                'meeting_create_ai_failed',
+                properties: {'reason': e.runtimeType.toString()},
+              ),
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('$e')),
             );
@@ -547,6 +573,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       _isLoading = true;
     });
 
+    unawaited(AppAnalyticsService.log('meeting_create_submitted'));
+
     try {
       final meetingDateTime = _selectedDateTime!;
 
@@ -632,6 +660,8 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
         // Refresh meetings list
         await MeetingProvider.shared.loadMeetings();
 
+        unawaited(AppAnalyticsService.log('meeting_create_succeeded'));
+
         if (!mounted) return;
 
         // Navigate to meeting detail
@@ -646,6 +676,12 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
+      unawaited(
+        AppAnalyticsService.log(
+          'meeting_create_failed',
+          properties: {'reason': e.runtimeType.toString()},
+        ),
+      );
       if (!mounted) return;
       // 금지어 등 검증 에러: 필드별로 표시 (스넥바 사용 안 함)
       if (e is ApiValidationException && e.field != null) {
