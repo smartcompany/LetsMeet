@@ -25,16 +25,17 @@ class AppAuthProvider extends AuthProvider<User> {
           authService: ApiService.shared,
           googleServerClientId: _googleServerClientId,
         ) {
+    // 첫 프레임 전에 토큰 확보 시작 (메인 탭 API 레이스 방지)
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser != null) {
+      fbUser.getIdToken().then((token) {
+        if (token != null) {
+          ApiService.shared.setToken(token);
+        }
+      });
+    }
     SchedulerBinding.instance.addPostFrameCallback((_) {
       initialize();
-      final fbUser = FirebaseAuth.instance.currentUser;
-      if (fbUser != null) {
-        fbUser.getIdToken().then((token) {
-          if (token != null) {
-            ApiService.shared.setToken(token);
-          }
-        });
-      }
     });
   }
 }

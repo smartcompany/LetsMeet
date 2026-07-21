@@ -13,6 +13,7 @@ import '../services/app_analytics_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/user_profile_view.dart';
 import '../utils/ugc_moderation.dart';
+import '../utils/share_helper.dart';
 import '../widgets/map_app_selector.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_chat_screen.dart';
@@ -324,6 +325,18 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         appBar: AppBar(
         title: const Text('모임 상세'),
         actions: [
+          if (_meeting != null)
+            Builder(
+              builder: (btnCtx) => IconButton(
+                icon: const Icon(Icons.share_outlined),
+                tooltip: '모임 공유',
+                onPressed: () => ShareHelper.shareMeeting(
+                  btnCtx,
+                  meetingId: _meeting!.id,
+                  title: _meeting!.title,
+                ),
+              ),
+            ),
           if (_meeting != null &&
               _meeting!.status == MeetingStatus.completed &&
               _evaluationSubmitted == false &&

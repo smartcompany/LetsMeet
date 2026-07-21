@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:share_lib/share_lib_auth.dart';
 import '../models/user.dart';
 import '../models/meeting.dart';
@@ -46,6 +47,27 @@ class ApiService implements AuthServiceInterface {
 
   void setToken(String token) {
     _token = token;
+  }
+
+  /// Firebase 세션이 있으면 ID 토큰을 확보. 없으면 _token 비움.
+  Future<bool> ensureAuthToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _token = null;
+      return false;
+    }
+    try {
+      final token = await user.getIdToken();
+      if (token == null || token.isEmpty) {
+        _token = null;
+        return false;
+      }
+      _token = token;
+      return true;
+    } catch (e) {
+      debugPrint('[ApiService] ensureAuthToken failed: $e');
+      return _token != null;
+    }
   }
 
   Map<String, String> get _headers => {
@@ -205,11 +227,18 @@ class ApiService implements AuthServiceInterface {
 
   /// 호스트인 모임별 pending 신청 수 조회
   Future<Map<String, int>> getPendingApplicationCounts() async {
+    if (!await ensureAuthToken()) {
+      return {};
+    }
     final response = await http.get(
       Uri.parse('$baseUrl/users/me/pending-application-counts'),
       headers: _headers,
     );
     if (response.statusCode != 200) {
+      debugPrint(
+        '[ApiService] pending-application-counts '
+        '${response.statusCode}: ${_utf8Body(response)}',
+      );
       return {};
     }
     final data = _jsonBody(response) as Map<String, dynamic>;
@@ -293,25 +322,55 @@ class ApiService implements AuthServiceInterface {
 
   /// 프로필 이미지 업로드 (Supabase Storage 경유)
   Future<String> uploadProfileImage(File file) async {
-    final uri = Uri.parse('$baseUrl/users/me/profile-image');
-    final request = http.MultipartRequest('POST', uri);
-
-    // JSON Content-Type은 MultipartRequest가 알아서 설정하므로 추가하지 않음
-    if (_token != null) {
-      request.headers['Authorization'] = 'Bearer $_token';
+    if (_token == null || _token!.isEmpty) {
+      throw Exception('로그인이 필요합니다');
+    }
+    if (!await file.exists()) {
+      throw Exception('업로드할 파일을 찾을 수 없습니다');
+    }
+    final fileSize = await file.length();
+    if (fileSize <= 0) {
+      throw Exception('업로드할 파일이 비어 있습니다');
     }
 
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    final uri = Uri.parse('$baseUrl/users/me/profile-image');
+    debugPrint(
+      '🟡 [ApiService] 프로필 업로드: $uri, size=$fileSize, path=${file.path}',
+    );
+
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $_token';
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        filename: 'profile.jpg',
+      ),
+    );
 
     final streamedResponse = await request.send();
     final responseBody = await streamedResponse.stream.bytesToString();
+    debugPrint(
+      '🟡 [ApiService] 프로필 업로드 응답: status=${streamedResponse.statusCode}, body=$responseBody',
+    );
 
     if (streamedResponse.statusCode != 200) {
-      throw Exception('Failed to upload profile image');
+      String message = '프로필 사진 업로드 실패 (${streamedResponse.statusCode})';
+      try {
+        final decoded = jsonDecode(responseBody);
+        if (decoded is Map && decoded['error'] != null) {
+          message = decoded['error'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
     }
 
     final data = jsonDecode(responseBody);
-    return data['url'] as String;
+    final url = data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw Exception('응답에 url이 없습니다: $data');
+    }
+    return url;
   }
 
   /// 배경 이미지 업로드 (Supabase Storage 경유)
@@ -556,6 +615,7 @@ class ApiService implements AuthServiceInterface {
 
   /// 평가 대기 목록 (참가했고 완료되었으나 미평가 모임)
   Future<List<Map<String, dynamic>>> getPendingEvaluations() async {
+    if (!await ensureAuthToken()) return [];
     final response = await http.get(
       Uri.parse('$baseUrl/users/me/pending-evaluations'),
       headers: _headers,

@@ -17,6 +17,7 @@ import 'profile_screen.dart';
 import 'create_meeting_screen.dart';
 import 'meeting_evaluation_screen.dart';
 import '../widgets/brand_title.dart';
+import '../utils/share_helper.dart';
 
 class MainTabScreen extends StatefulWidget {
   /// 홈 탭이 첫 프레임까지 그려진 뒤 호출 (스플래시 제거용)
@@ -207,19 +208,18 @@ class _MainTabScreenState extends State<MainTabScreen>
   }
 
   // 탭 영역 패딩 상수
-  static const double _tabBarHorizontalPadding = 8.0;
-  static const double _tabBarVerticalPadding = 8.0;
+  static const double _tabBarHorizontalPadding = 4.0;
+  static const double _tabBarVerticalPadding = 6.0;
 
   // 피드 화면 새로고침을 위한 GlobalKey
   final GlobalKey<FeedScreenState> _feedScreenKey =
       GlobalKey<FeedScreenState>();
 
-  // 탭 아이템 크기 상수
-  static const double _tabItemHorizontalPadding = 12.0;
+  // 탭 아이템 크기 상수 (4등분 셀 안에서 배경·터치 영역 사용)
+  static const double _tabItemHorizontalMargin = 4.0;
   static const double _tabItemVerticalPadding = 10.0;
   static const double _tabIconSize = 26.0;
-  static const double _tabIconContainerPadding = 8.0;
-  static const double _tabIconContainerRadius = 14.0;
+  static const double _tabIconContainerRadius = 16.0;
 
   int _currentIndex = 0;
 
@@ -333,6 +333,13 @@ class _MainTabScreenState extends State<MainTabScreen>
                     NotificationProvider.shared.loadUnreadCount();
                   }
                 },
+              ),
+              Builder(
+                builder: (btnCtx) => IconButton(
+                  icon: const Icon(Icons.share_outlined),
+                  tooltip: '앱 공유',
+                  onPressed: () => ShareHelper.shareApp(btnCtx),
+                ),
               ),
             ],
           );
@@ -453,37 +460,44 @@ class _MainTabScreenState extends State<MainTabScreen>
                       vertical: _tabBarVerticalPadding,
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _TabItem(
-                          icon: Icons.group_rounded,
-                          isSelected: _currentIndex == 0,
-                          onTap: () => _selectTab(0, tabName: 'home'),
-                        ),
-                        _TabItem(
-                          icon: Icons.dynamic_feed_rounded,
-                          isSelected: _currentIndex == 1,
-                          onTap: () {
-                            _selectTab(1, tabName: 'feed');
-                            // 피드 탭으로 이동할 때 새로고침
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _feedScreenKey.currentState?.refresh();
-                            });
-                          },
-                        ),
-                        ValueListenableBuilder<int>(
-                          valueListenable: _chatUnreadNotifier,
-                          builder: (_, count, __) => _TabItem(
-                            icon: Icons.forum_rounded,
-                            isSelected: _currentIndex == 2,
-                            onTap: () => _selectTab(2, tabName: 'chat'),
-                            badge: count > 0 ? count : null,
+                        Expanded(
+                          child: _TabItem(
+                            icon: Icons.group_rounded,
+                            isSelected: _currentIndex == 0,
+                            onTap: () => _selectTab(0, tabName: 'home'),
                           ),
                         ),
-                        _TabItem(
-                          icon: Icons.account_circle_rounded,
-                          isSelected: _currentIndex == 3,
-                          onTap: () => _selectTab(3, tabName: 'profile'),
+                        Expanded(
+                          child: _TabItem(
+                            icon: Icons.dynamic_feed_rounded,
+                            isSelected: _currentIndex == 1,
+                            onTap: () {
+                              _selectTab(1, tabName: 'feed');
+                              // 피드 탭으로 이동할 때 새로고침
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _feedScreenKey.currentState?.refresh();
+                              });
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: ValueListenableBuilder<int>(
+                            valueListenable: _chatUnreadNotifier,
+                            builder: (_, count, __) => _TabItem(
+                              icon: Icons.forum_rounded,
+                              isSelected: _currentIndex == 2,
+                              onTap: () => _selectTab(2, tabName: 'chat'),
+                              badge: count > 0 ? count : null,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: _TabItem(
+                            icon: Icons.account_circle_rounded,
+                            isSelected: _currentIndex == 3,
+                            onTap: () => _selectTab(3, tabName: 'profile'),
+                          ),
                         ),
                       ],
                     ),
@@ -573,62 +587,72 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: _MainTabScreenState._tabItemHorizontalPadding,
-          vertical: _MainTabScreenState._tabItemVerticalPadding,
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              padding: EdgeInsets.all(
-                _MainTabScreenState._tabIconContainerPadding,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppTheme.primaryColor.withOpacity(0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(
-                  _MainTabScreenState._tabIconContainerRadius,
-                ),
-              ),
-              child: Icon(
-                icon,
-                size: _MainTabScreenState._tabIconSize,
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : AppTheme.textTertiaryColor,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _MainTabScreenState._tabItemHorizontalMargin,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            _MainTabScreenState._tabIconContainerRadius,
+          ),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.primaryColor.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(
+                _MainTabScreenState._tabIconContainerRadius,
               ),
             ),
-            if (badge != null && badge! > 0)
-              Positioned(
-                right: -4,
-                top: -4,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  child: Text(
-                    badge! > 9 ? '9+' : badge.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: _MainTabScreenState._tabItemVerticalPadding,
+              ),
+              child: Center(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: _MainTabScreenState._tabIconSize,
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : AppTheme.textTertiaryColor,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                    if (badge != null && badge! > 0)
+                      Positioned(
+                        right: -10,
+                        top: -8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            badge! > 9 ? '9+' : badge.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );
